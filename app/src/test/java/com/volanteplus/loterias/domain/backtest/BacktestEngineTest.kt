@@ -106,6 +106,29 @@ class BacktestEngineTest {
     }
 
     @Test
+    fun `estrategia com historico roda sobre a janela de treino`() = runTest {
+        val report = BacktestEngine(seededRepository()).run(
+            config().copy(strategy = GenerationStrategy.FREQUENCY)
+        )
+
+        assertEquals(5, report.trainingDraws)
+        assertEquals(60, report.totalGames)
+    }
+
+    @Test
+    fun `estrategia com historico falha sem janela de treino`() = runTest {
+        val repo = InMemoryDrawRepository()
+        // apenas concursos após o corte: treino vazio
+        repo.upsertAll(listOf(megaDraw(1, LocalDate.of(2024, 7, 10))))
+
+        val error = runCatching {
+            BacktestEngine(repo).run(config().copy(strategy = GenerationStrategy.FREQUENCY))
+        }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
+    }
+
+    @Test
     fun `baseline hipergeometrico por loteria`() {
         assertEquals(0.6, BacktestEngine.expectedMeanHits(Lottery.MEGA_SENA), 1e-9)
         assertEquals(0.72, BacktestEngine.expectedMeanHits(Lottery.MAIS_MILIONARIA), 1e-9)

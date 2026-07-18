@@ -1,12 +1,24 @@
 package com.volanteplus.loterias.domain.model
 
 /** Estratégias de geração de jogos. */
-enum class GenerationStrategy(val displayName: String, val description: String) {
+enum class GenerationStrategy(
+    val displayName: String,
+    val description: String,
+    /** Estratégias com histórico só rodam sob o protocolo de backtesting. */
+    val requiresHistory: Boolean = false,
+) {
     /** RNG criptográfico. Zero viés, zero filtro. */
     RANDOM("Aleatório puro", "RNG criptográfico. Zero viés, zero filtro."),
 
     /** Espalha pares/ímpares matematicamente (3 de cada por jogo). */
     BALANCED("Equilibrado", "Espalha pares/ímpares matematicamente."),
+
+    /** "Números quentes": a promessa clássica que o backtesting coloca à prova. */
+    FREQUENCY(
+        "Mais sorteadas",
+        "Prioriza as dezenas mais frequentes da janela de treino — hipótese a refutar.",
+        requiresHistory = true,
+    ),
 }
 
 /**

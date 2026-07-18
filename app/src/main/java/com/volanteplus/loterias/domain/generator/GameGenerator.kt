@@ -34,8 +34,20 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         gameCount: Int,
         trevoStrategy: TrevoStrategy = TrevoStrategy.ECONOMICO,
         pool: Collection<Int>? = null,
+        /** Concursos da janela de treino; obrigatório para estratégias com histórico. */
+        history: List<Draw>? = null,
     ): GameBatch {
         require(gameCount in 1..MAX_GAMES) { "Quantidade de jogos deve estar em 1..$MAX_GAMES" }
+        if (strategy.requiresHistory) {
+            require(!history.isNullOrEmpty()) {
+                "Estratégia ${strategy.displayName} exige histórico de concursos (janela de treino vazia)"
+            }
+        }
+        val frequencies: Map<Int, Int> = if (strategy.requiresHistory) {
+            history!!.flatMap { it.numbers }.groupingBy { it }.eachCount()
+        } else {
+            emptyMap()
+        }
         val source = pool?.toList()?.sorted() ?: lottery.numberRange.toList()
         if (pool != null) {
             require(source.size >= GAME_SIZE) {
@@ -62,6 +74,9 @@ class GameGenerator(private val random: Random = SecureRandom()) {
 
                 GenerationStrategy.BALANCED ->
                     pickBalanced(unused, GAME_SIZE - picked.size, picked)
+
+                GenerationStrategy.FREQUENCY ->
+                    pickByFrequency(unused, GAME_SIZE - picked.size, frequencies)
             }
             unused.removeAll(picked.toSet())
             GeneratedGame(
@@ -74,6 +89,15 @@ class GameGenerator(private val random: Random = SecureRandom()) {
 
     private fun pickRandom(pool: List<Int>, count: Int): List<Int> =
         pool.shuffled(random).take(count)
+
+    /**
+     * As dezenas mais frequentes do histórico; o embaralhamento prévio faz o
+     * desempate aleatório entre frequências iguais (ordenação estável).
+     */
+    private fun pickByFrequency(pool: List<Int>, count: Int, frequencies: Map<Int, Int>): List<Int> =
+        pool.shuffled(random)
+            .sortedByDescending { frequencies[it] ?: 0 }
+            .take(count)
 
     /**
      * Completa o jogo mirando metade par, metade ímpar (3+3), descontando o

@@ -138,6 +138,12 @@ class VolanteViewModel(
 
     fun generateBatch() {
         _uiState.update { state ->
+            if (state.generationStrategy.requiresHistory) {
+                return@update state.copy(
+                    message = "A estratégia ${state.generationStrategy.displayName} " +
+                        "só roda na tela de Backtesting."
+                )
+            }
             val pool = if (state.gameMode == GameMode.FECHAMENTO) {
                 val marked = state.current.numbers
                 if (marked.size < state.lottery.minSelection) {

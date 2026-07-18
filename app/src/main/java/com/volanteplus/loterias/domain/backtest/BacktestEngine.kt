@@ -12,11 +12,10 @@ import java.util.Random
  * com a estratégia sob teste para cada concurso da janela de validação e
  * cruza com os resultados reais.
  *
- * Honestidade metodológica: as estratégias atuais (Aleatório puro e
- * Equilibrado) não consomem a janela de treino — essa é exatamente a
- * hipótese nula que o laboratório existe para expor. A janela de treino é
- * carregada e reportada para que estratégias futuras baseadas em histórico
- * usem o mesmo protocolo sem enxergar dados posteriores ao corte.
+ * Honestidade metodológica: Aleatório puro e Equilibrado ignoram a janela
+ * de treino — a hipótese nula do laboratório. Estratégias com histórico
+ * (ex.: Mais sorteadas) recebem exclusivamente a janela de treino, nunca
+ * os concursos posteriores ao corte que serão usados na validação.
  *
  * As estatísticas (média/variância/desvio padrão) são calculadas sobre os
  * acertos de dezenas por jogo. A taxa de eficácia é calculada por aposta
@@ -42,6 +41,7 @@ class BacktestEngine(private val repository: DrawRepository) {
                 strategy = config.strategy,
                 gameCount = config.gamesPerContest,
                 trevoStrategy = config.trevoStrategy,
+                history = training,
             )
             for (game in batch.games) {
                 val numberHits = game.numbers.count(draw.numbers::contains)

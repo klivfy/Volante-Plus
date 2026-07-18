@@ -276,7 +276,8 @@ private fun GeneratorControls(
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(top = 16.dp),
         )
-        GenerationStrategy.entries.forEach { option ->
+        // Estratégias com histórico só rodam sob o protocolo de backtesting
+        GenerationStrategy.entries.filterNot { it.requiresHistory }.forEach { option ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier

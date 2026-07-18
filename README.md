@@ -87,3 +87,5 @@ Requer JDK 17+ e Android SDK (compileSdk 35).
 - [x] Motor de backtesting (data de corte, eficácia, variância, desvio padrão)
 - [x] Tela de backtesting (configurar corte/estratégia, sincronizar histórico e visualizar relatório)
 - [x] Modo Fechamento (desdobra as dezenas marcadas no volante com repetição mínima)
+- [x] Estratégia "Mais sorteadas" (números quentes) sob o protocolo de backtesting
+- [ ] Popular `assets/seed/` com o histórico oficial (exportação local — rede bloqueada no ambiente de desenvolvimento remoto)

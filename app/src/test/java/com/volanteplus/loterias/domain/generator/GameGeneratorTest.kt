@@ -1,5 +1,6 @@
 package com.volanteplus.loterias.domain.generator
 
+import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
@@ -7,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 import java.util.Random
 
 class GameGeneratorTest {
@@ -131,6 +133,34 @@ class GameGeneratorTest {
         assertEquals(15, duplas.size)
         assertEquals(15, duplas.toSet().size)
         assertTrue(duplas.all { it.size == 2 })
+    }
+
+    @Test
+    fun `mais sorteadas escolhe as dezenas mais frequentes da janela de treino`() {
+        val hot = listOf(7, 14, 21, 28, 35, 42)
+        val history = (1..5).map { contest ->
+            Draw(Lottery.MEGA_SENA, contest, LocalDate.of(2024, 1, contest), hot)
+        }
+
+        val batch = generator().generate(
+            Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 2, history = history,
+        )
+
+        // 1º jogo: exatamente as 6 mais frequentes; 2º jogo: repetição mínima
+        assertEquals(hot.sorted(), batch.games[0].numbers)
+        assertTrue(batch.games[1].numbers.none(hot::contains))
+    }
+
+    @Test
+    fun `mais sorteadas sem historico e rejeitada`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 1)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            generator().generate(
+                Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 1, history = emptyList(),
+            )
+        }
     }
 
     @Test
