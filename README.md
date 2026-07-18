@@ -86,4 +86,4 @@ Requer JDK 17+ e Android SDK (compileSdk 35).
 - [x] Gerador de lotes (Aleatório puro RNG criptográfico / Equilibrado) sem repetição de dezenas
 - [x] Motor de backtesting (data de corte, eficácia, variância, desvio padrão)
 - [x] Tela de backtesting (configurar corte/estratégia, sincronizar histórico e visualizar relatório)
-- [ ] Modo Fechamento (geração a partir das dezenas marcadas no volante)
+- [x] Modo Fechamento (desdobra as dezenas marcadas no volante com repetição mínima)

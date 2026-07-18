@@ -205,6 +205,13 @@ private fun VolanteContent(
             GeneratorControls(
                 batchCount = state.batchCount,
                 strategy = state.generationStrategy,
+                fechamentoHint = if (state.gameMode == GameMode.FECHAMENTO) {
+                    "Fechamento: os jogos usam apenas as dezenas marcadas no volante " +
+                        "(mín. ${lottery.minSelection}). Cada dezena marcada entra em jogo " +
+                        "antes de qualquer repetição."
+                } else {
+                    null
+                },
                 onIncrement = onIncrementBatchCount,
                 onSetCount = onSetBatchCount,
                 onSelectStrategy = onSelectStrategy,
@@ -224,6 +231,7 @@ private fun VolanteContent(
 private fun GeneratorControls(
     batchCount: Int,
     strategy: GenerationStrategy,
+    fechamentoHint: String?,
     onIncrement: () -> Unit,
     onSetCount: (Int) -> Unit,
     onSelectStrategy: (GenerationStrategy) -> Unit,
@@ -231,6 +239,14 @@ private fun GeneratorControls(
 ) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
         HorizontalDivider()
+        fechamentoHint?.let { hint ->
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
         Text(
             text = "QUANTOS JOGOS",
             style = MaterialTheme.typography.titleSmall,
@@ -296,8 +312,9 @@ private fun GeneratorControls(
 @Composable
 private fun GeneratedBatchList(batch: GameBatch) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
+        val origin = batch.sourcePool?.let { " · Fechamento de ${it.size} dezenas" } ?: ""
         Text(
-            text = "Jogos gerados (${batch.strategy.displayName})",
+            text = "Jogos gerados (${batch.strategy.displayName}$origin)",
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(bottom = 8.dp),
         )

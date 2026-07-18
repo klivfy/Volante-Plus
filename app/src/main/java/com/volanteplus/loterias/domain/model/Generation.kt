@@ -22,4 +22,6 @@ data class GameBatch(
     val lottery: Lottery,
     val strategy: GenerationStrategy,
     val games: List<GeneratedGame>,
+    /** Dezenas de origem no modo Fechamento; null quando o lote usa o volante inteiro. */
+    val sourcePool: List<Int>? = null,
 )

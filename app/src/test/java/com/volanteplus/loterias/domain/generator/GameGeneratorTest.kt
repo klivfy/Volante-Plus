@@ -45,6 +45,55 @@ class GameGeneratorTest {
     }
 
     @Test
+    fun `milionaria com 10 jogos cobre as 50 dezenas antes de repetir`() {
+        val batch = generator().generate(
+            Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, 10,
+        )
+        // repetição mínima: as 2 inéditas restantes entram no 9º jogo
+        val firstNine = batch.games.take(9).flatMap { it.numbers }.toSet()
+        assertEquals(Lottery.MAIS_MILIONARIA.numberRange.toSet(), firstNine)
+    }
+
+    @Test
+    fun `fechamento usa apenas as dezenas do pool`() {
+        val pool = setOf(3, 7, 12, 19, 24, 33, 41, 55, 58, 60)
+        val batch = generator().generate(
+            Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 5, pool = pool,
+        )
+
+        assertEquals(pool.sorted(), batch.sourcePool)
+        assertTrue(batch.games.all { pool.containsAll(it.numbers) })
+        assertTrue(batch.games.all { it.numbers.toSet().size == 6 })
+    }
+
+    @Test
+    fun `fechamento cobre todas as dezenas marcadas antes de repetir`() {
+        val pool = setOf(1, 5, 10, 15, 20, 25, 30, 35, 40, 45)
+        val batch = generator().generate(
+            Lottery.MEGA_SENA, GenerationStrategy.BALANCED, 3, pool = pool,
+        )
+        // 2 jogos (12 vagas) já superam as 10 dezenas: cobertura total até o 2º
+        val firstTwo = batch.games.take(2).flatMap { it.numbers }.toSet()
+        assertEquals(pool, firstTwo)
+    }
+
+    @Test
+    fun `fechamento rejeita pool invalido`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            generator().generate(
+                Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 1,
+                pool = setOf(1, 2, 3, 4, 5),
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            generator().generate(
+                Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, 1,
+                pool = setOf(1, 2, 3, 4, 5, 51),
+            )
+        }
+    }
+
+    @Test
     fun `estrategia equilibrada gera 3 pares e 3 impares`() {
         val batch = generator().generate(Lottery.MEGA_SENA, GenerationStrategy.BALANCED, 5)
 

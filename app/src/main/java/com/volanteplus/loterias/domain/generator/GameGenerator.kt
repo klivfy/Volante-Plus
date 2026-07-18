@@ -12,11 +12,16 @@ import java.util.Random
 /**
  * Gerador de lotes de jogos simples ([Draw.NUMBERS_DRAWN] dezenas).
  *
- * Regra do lote: dezenas não se repetem entre jogos enquanto houver dezenas
- * inéditas suficientes; quando o intervalo se esgota (ex.: +Milionária com
- * mais de 8 jogos, 8×6=48 de 50), o pool é reiniciado e a repetição mínima
- * recomeça do zero. Na Mega-Sena, 10 jogos disjuntos cobrem exatamente as
- * 60 dezenas.
+ * Regra de repetição mínima do lote: nenhuma dezena se repete entre jogos
+ * enquanto houver dezenas inéditas; quando as inéditas não bastam para um
+ * jogo, elas entram primeiro e o restante vem do pool reposto. Assim toda
+ * dezena disponível aparece no lote antes de qualquer repetição (Mega-Sena:
+ * 10 jogos disjuntos cobrem as 60; +Milionária: as 50 aparecem até o 9º
+ * jogo).
+ *
+ * Modo Fechamento: [generate] aceita um `pool` com as dezenas marcadas no
+ * volante e desdobra os jogos usando apenas essas dezenas, sob a mesma
+ * regra de repetição mínima.
  *
  * O RNG padrão é [SecureRandom] (estratégia "Aleatório puro" exige RNG
  * criptográfico); testes injetam um [Random] semeado para determinismo.
@@ -28,43 +33,64 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         strategy: GenerationStrategy,
         gameCount: Int,
         trevoStrategy: TrevoStrategy = TrevoStrategy.ECONOMICO,
+        pool: Collection<Int>? = null,
     ): GameBatch {
         require(gameCount in 1..MAX_GAMES) { "Quantidade de jogos deve estar em 1..$MAX_GAMES" }
+        val source = pool?.toList()?.sorted() ?: lottery.numberRange.toList()
+        if (pool != null) {
+            require(source.size >= GAME_SIZE) {
+                "Fechamento exige ao menos $GAME_SIZE dezenas (recebidas ${source.size})"
+            }
+            require(source.toSet().size == source.size) { "Dezenas repetidas no fechamento" }
+            require(source.all { it in lottery.numberRange }) {
+                "Dezena do fechamento fora do intervalo ${lottery.numberRange}"
+            }
+        }
 
-        val unused = lottery.numberRange.toMutableList()
+        val unused = source.toMutableList()
         val games = List(gameCount) {
+            val picked = mutableListOf<Int>()
             if (unused.size < GAME_SIZE) {
+                // repetição mínima: as inéditas restantes entram primeiro
+                picked += unused
                 unused.clear()
-                unused += lottery.numberRange
+                unused += source.filterNot(picked::contains)
             }
-            val numbers = when (strategy) {
-                GenerationStrategy.RANDOM -> pickRandom(unused)
-                GenerationStrategy.BALANCED -> pickBalanced(unused)
+            picked += when (strategy) {
+                GenerationStrategy.RANDOM ->
+                    pickRandom(unused, GAME_SIZE - picked.size)
+
+                GenerationStrategy.BALANCED ->
+                    pickBalanced(unused, GAME_SIZE - picked.size, picked)
             }
-            unused.removeAll(numbers.toSet())
+            unused.removeAll(picked.toSet())
             GeneratedGame(
-                numbers = numbers.sorted(),
+                numbers = picked.sorted(),
                 trevoDuplas = trevoDuplas(lottery, trevoStrategy),
             )
         }
-        return GameBatch(lottery, strategy, games)
+        return GameBatch(lottery, strategy, games, sourcePool = pool?.let { source })
     }
 
-    private fun pickRandom(pool: List<Int>): List<Int> = pool.shuffled(random).take(GAME_SIZE)
+    private fun pickRandom(pool: List<Int>, count: Int): List<Int> =
+        pool.shuffled(random).take(count)
 
     /**
-     * Metade par, metade ímpar (3+3). Se o pool restante não tiver paridade
-     * suficiente, completa com o que houver — a disjunção do lote prevalece.
+     * Completa o jogo mirando metade par, metade ímpar (3+3), descontando o
+     * que já entrou por repetição mínima. Se o pool restante não tiver
+     * paridade suficiente, completa com o que houver — a repetição mínima
+     * prevalece sobre a paridade.
      */
-    private fun pickBalanced(pool: List<Int>): List<Int> {
+    private fun pickBalanced(pool: List<Int>, count: Int, already: List<Int>): List<Int> {
         val evens = pool.filter { it % 2 == 0 }.shuffled(random)
         val odds = pool.filter { it % 2 != 0 }.shuffled(random)
-        val targetEven = minOf(GAME_SIZE / 2, evens.size)
-        val targetOdd = minOf(GAME_SIZE - targetEven, odds.size)
+        val targetEven = (GAME_SIZE / 2 - already.count { it % 2 == 0 })
+            .coerceIn(0, minOf(count, evens.size))
+        val targetOdd = minOf(count - targetEven, odds.size)
         val picked = (evens.take(targetEven) + odds.take(targetOdd)).toMutableList()
-        if (picked.size < GAME_SIZE) {
+        if (picked.size < count) {
             val remainder = (evens.drop(targetEven) + odds.drop(targetOdd)).shuffled(random)
-            picked += remainder.take(GAME_SIZE - picked.size)
+            picked += remainder.take(count - picked.size)
         }
         return picked
     }

@@ -134,6 +134,41 @@ class VolanteViewModelTest {
     }
 
     @Test
+    fun `fechamento gera jogos apenas com as dezenas marcadas`() {
+        val vm = viewModel()
+        val marked = listOf(2, 9, 17, 23, 31, 44, 52, 60)
+        marked.forEach(vm::toggleNumber)
+        vm.selectGameMode(GameMode.FECHAMENTO)
+        vm.setBatchCount(3)
+        vm.generateBatch()
+
+        val batch = vm.uiState.value.generatedBatch!!
+        assertEquals(marked.sorted(), batch.sourcePool)
+        assertTrue(batch.games.all { marked.containsAll(it.numbers) })
+        // 8 marcadas em 2 jogos (12 vagas): todas aparecem antes de repetir
+        assertEquals(marked.toSet(), batch.games.take(2).flatMap { it.numbers }.toSet())
+    }
+
+    @Test
+    fun `fechamento sem o minimo de dezenas gera mensagem`() {
+        val vm = viewModel()
+        (1..7).forEach(vm::toggleNumber)
+        vm.selectGameMode(GameMode.FECHAMENTO)
+        vm.generateBatch()
+
+        assertEquals(null, vm.uiState.value.generatedBatch)
+        assertNotNull(vm.uiState.value.message)
+    }
+
+    @Test
+    fun `trocar modo de jogo descarta lote gerado`() {
+        val vm = viewModel()
+        vm.generateBatch()
+        vm.selectGameMode(GameMode.FECHAMENTO)
+        assertEquals(null, vm.uiState.value.generatedBatch)
+    }
+
+    @Test
     fun `modo de jogo alterna entre avulsos e fechamento`() {
         val vm = viewModel()
         assertEquals(GameMode.JOGOS_AVULSOS, vm.uiState.value.gameMode)

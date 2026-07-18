@@ -59,7 +59,7 @@ class VolanteViewModel(
     }
 
     fun selectGameMode(mode: GameMode) {
-        _uiState.update { it.copy(gameMode = mode, message = null) }
+        _uiState.update { it.copy(gameMode = mode, generatedBatch = null, message = null) }
     }
 
     /** Toque para marcar/desmarcar respeitando o máximo da loteria ativa. */
@@ -138,12 +138,25 @@ class VolanteViewModel(
 
     fun generateBatch() {
         _uiState.update { state ->
+            val pool = if (state.gameMode == GameMode.FECHAMENTO) {
+                val marked = state.current.numbers
+                if (marked.size < state.lottery.minSelection) {
+                    return@update state.copy(
+                        message = "Fechamento: marque ao menos ${state.lottery.minSelection} " +
+                            "dezenas no volante (marcadas: ${marked.size})."
+                    )
+                }
+                marked
+            } else {
+                null
+            }
             state.copy(
                 generatedBatch = generator.generate(
                     lottery = state.lottery,
                     strategy = state.generationStrategy,
                     gameCount = state.batchCount,
                     trevoStrategy = state.current.trevoStrategy,
+                    pool = pool,
                 ),
                 message = null,
             )
