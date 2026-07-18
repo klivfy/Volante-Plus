@@ -27,10 +27,15 @@ Volante-Plus/
         │   │   ├── VolanteApplication.kt   # Container manual de dependências
         │   │   ├── data/
         │   │   │   ├── local/              # Room: entidade, DAO, database, converters
+        │   │   │   ├── remote/             # Cliente da API do Portal de Loterias (Caixa)
+        │   │   │   ├── seed/               # Parser CSV + seeder de assets/seed/
         │   │   │   └── repository/         # DrawRepository (contrato do backtesting)
-        │   │   ├── domain/model/
-        │   │   │   ├── Lottery.kt          # Regras de negócio: faixas e limites
-        │   │   │   └── Draw.kt             # Resultado histórico validado
+        │   │   ├── domain/
+        │   │   │   ├── model/
+        │   │   │   │   ├── Lottery.kt      # Regras de negócio: faixas e limites
+        │   │   │   │   └── Draw.kt         # Resultado histórico validado
+        │   │   │   └── usecase/
+        │   │   │       └── SyncDrawHistory.kt  # Sincronização incremental via API
         │   │   ├── ui/theme/
         │   │   │   ├── Color.kt            # Paleta MD3 (light/dark)
         │   │   │   ├── Type.kt             # Tipografia 100% Open Sans
@@ -69,6 +74,6 @@ Requer JDK 17+ e Android SDK (compileSdk 35).
 
 - [x] Setup MD3 + Open Sans + tela de Volante
 - [x] Persistência do histórico de concursos (Room SQLite)
-- [ ] Importação do histórico oficial de concursos (API da Caixa / CSV)
+- [x] Importação do histórico oficial (API da Caixa + seed CSV em `assets/seed/`)
 - [ ] Gerador de lotes (Aleatório puro RNG criptográfico / Equilibrado) sem repetição de dezenas
 - [ ] Motor de backtesting (data de corte, eficácia, variância, desvio padrão)
