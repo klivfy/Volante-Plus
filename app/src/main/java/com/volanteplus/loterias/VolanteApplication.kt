@@ -2,6 +2,7 @@ package com.volanteplus.loterias
 
 import android.app.Application
 import com.volanteplus.loterias.data.local.VolanteDatabase
+import com.volanteplus.loterias.domain.backtest.BacktestEngine
 import com.volanteplus.loterias.data.remote.CaixaLotteryApi
 import com.volanteplus.loterias.data.remote.HttpCaixaLotteryApi
 import com.volanteplus.loterias.data.repository.DrawRepository
@@ -24,4 +25,6 @@ class VolanteApplication : Application() {
     val drawSeeder: AssetDrawSeeder by lazy { AssetDrawSeeder(this, drawRepository) }
 
     val syncDrawHistory: SyncDrawHistory by lazy { SyncDrawHistory(drawRepository, caixaApi) }
+
+    val backtestEngine: BacktestEngine by lazy { BacktestEngine(drawRepository) }
 }

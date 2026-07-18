@@ -31,6 +31,9 @@ Volante-Plus/
         │   │   │   ├── seed/               # Parser CSV + seeder de assets/seed/
         │   │   │   └── repository/         # DrawRepository (contrato do backtesting)
         │   │   ├── domain/
+        │   │   │   ├── backtest/
+        │   │   │   │   ├── BacktestEngine.kt   # Corte, validação e métricas
+        │   │   │   │   └── PrizeRules.kt       # Faixas de premiação oficiais
         │   │   │   ├── generator/
         │   │   │   │   └── GameGenerator.kt    # Lotes sem repetição de dezenas
         │   │   │   ├── model/
@@ -78,4 +81,6 @@ Requer JDK 17+ e Android SDK (compileSdk 35).
 - [x] Persistência do histórico de concursos (Room SQLite)
 - [x] Importação do histórico oficial (API da Caixa + seed CSV em `assets/seed/`)
 - [x] Gerador de lotes (Aleatório puro RNG criptográfico / Equilibrado) sem repetição de dezenas
-- [ ] Motor de backtesting (data de corte, eficácia, variância, desvio padrão)
+- [x] Motor de backtesting (data de corte, eficácia, variância, desvio padrão)
+- [ ] Tela de backtesting (configurar corte/estratégia e visualizar relatório)
+- [ ] Modo Fechamento (geração a partir das dezenas marcadas no volante)
