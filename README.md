@@ -1,2 +1,68 @@
-# Volante-Plus
-Volantes para Mega-Sena e +Milionária.
+# Volante+ — Laboratório Estatístico de Loterias
+
+App Android (Kotlin + Jetpack Compose, Material Design 3) para teste de hipóteses
+estatísticas sobre Mega-Sena e +Milionária.
+
+> Gerador estatístico para Mega-Sena e +Milionária. Sem palpite, sem número quente.
+
+## Missão
+
+Usar o histórico das loterias para testar, validar ou refutar empiricamente modelos
+matemáticos via backtesting transparente — sem promessas de "números quentes".
+
+## Estrutura do projeto
+
+```
+Volante-Plus/
+├── build.gradle.kts                # Configuração raiz (plugins)
+├── settings.gradle.kts             # Módulos e repositórios
+├── gradle/libs.versions.toml       # Version catalog (AGP, Kotlin, Compose BOM)
+└── app/
+    ├── build.gradle.kts            # Módulo Android (Compose, MD3, minSdk 26)
+    └── src/
+        ├── main/
+        │   ├── AndroidManifest.xml
+        │   ├── java/com/volanteplus/loterias/
+        │   │   ├── MainActivity.kt
+        │   │   ├── domain/model/
+        │   │   │   └── Lottery.kt          # Regras de negócio: faixas e limites
+        │   │   ├── ui/theme/
+        │   │   │   ├── Color.kt            # Paleta MD3 (light/dark)
+        │   │   │   ├── Type.kt             # Tipografia 100% Open Sans
+        │   │   │   └── Theme.kt            # VolantePlusTheme
+        │   │   └── ui/volante/
+        │   │       ├── VolanteViewModel.kt # Estado + regras de seleção
+        │   │       └── VolanteScreen.kt    # Abas, grid de dezenas, trevos
+        │   └── res/
+        │       ├── font/                   # Open Sans (400/500/600/700)
+        │       └── values/                 # strings (slogan), tema-ponte
+        └── test/                           # Testes unitários do ViewModel
+```
+
+## Regras de negócio implementadas
+
+| Loteria | Dezenas | Mínimo | Máximo | Trevos |
+|---|---|---|---|---|
+| Mega-Sena | 01–60 | 8 | 15 | — |
+| +Milionária | 01–50 | 8 | 12 | exatamente 2 (de 1–6) |
+
+- Abas principais: **Mega-Sena** / **+Milionária** (seleção preservada ao alternar).
+- Sub-abas: **Jogos avulsos** / **Fechamento**.
+- Trevos (+Milionária): estratégias **Econômico** (1 dupla) e **Cobertura total** (15 duplas).
+- Slogan fixo no topo das telas de geração.
+
+## Build
+
+Requer JDK 17+ e Android SDK (compileSdk 35).
+
+```bash
+./gradlew :app:assembleDebug      # build
+./gradlew :app:testDebugUnitTest  # testes unitários
+```
+
+## Roadmap
+
+- [x] Setup MD3 + Open Sans + tela de Volante
+- [ ] Persistência do histórico de concursos (Room SQLite)
+- [ ] Gerador de lotes (Aleatório puro RNG criptográfico / Equilibrado) sem repetição de dezenas
+- [ ] Motor de backtesting (data de corte, eficácia, variância, desvio padrão)
