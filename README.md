@@ -24,8 +24,13 @@ Volante-Plus/
         │   ├── AndroidManifest.xml
         │   ├── java/com/volanteplus/loterias/
         │   │   ├── MainActivity.kt
+        │   │   ├── VolanteApplication.kt   # Container manual de dependências
+        │   │   ├── data/
+        │   │   │   ├── local/              # Room: entidade, DAO, database, converters
+        │   │   │   └── repository/         # DrawRepository (contrato do backtesting)
         │   │   ├── domain/model/
-        │   │   │   └── Lottery.kt          # Regras de negócio: faixas e limites
+        │   │   │   ├── Lottery.kt          # Regras de negócio: faixas e limites
+        │   │   │   └── Draw.kt             # Resultado histórico validado
         │   │   ├── ui/theme/
         │   │   │   ├── Color.kt            # Paleta MD3 (light/dark)
         │   │   │   ├── Type.kt             # Tipografia 100% Open Sans
@@ -63,6 +68,7 @@ Requer JDK 17+ e Android SDK (compileSdk 35).
 ## Roadmap
 
 - [x] Setup MD3 + Open Sans + tela de Volante
-- [ ] Persistência do histórico de concursos (Room SQLite)
+- [x] Persistência do histórico de concursos (Room SQLite)
+- [ ] Importação do histórico oficial de concursos (API da Caixa / CSV)
 - [ ] Gerador de lotes (Aleatório puro RNG criptográfico / Equilibrado) sem repetição de dezenas
 - [ ] Motor de backtesting (data de corte, eficácia, variância, desvio padrão)
