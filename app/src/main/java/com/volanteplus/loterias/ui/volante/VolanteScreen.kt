@@ -20,7 +20,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
@@ -47,7 +50,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.volanteplus.loterias.R
+import com.volanteplus.loterias.domain.generator.GameGenerator
+import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
+import com.volanteplus.loterias.domain.model.GeneratedGame
+import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.ui.theme.VolantePlusTheme
@@ -89,6 +96,10 @@ fun VolanteScreen(viewModel: VolanteViewModel = viewModel()) {
                 onToggleTrevo = viewModel::toggleTrevo,
                 onSelectTrevoStrategy = viewModel::selectTrevoStrategy,
                 onClear = viewModel::clearSelection,
+                onIncrementBatchCount = viewModel::incrementBatchCount,
+                onSetBatchCount = viewModel::setBatchCount,
+                onSelectStrategy = viewModel::selectGenerationStrategy,
+                onGenerate = viewModel::generateBatch,
             )
         }
     }
@@ -129,6 +140,10 @@ private fun VolanteContent(
     onToggleTrevo: (Int) -> Unit,
     onSelectTrevoStrategy: (TrevoStrategy) -> Unit,
     onClear: () -> Unit,
+    onIncrementBatchCount: () -> Unit,
+    onSetBatchCount: (Int) -> Unit,
+    onSelectStrategy: (GenerationStrategy) -> Unit,
+    onGenerate: () -> Unit,
 ) {
     val lottery = state.lottery
     val selection = state.current
@@ -183,6 +198,146 @@ private fun VolanteContent(
                     },
                 )
                 OutlinedButton(onClick = onClear) { Text("Limpar") }
+            }
+        }
+
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            GeneratorControls(
+                batchCount = state.batchCount,
+                strategy = state.generationStrategy,
+                onIncrement = onIncrementBatchCount,
+                onSetCount = onSetBatchCount,
+                onSelectStrategy = onSelectStrategy,
+                onGenerate = onGenerate,
+            )
+        }
+
+        state.generatedBatch?.let { batch ->
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                GeneratedBatchList(batch)
+            }
+        }
+    }
+}
+
+@Composable
+private fun GeneratorControls(
+    batchCount: Int,
+    strategy: GenerationStrategy,
+    onIncrement: () -> Unit,
+    onSetCount: (Int) -> Unit,
+    onSelectStrategy: (GenerationStrategy) -> Unit,
+    onGenerate: () -> Unit,
+) {
+    Column(modifier = Modifier.padding(top = 16.dp)) {
+        HorizontalDivider()
+        Text(
+            text = "QUANTOS JOGOS",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedButton(onClick = onIncrement) { Text("+1") }
+            listOf(3, 5, 10).forEach { count ->
+                FilterChip(
+                    selected = batchCount == count,
+                    onClick = { onSetCount(count) },
+                    label = { Text("$count") },
+                )
+            }
+            Text(
+                text = "Lote: $batchCount",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+
+        Text(
+            text = "Estratégia",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        GenerationStrategy.entries.forEach { option ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .selectable(
+                        selected = option == strategy,
+                        role = Role.RadioButton,
+                        onClick = { onSelectStrategy(option) },
+                    ),
+            ) {
+                RadioButton(selected = option == strategy, onClick = null)
+                Column(modifier = Modifier.padding(start = 4.dp)) {
+                    Text(option.displayName, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = option.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        Button(
+            onClick = onGenerate,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        ) {
+            Text("Gerar lote")
+        }
+    }
+}
+
+@Composable
+private fun GeneratedBatchList(batch: GameBatch) {
+    Column(modifier = Modifier.padding(top = 16.dp)) {
+        Text(
+            text = "Jogos gerados (${batch.strategy.displayName})",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        batch.games.forEachIndexed { index, game ->
+            GeneratedGameRow(index + 1, game)
+        }
+    }
+}
+
+@Composable
+private fun GeneratedGameRow(position: Int, game: GeneratedGame) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        Text(
+            text = "Jogo %02d".format(position),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(modifier = Modifier.padding(start = 12.dp)) {
+            Text(
+                text = game.numbers.joinToString(" ") { "%02d".format(it) },
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (game.trevoDuplas.isNotEmpty()) {
+                val trevosLabel =
+                    if (game.trevoDuplas.size == GameGenerator.allTrevoPairs.size) {
+                        "Trevos: cobertura total (15 duplas)"
+                    } else {
+                        "Trevos: " + game.trevoDuplas.joinToString(" | ") { dupla ->
+                            dupla.sorted().joinToString("-")
+                        }
+                    }
+                Text(
+                    text = trevosLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
             }
         }
     }

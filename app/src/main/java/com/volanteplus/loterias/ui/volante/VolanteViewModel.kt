@@ -1,7 +1,10 @@
 package com.volanteplus.loterias.ui.volante
 
 import androidx.lifecycle.ViewModel
+import com.volanteplus.loterias.domain.generator.GameGenerator
+import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
+import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +27,10 @@ data class VolanteUiState(
     val gameMode: GameMode = GameMode.JOGOS_AVULSOS,
     val selections: Map<Lottery, VolanteSelection> =
         Lottery.entries.associateWith { VolanteSelection() },
+    /** Controle de lote do gerador ("QUANTOS JOGOS"). */
+    val batchCount: Int = 1,
+    val generationStrategy: GenerationStrategy = GenerationStrategy.RANDOM,
+    val generatedBatch: GameBatch? = null,
     /** Mensagem transitória (ex.: limite de dezenas atingido). */
     val message: String? = null,
 ) {
@@ -40,13 +47,15 @@ data class VolanteUiState(
         }
 }
 
-class VolanteViewModel : ViewModel() {
+class VolanteViewModel(
+    private val generator: GameGenerator = GameGenerator(),
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(VolanteUiState())
     val uiState: StateFlow<VolanteUiState> = _uiState.asStateFlow()
 
     fun selectLottery(lottery: Lottery) {
-        _uiState.update { it.copy(lottery = lottery, message = null) }
+        _uiState.update { it.copy(lottery = lottery, generatedBatch = null, message = null) }
     }
 
     fun selectGameMode(mode: GameMode) {
@@ -106,6 +115,38 @@ class VolanteViewModel : ViewModel() {
     fun clearSelection() {
         _uiState.update { state ->
             state.withSelection(VolanteSelection(trevoStrategy = state.current.trevoStrategy))
+        }
+    }
+
+    /** Botão "+1" do controle de lote. */
+    fun incrementBatchCount() {
+        _uiState.update {
+            it.copy(batchCount = (it.batchCount + 1).coerceAtMost(GameGenerator.MAX_GAMES))
+        }
+    }
+
+    /** Botões de quantidade fixa (3, 5, 10) do controle de lote. */
+    fun setBatchCount(count: Int) {
+        _uiState.update {
+            it.copy(batchCount = count.coerceIn(1, GameGenerator.MAX_GAMES))
+        }
+    }
+
+    fun selectGenerationStrategy(strategy: GenerationStrategy) {
+        _uiState.update { it.copy(generationStrategy = strategy) }
+    }
+
+    fun generateBatch() {
+        _uiState.update { state ->
+            state.copy(
+                generatedBatch = generator.generate(
+                    lottery = state.lottery,
+                    strategy = state.generationStrategy,
+                    gameCount = state.batchCount,
+                    trevoStrategy = state.current.trevoStrategy,
+                ),
+                message = null,
+            )
         }
     }
 

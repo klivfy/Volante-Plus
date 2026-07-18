@@ -1,6 +1,7 @@
 package com.volanteplus.loterias.ui.volante
 
 import com.volanteplus.loterias.domain.model.GameMode
+import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import org.junit.Assert.assertEquals
@@ -86,6 +87,50 @@ class VolanteViewModelTest {
         assertTrue(sel.numbers.isEmpty())
         assertTrue(sel.trevos.isEmpty())
         assertEquals(TrevoStrategy.COBERTURA_TOTAL, sel.trevoStrategy)
+    }
+
+    @Test
+    fun `controle de lote incrementa e trava no maximo`() {
+        val vm = viewModel()
+        repeat(15) { vm.incrementBatchCount() }
+        assertEquals(10, vm.uiState.value.batchCount)
+        vm.setBatchCount(5)
+        assertEquals(5, vm.uiState.value.batchCount)
+    }
+
+    @Test
+    fun `gera lote com a quantidade e loteria atuais`() {
+        val vm = viewModel()
+        vm.setBatchCount(3)
+        vm.generateBatch()
+
+        val batch = vm.uiState.value.generatedBatch!!
+        assertEquals(3, batch.games.size)
+        assertEquals(Lottery.MEGA_SENA, batch.lottery)
+        // sem repetição de dezenas entre os jogos do lote
+        val all = batch.games.flatMap { it.numbers }
+        assertEquals(all.size, all.toSet().size)
+    }
+
+    @Test
+    fun `gera lote da milionaria com a estrategia de trevos selecionada`() {
+        val vm = viewModel()
+        vm.selectLottery(Lottery.MAIS_MILIONARIA)
+        vm.selectTrevoStrategy(TrevoStrategy.COBERTURA_TOTAL)
+        vm.selectGenerationStrategy(GenerationStrategy.BALANCED)
+        vm.generateBatch()
+
+        val batch = vm.uiState.value.generatedBatch!!
+        assertEquals(GenerationStrategy.BALANCED, batch.strategy)
+        assertEquals(15, batch.games.single().trevoDuplas.size)
+    }
+
+    @Test
+    fun `trocar de loteria descarta lote gerado`() {
+        val vm = viewModel()
+        vm.generateBatch()
+        vm.selectLottery(Lottery.MAIS_MILIONARIA)
+        assertEquals(null, vm.uiState.value.generatedBatch)
     }
 
     @Test
