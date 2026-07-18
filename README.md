@@ -45,6 +45,9 @@ Volante-Plus/
         │   │   │   ├── Color.kt            # Paleta MD3 (light/dark)
         │   │   │   ├── Type.kt             # Tipografia 100% Open Sans
         │   │   │   └── Theme.kt            # VolantePlusTheme
+        │   │   ├── ui/backtest/
+        │   │   │   ├── BacktestViewModel.kt # Config, sincronização e relatório
+        │   │   │   └── BacktestScreen.kt    # Tela de backtesting
         │   │   └── ui/volante/
         │   │       ├── VolanteViewModel.kt # Estado + regras de seleção
         │   │       └── VolanteScreen.kt    # Abas, grid de dezenas, trevos
@@ -82,5 +85,5 @@ Requer JDK 17+ e Android SDK (compileSdk 35).
 - [x] Importação do histórico oficial (API da Caixa + seed CSV em `assets/seed/`)
 - [x] Gerador de lotes (Aleatório puro RNG criptográfico / Equilibrado) sem repetição de dezenas
 - [x] Motor de backtesting (data de corte, eficácia, variância, desvio padrão)
-- [ ] Tela de backtesting (configurar corte/estratégia e visualizar relatório)
+- [x] Tela de backtesting (configurar corte/estratégia, sincronizar histórico e visualizar relatório)
 - [ ] Modo Fechamento (geração a partir das dezenas marcadas no volante)

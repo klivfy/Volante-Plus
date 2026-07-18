@@ -49,8 +49,13 @@ class BacktestEngineTest {
     fun `estatisticas sao consistentes com a distribuicao de acertos`() = runTest {
         val report = BacktestEngine(seededRepository()).run(config())
 
+        // reconstrói em ordem diferente da original: compara com tolerância,
+        // pois a soma de Doubles não é associativa
         val hits = report.hitDistribution.flatMap { (hit, count) -> List(count) { hit } }
-        assertEquals(Statistics.of(hits), report.stats)
+        val expected = Statistics.of(hits)
+        assertEquals(expected.mean, report.stats.mean, 1e-9)
+        assertEquals(expected.variance, report.stats.variance, 1e-9)
+        assertEquals(expected.stdDeviation, report.stats.stdDeviation, 1e-9)
         assertTrue(report.stats.mean in 0.0..6.0)
         assertEquals(0.6, report.expectedMeanHits, 1e-9)
     }
