@@ -22,7 +22,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -30,6 +29,7 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -58,11 +58,14 @@ import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.ui.theme.VolantePlusTheme
+import com.volanteplus.loterias.ui.volante.components.NextDrawCard
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VolanteScreen(viewModel: VolanteViewModel = viewModel()) {
+fun VolanteScreen(viewModel: VolanteViewModel = viewModel(factory = VolanteViewModel.Factory)) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val nextDrawInfo by viewModel.nextDrawInfo.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.message) {
@@ -89,6 +92,10 @@ fun VolanteScreen(viewModel: VolanteViewModel = viewModel()) {
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             LotteryTabs(selected = state.lottery, onSelect = viewModel::selectLottery)
+            NextDrawCard(
+                nextDrawInfo = nextDrawInfo,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
             GameModeTabs(selected = state.gameMode, onSelect = viewModel::selectGameMode)
             VolanteContent(
                 state = state,
@@ -96,7 +103,6 @@ fun VolanteScreen(viewModel: VolanteViewModel = viewModel()) {
                 onToggleTrevo = viewModel::toggleTrevo,
                 onSelectTrevoStrategy = viewModel::selectTrevoStrategy,
                 onClear = viewModel::clearSelection,
-                onIncrementBatchCount = viewModel::incrementBatchCount,
                 onSetBatchCount = viewModel::setBatchCount,
                 onSelectStrategy = viewModel::selectGenerationStrategy,
                 onGenerate = viewModel::generateBatch,
@@ -140,7 +146,6 @@ private fun VolanteContent(
     onToggleTrevo: (Int) -> Unit,
     onSelectTrevoStrategy: (TrevoStrategy) -> Unit,
     onClear: () -> Unit,
-    onIncrementBatchCount: () -> Unit,
     onSetBatchCount: (Int) -> Unit,
     onSelectStrategy: (GenerationStrategy) -> Unit,
     onGenerate: () -> Unit,
@@ -212,7 +217,6 @@ private fun VolanteContent(
                 } else {
                     null
                 },
-                onIncrement = onIncrementBatchCount,
                 onSetCount = onSetBatchCount,
                 onSelectStrategy = onSelectStrategy,
                 onGenerate = onGenerate,
@@ -232,7 +236,6 @@ private fun GeneratorControls(
     batchCount: Int,
     strategy: GenerationStrategy,
     fechamentoHint: String?,
-    onIncrement: () -> Unit,
     onSetCount: (Int) -> Unit,
     onSelectStrategy: (GenerationStrategy) -> Unit,
     onGenerate: () -> Unit,
@@ -252,24 +255,36 @@ private fun GeneratorControls(
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
         )
+        Slider(
+            value = batchCount.toFloat(),
+            onValueChange = { onSetCount(it.roundToInt()) },
+            valueRange = GameGenerator.MIN_GAMES.toFloat()..GameGenerator.MAX_GAMES.toFloat(),
+            steps = GameGenerator.MAX_GAMES - GameGenerator.MIN_GAMES - 1,
+            modifier = Modifier.fillMaxWidth(),
+        )
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            OutlinedButton(onClick = onIncrement) { Text("+1") }
-            listOf(2, 3, 5).forEach { count ->
-                FilterChip(
-                    selected = batchCount == count,
-                    onClick = { onSetCount(count) },
-                    label = { Text("$count") },
+            for (count in GameGenerator.MIN_GAMES..GameGenerator.MAX_GAMES) {
+                Text(
+                    text = "$count jogos",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (count == batchCount) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 )
             }
-            Text(
-                text = "Lote: $batchCount",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(start = 8.dp),
-            )
         }
+        Text(
+            text = "Mínimo ${GameGenerator.MIN_GAMES}, máximo ${GameGenerator.MAX_GAMES} " +
+                "jogos por análise estatística",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
 
         Text(
             text = "Estratégia",

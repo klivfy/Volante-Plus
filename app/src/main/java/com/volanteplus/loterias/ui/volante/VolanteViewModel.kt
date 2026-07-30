@@ -1,16 +1,30 @@
 package com.volanteplus.loterias.ui.volante
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.volanteplus.loterias.VolanteApplication
 import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
+import com.volanteplus.loterias.domain.model.NextDrawInfo
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import com.volanteplus.loterias.domain.usecase.GetNextDrawInfoUseCase
 import com.volanteplus.loterias.ui.navigation.PerformanceCache
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 /**
@@ -50,10 +64,18 @@ data class VolanteUiState(
 
 class VolanteViewModel(
     private val generator: GameGenerator = GameGenerator(),
+    /** Null nas instâncias sem app (ex.: testes, @Preview) — [nextDrawInfo] fica sempre nulo. */
+    private val getNextDrawInfo: GetNextDrawInfoUseCase? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(VolanteUiState())
     val uiState: StateFlow<VolanteUiState> = _uiState.asStateFlow()
+
+    val nextDrawInfo: StateFlow<NextDrawInfo?> = uiState
+        .map { it.lottery }
+        .distinctUntilChanged()
+        .flatMapLatest { lottery -> getNextDrawInfo?.invoke(lottery) ?: flowOf(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun selectLottery(lottery: Lottery) {
         _uiState.update { it.copy(lottery = lottery, generatedBatch = null, message = null) }
@@ -126,7 +148,7 @@ class VolanteViewModel(
         }
     }
 
-    /** Botões de quantidade fixa (3, 5, 10) do controle de lote. */
+    /** Slider "QUANTOS JOGOS" do controle de lote. */
     fun setBatchCount(count: Int) {
         _uiState.update {
             it.copy(batchCount = count.coerceIn(GameGenerator.MIN_GAMES, GameGenerator.MAX_GAMES))
@@ -193,4 +215,13 @@ class VolanteViewModel(
 
     private fun VolanteUiState.withSelection(selection: VolanteSelection): VolanteUiState =
         copy(selections = selections + (lottery to selection), message = null)
+
+    companion object {
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val app = this[APPLICATION_KEY] as VolanteApplication
+                VolanteViewModel(getNextDrawInfo = app.getNextDrawInfo)
+            }
+        }
+    }
 }

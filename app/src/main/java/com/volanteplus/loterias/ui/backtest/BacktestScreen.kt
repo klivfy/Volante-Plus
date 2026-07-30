@@ -14,11 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -125,7 +126,7 @@ fun BacktestScreen(
 
             if (state.performances != null) {
                 item {
-                    Button(
+                    FilledTonalButton(
                         onClick = {
                             viewModel.useReportForGeneration()
                             onNavigateToVolante()
@@ -142,7 +143,7 @@ fun BacktestScreen(
 
 @Composable
 private fun HistoryCard(state: BacktestUiState, onSync: () -> Unit) {
-    Card {
+    ElevatedCard(elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Histórico local", style = MaterialTheme.typography.titleSmall)
             val latest = state.latestDraw
@@ -261,7 +262,7 @@ private fun ConfigSection(
 
 @Composable
 private fun ReportSection(report: BacktestReport) {
-    Card {
+    ElevatedCard(elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Relatório", style = MaterialTheme.typography.titleMedium)
 
@@ -298,7 +299,7 @@ private fun ReportSection(report: BacktestReport) {
 @Composable
 private fun ReportRow(label: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
@@ -314,7 +315,7 @@ private fun ReportRow(label: String, value: String) {
 private fun DistributionRow(hits: Int, count: Int, maxCount: Int) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     ) {
         Text(
             text = "$hits",
@@ -325,20 +326,20 @@ private fun DistributionRow(hits: Int, count: Int, maxCount: Int) {
             modifier = Modifier
                 .padding(horizontal = 8.dp)
                 .weight(1f)
-                .height(14.dp)
+                .height(16.dp)
                 .background(
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(4.dp),
+                    shape = MaterialTheme.shapes.small,
                 ),
         ) {
             if (count > 0) {
                 Box(
                     modifier = Modifier
-                        .height(14.dp)
+                        .height(16.dp)
                         .fillMaxWidth(count / maxCount.toFloat())
                         .background(
                             color = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(4.dp),
+                            shape = MaterialTheme.shapes.small,
                         ),
                 )
             }
