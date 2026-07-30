@@ -31,9 +31,15 @@ export interface NextDrawInfo {
 }
 
 /**
+ * Faixa de desempenho de uma dezena, por percentil do peso:
+ * 40% superiores `top`, 30% seguintes `mid`, 30% restantes `low`.
+ */
+export type PerformanceTier = 'top' | 'mid' | 'low';
+
+/**
  * Desempenho de uma dezena (1..60 ou 1..50).
  * Resultado da análise de backtesting: combina frequência real com simulação Monte Carlo.
- * weight: normalizado 0..1, TOP recebe ~0.6-1.0, MID ~0.3-0.6, LOW ~0.1-0.3
+ * weight: normalizado 0..1 — o melhor da janela vale 1,0 e o resto é proporcional.
  * tier: classificação percentual após normalização (top 40%, mid 30%, low 30%)
  */
 export interface NumberPerformance {
@@ -41,7 +47,7 @@ export interface NumberPerformance {
   hitCount: number;
   simulatedHitRate: number;
   weight: number;
-  tier: 'top' | 'mid' | 'low';
+  tier: PerformanceTier;
 }
 
 /**
@@ -110,23 +116,21 @@ export const MIN_GAMES = 2;
 export const MAX_GAMES = 5;
 
 /**
- * Estratégias de seleção de trevos (Mais Milionária).
- * - "EQUAL": peso uniforme (peso 1.0 para todos)
- * - "FREQUENCY": rankear por frequência histórica
- * - "BACKTEST_DRIVEN": usar desempenho de backtesting (padrão)
+ * Estratégia de cobertura dos trevos (exclusivo da +Milionária).
+ * - `ECONOMICO`: 1 dupla de trevos por jogo
+ * - `COBERTURA_TOTAL`: as 15 duplas possíveis, C(6,2)
  */
 export enum TrevoStrategy {
-  EQUAL = 'equal',
-  FREQUENCY = 'frequency',
-  BACKTEST_DRIVEN = 'backtest_driven',
+  ECONOMICO = 'economico',
+  COBERTURA_TOTAL = 'cobertura_total',
 }
 
 /**
  * Modo de geração de jogos.
- * - "MANUAL": usuário seleciona manualmente as dezenas
- * - "FECHAMENTO": gera todas as combinações de N dezenas (piscina)
+ * - `JOGOS_AVULSOS`: sorteio sobre todo o universo da loteria
+ * - `FECHAMENTO`: sorteio restrito às dezenas marcadas no volante
  */
 export enum GameMode {
-  MANUAL = 'manual',
+  JOGOS_AVULSOS = 'jogos_avulsos',
   FECHAMENTO = 'fechamento',
 }

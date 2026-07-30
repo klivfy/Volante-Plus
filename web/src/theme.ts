@@ -56,7 +56,7 @@ const darkThemeOptions: ThemeOptions = {
   },
 };
 
-const typographyOptions = {
+const typographyOptions: ThemeOptions['typography'] = {
   fontFamily: '"Open Sans", sans-serif',
   h1: { fontSize: '32px', fontWeight: 700, lineHeight: '40px' },
   h2: { fontSize: '28px', fontWeight: 700, lineHeight: '36px' },
@@ -70,7 +70,7 @@ const typographyOptions = {
   caption: { fontSize: '12px', fontWeight: 400, lineHeight: '16px' },
 };
 
-const componentOverrides = {
+const componentOverrides: ThemeOptions['components'] = {
   MuiButton: {
     styleOverrides: {
       root: {
@@ -91,7 +91,7 @@ const componentOverrides = {
 
 export const lightTheme = createTheme({
   ...lightThemeOptions,
-  typography: typographyOptions as any,
+  typography: typographyOptions,
   shape: {
     borderRadius: 8,
   },
@@ -100,7 +100,7 @@ export const lightTheme = createTheme({
 
 export const darkTheme = createTheme({
   ...darkThemeOptions,
-  typography: typographyOptions as any,
+  typography: typographyOptions,
   shape: {
     borderRadius: 8,
   },
