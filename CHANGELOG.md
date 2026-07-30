@@ -2,6 +2,28 @@
 
 Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
+## [2.0.0]
+
+Lançamento da plataforma web (`web/`) — o app deixa de ser só Android.
+Nenhuma mudança de código no app Android neste lançamento.
+
+### Added
+- Volante+ Web (Next.js 16, TypeScript, MUI/Material Design 3): páginas de
+  Volante, Backtesting e Sobre, com o mesmo motor de análise/geração do
+  Android reescrito em TypeScript puro (`web/src/engine/`).
+- Persistência local via Dexie/IndexedDB (`web/src/services/db.ts`) e busca
+  do próximo concurso via API pública de terceiros (`web/src/services/caixaApi.ts`).
+- PWA: manifest, service worker (`@ducanh2912/next-pwa`), cache offline
+  (cache-first para assets estáticos, network-first para a API da Caixa,
+  stale-while-revalidate para imagens) — ver `docs/PWA.md`.
+- Extensão de navegador (Chrome, Edge, Firefox) em `extension/`: popup que
+  abre a instância configurada do Volante+ web numa aba — ver `docs/EXTENSOES.md`.
+- Testes end-to-end (Playwright) cobrindo o fluxo completo de geração de
+  jogos e o funcionamento offline.
+- CI da web (`.github/workflows/web-ci.yml`): lint, testes, build, e2e,
+  empacotamento das extensões e deploy opcional na Vercel.
+- `docs/WEB.md`, `docs/PWA.md`, `docs/EXTENSOES.md`.
+
 ## [1.1.0]
 
 ### Added
