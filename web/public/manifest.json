@@ -1,0 +1,22 @@
+{
+  "name": "Volante+",
+  "short_name": "Volante+",
+  "description": "Análise e geração de jogos de loterias usando backtesting e desempenho histórico",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#6750A4",
+  "background_color": "#FFFBFE",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

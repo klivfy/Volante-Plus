@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: "Volante+ — Análise de Loterias",
   description:
     "Aplicação web para análise e geração de jogos de loterias usando backtesting e desempenho histórico",
+  manifest: "/manifest.json",
 };
 
 // A partir do Next 16 `viewport` e `themeColor` saíram de `metadata` e passaram
