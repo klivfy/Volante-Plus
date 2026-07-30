@@ -127,8 +127,13 @@ class GameGenerator(private val random: Random = SecureRandom()) {
 
         val games = List(gameCount) {
             val picked = topTier.shuffled(random).take(topPick).toMutableList()
-            val remainderSource = (rest + topTier.filterNot(picked::contains)).distinct()
-            picked += remainderSource.shuffled(random).take(GAME_SIZE - picked.size)
+            // completa preferencialmente fora do tier TOP, para não distorcer a proporção-alvo
+            picked += rest.shuffled(random).take(GAME_SIZE - picked.size)
+            if (picked.size < GAME_SIZE) {
+                // rest não tinha dezenas suficientes: usa o restante do tier TOP como reserva
+                val leftoverTop = topTier.filterNot(picked::contains).shuffled(random)
+                picked += leftoverTop.take(GAME_SIZE - picked.size)
+            }
             GeneratedGame(
                 numbers = picked.sorted(),
                 trevoDuplas = trevoDuplas(lottery, trevoStrategy),
