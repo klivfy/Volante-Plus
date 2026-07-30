@@ -1,24 +1,22 @@
 import { Lottery, NextDrawInfo } from '../types/domain';
 
 /**
- * Caminho da API pública para cada loteria. Note que o segmento da
- * +Milionária é `milionaria`, diferente da chave interna `maismilionaria`
- * usada em `Lottery` — a chave interna descreve o domínio do app, o caminho
- * descreve o endpoint de terceiros.
+ * Caminho da API pública para cada loteria. Segue a nomenclatura da
+ * loteriascaixa-api (github.com/guto-alves/loterias-api): a +Milionária usa
+ * `maismilionaria`, igual à chave interna de `Lottery` — não há mapeamento a
+ * fazer aqui, mas o `Record` fica explícito caso a API mude.
  */
 const API_PATH: Record<Lottery, string> = {
   [Lottery.MEGA_SENA]: 'megasena',
-  [Lottery.MAIS_MILIONARIA]: 'milionaria',
+  [Lottery.MAIS_MILIONARIA]: 'maismilionaria',
 };
 
 /**
- * Host da API de loterias. Propositalmente **sem valor padrão embutido**: não
- * há como confirmar, a partir daqui, qual API pública de terceiros está no ar
- * e com o schema esperado. Configure `NEXT_PUBLIC_CAIXA_API_BASE_URL` (ex.:
- * `.env.local`) apontando para uma API que sirva `GET /{loteria}/v2/proximos`.
- * Sem a variável, `fetchNextDraw` se comporta como se o serviço estivesse
- * fora do ar — devolve `null`, o mesmo tratamento de qualquer outra falha de
- * rede — em vez de arriscar um host que ninguém validou.
+ * Host da API de loterias, configurável via `NEXT_PUBLIC_CAIXA_API_BASE_URL`
+ * (ver `.env.local`). O padrão aponta para a loteriascaixa-api pública
+ * (https://github.com/guto-alves/loterias-api) — não é o serviço oficial da
+ * Caixa, é uma API de terceiros mantida pela comunidade. Sem rede ou com o
+ * serviço fora do ar, `fetchNextDraw` devolve `null` normalmente.
  *
  * WHY (leitura tardia, não em módulo): o Next.js substitui
  * `process.env.NEXT_PUBLIC_*` estaticamente em tempo de build em qualquer
@@ -26,8 +24,8 @@ const API_PATH: Record<Lottery, string> = {
  * não muda esse comportamento em produção, mas impede testes de simular a
  * variável ausente/presente em cada caso.
  */
-function baseUrl(): string | undefined {
-  return process.env.NEXT_PUBLIC_CAIXA_API_BASE_URL;
+function baseUrl(): string {
+  return process.env.NEXT_PUBLIC_CAIXA_API_BASE_URL ?? 'https://loteriascaixa-api.herokuapp.com/api';
 }
 
 /** Shape tolerante: APIs públicas de loteria variam a nomenclatura dos campos. */
@@ -76,13 +74,8 @@ export function parseDrawDate(value: string): string {
  * do ar, nunca por um caminho que precise de exceção para se comunicar.
  */
 export async function fetchNextDraw(lottery: Lottery): Promise<NextDrawInfo | null> {
-  const base = baseUrl();
-  if (!base) {
-    return null;
-  }
-
   try {
-    const response = await fetch(`${base}/${API_PATH[lottery]}/v2/proximos`, {
+    const response = await fetch(`${baseUrl()}/${API_PATH[lottery]}/latest`, {
       headers: { Accept: 'application/json' },
     });
     if (!response.ok) {

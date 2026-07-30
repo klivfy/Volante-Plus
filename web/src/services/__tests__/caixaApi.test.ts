@@ -40,14 +40,22 @@ describe('fetchNextDraw', () => {
     vi.unstubAllGlobals();
   });
 
-  it('devolve null quando a variável de ambiente não está configurada', async () => {
+  it('usa a URL padrão quando a variável de ambiente não está configurada', async () => {
     vi.unstubAllEnvs();
-    vi.stubGlobal('fetch', vi.fn());
+    mockFetchOnce({
+      json: async () => ({
+        numero: 2750,
+        dataProximoConcurso: '2026-08-06',
+        valorEstimadoProximoConcurso: 65_000_000,
+      }),
+    });
 
-    const result = await fetchNextDraw(Lottery.MEGA_SENA);
+    await fetchNextDraw(Lottery.MEGA_SENA);
 
-    expect(result).toBeNull();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(
+      'https://loteriascaixa-api.herokuapp.com/api/megasena/latest',
+      expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
+    );
   });
 
   it('monta a URL com o caminho correto por loteria', async () => {
@@ -62,7 +70,7 @@ describe('fetchNextDraw', () => {
     await fetchNextDraw(Lottery.MAIS_MILIONARIA);
 
     expect(fetch).toHaveBeenCalledWith(
-      `${BASE_URL}/milionaria/v2/proximos`,
+      `${BASE_URL}/maismilionaria/latest`,
       expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
     );
   });
