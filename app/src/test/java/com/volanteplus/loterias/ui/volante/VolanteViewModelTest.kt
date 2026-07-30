@@ -3,16 +3,27 @@ package com.volanteplus.loterias.ui.volante
 import com.volanteplus.loterias.domain.model.GameMode
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
+import com.volanteplus.loterias.domain.model.NumberPerformance
+import com.volanteplus.loterias.domain.model.PerformanceTier
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import com.volanteplus.loterias.ui.navigation.PerformanceCache
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VolanteViewModelTest {
 
     private fun viewModel() = VolanteViewModel()
+
+    @After
+    fun tearDown() {
+        // PerformanceCache é um singleton compartilhado pela JVM de testes.
+        PerformanceCache.clear()
+    }
 
     @Test
     fun `toggle marca e desmarca dezena`() {
@@ -174,5 +185,34 @@ class VolanteViewModelTest {
         assertEquals(GameMode.JOGOS_AVULSOS, vm.uiState.value.gameMode)
         vm.selectGameMode(GameMode.FECHAMENTO)
         assertEquals(GameMode.FECHAMENTO, vm.uiState.value.gameMode)
+    }
+
+    @Test
+    fun `backtest-driven sem cache gera mensagem em vez de lote`() {
+        val vm = viewModel()
+        vm.selectGenerationStrategy(GenerationStrategy.BACKTEST_DRIVEN)
+        vm.generateBatch()
+
+        assertEquals(null, vm.uiState.value.generatedBatch)
+        assertNotNull(vm.uiState.value.message)
+    }
+
+    @Test
+    fun `backtest-driven usa o cache de performance quando disponivel`() {
+        val performances = Lottery.MEGA_SENA.numberRange.map { number ->
+            NumberPerformance(number, score = if (number <= 20) 1.0 else 0.1, tier = if (number <= 20) PerformanceTier.TOP else PerformanceTier.MID)
+        }
+        PerformanceCache.store(Lottery.MEGA_SENA, performances)
+
+        val vm = viewModel()
+        vm.selectGenerationStrategy(GenerationStrategy.BACKTEST_DRIVEN)
+        vm.setBatchCount(2)
+        vm.generateBatch()
+
+        val batch = vm.uiState.value.generatedBatch
+        assertNotNull(batch)
+        assertEquals(GenerationStrategy.BACKTEST_DRIVEN, batch!!.strategy)
+        assertEquals(2, batch.games.size)
+        assertNull(vm.uiState.value.message)
     }
 }

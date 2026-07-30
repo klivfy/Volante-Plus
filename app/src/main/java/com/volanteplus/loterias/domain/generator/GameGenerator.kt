@@ -5,9 +5,12 @@ import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GeneratedGame
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
+import com.volanteplus.loterias.domain.model.NumberPerformance
+import com.volanteplus.loterias.domain.model.PerformanceTier
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import java.security.SecureRandom
 import java.util.Random
+import kotlin.math.roundToInt
 
 /**
  * Gerador de lotes de jogos simples ([Draw.NUMBERS_DRAWN] dezenas).
@@ -80,6 +83,11 @@ class GameGenerator(private val random: Random = SecureRandom()) {
 
                 GenerationStrategy.FREQUENCY ->
                     pickByFrequency(unused, GAME_SIZE - picked.size, frequencies)
+
+                GenerationStrategy.BACKTEST_DRIVEN ->
+                    throw IllegalArgumentException(
+                        "Backtest-Driven usa generateWithPerformances(), não generate()"
+                    )
             }
             unused.removeAll(picked.toSet())
             GeneratedGame(
@@ -88,6 +96,50 @@ class GameGenerator(private val random: Random = SecureRandom()) {
             )
         }
         return GameBatch(lottery, strategy, games, sourcePool = pool?.let { source })
+    }
+
+    /**
+     * Geração "Backtest-Driven": prioriza dezenas do tier [PerformanceTier.TOP]
+     * calculado por um backtest já executado, sem a regra de repetição
+     * mínima entre jogos do lote (cada jogo é sorteado de forma
+     * independente a partir do mesmo ranking de desempenho).
+     */
+    fun generateWithPerformances(
+        lottery: Lottery,
+        performances: List<NumberPerformance>,
+        gameCount: Int,
+        trevoStrategy: TrevoStrategy = TrevoStrategy.ECONOMICO,
+        pool: Collection<Int>? = null,
+    ): GameBatch {
+        require(gameCount in MIN_GAMES..MAX_GAMES) {
+            "Quantidade de jogos deve estar em $MIN_GAMES..$MAX_GAMES"
+        }
+        val eligible = pool?.toSet()?.let { p -> performances.filter { it.number in p } }
+            ?: performances
+        require(eligible.size >= GAME_SIZE) {
+            "Desempenho insuficiente para formar um jogo (recebidas ${eligible.size})"
+        }
+
+        val topTier = eligible.filter { it.tier == PerformanceTier.TOP }.map { it.number }
+        val rest = eligible.filterNot { it.tier == PerformanceTier.TOP }.map { it.number }
+        val topPick = (GAME_SIZE * TOP_TIER_TARGET_RATIO).roundToInt()
+            .coerceIn(0, minOf(GAME_SIZE, topTier.size))
+
+        val games = List(gameCount) {
+            val picked = topTier.shuffled(random).take(topPick).toMutableList()
+            val remainderSource = (rest + topTier.filterNot(picked::contains)).distinct()
+            picked += remainderSource.shuffled(random).take(GAME_SIZE - picked.size)
+            GeneratedGame(
+                numbers = picked.sorted(),
+                trevoDuplas = trevoDuplas(lottery, trevoStrategy),
+            )
+        }
+        return GameBatch(
+            lottery = lottery,
+            strategy = GenerationStrategy.BACKTEST_DRIVEN,
+            games = games,
+            sourcePool = pool?.let { eligible.map { performance -> performance.number }.sorted() },
+        )
     }
 
     private fun pickRandom(pool: List<Int>, count: Int): List<Int> =
@@ -141,6 +193,9 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         // encareciam a geração/renderização; piso de 2 evita lote degenerado de 1 jogo.
         const val MIN_GAMES = 2
         const val MAX_GAMES = 5
+
+        /** Fração-alvo de dezenas do tier TOP em cada jogo Backtest-Driven. */
+        const val TOP_TIER_TARGET_RATIO = 0.7
 
         /** As C(6,2) = 15 duplas possíveis de trevos (Cobertura total). */
         val allTrevoPairs: List<Set<Int>> = buildList {

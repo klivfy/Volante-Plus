@@ -64,7 +64,9 @@ private fun MainScaffold() {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (destination) {
                 Destination.VOLANTE -> VolanteScreen()
-                Destination.BACKTEST -> BacktestScreen()
+                Destination.BACKTEST -> BacktestScreen(
+                    onNavigateToVolante = { destination = Destination.VOLANTE },
+                )
             }
         }
     }

@@ -15,18 +15,24 @@ import java.time.format.DateTimeFormatter
 @Serializable
 data class NextDrawDto(
     @SerialName("numero") val numero: Int,
-    @SerialName("dataApuracao") val dataApuracao: String,
-    @SerialName("dataProximoConcurso") val dataProximoConcurso: String,
-    @SerialName("valorEstimadoProximoConcurso") val valorEstimadoProximoConcurso: Double,
+    @SerialName("dataApuracao") val dataApuracao: String? = null,
+    // WHY: nulos quando o próximo concurso ainda não foi aberto pela Caixa
+    // (ex.: logo após a apuração, antes de o próximo ser configurado).
+    @SerialName("dataProximoConcurso") val dataProximoConcurso: String? = null,
+    @SerialName("valorEstimadoProximoConcurso") val valorEstimadoProximoConcurso: Double? = null,
 ) {
-    fun toDomain(lottery: Lottery): NextDrawInfo = NextDrawInfo(
-        contestNumber = numero,
-        // WHY: a API só publica data (dd/MM/yyyy), sem horário — meia-noite
-        // é o único valor determinístico para preencher o LocalDateTime.
-        drawDate = LocalDate.parse(dataProximoConcurso, DATE_FORMAT).atStartOfDay(),
-        estimatedPrize = valorEstimadoProximoConcurso,
-        lottery = lottery,
-    )
+    /** Null quando a data do próximo concurso ainda não está disponível. */
+    fun toDomain(lottery: Lottery): NextDrawInfo? {
+        val date = dataProximoConcurso ?: return null
+        return NextDrawInfo(
+            contestNumber = numero,
+            // WHY: a API só publica data (dd/MM/yyyy), sem horário — meia-noite
+            // é o único valor determinístico para preencher o LocalDateTime.
+            drawDate = LocalDate.parse(date, DATE_FORMAT).atStartOfDay(),
+            estimatedPrize = valorEstimadoProximoConcurso ?: 0.0,
+            lottery = lottery,
+        )
+    }
 
     companion object {
         private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")

@@ -3,6 +3,8 @@ package com.volanteplus.loterias.domain.generator
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
+import com.volanteplus.loterias.domain.model.NumberPerformance
+import com.volanteplus.loterias.domain.model.PerformanceTier
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -171,5 +173,62 @@ class GameGeneratorTest {
         assertThrows(IllegalArgumentException::class.java) {
             generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, GameGenerator.MAX_GAMES + 1)
         }
+    }
+
+    /** Performances sintéticas: [topNumbers] no tier TOP, o resto no MID. */
+    private fun performancesFor(lottery: Lottery, topNumbers: Set<Int>): List<NumberPerformance> =
+        lottery.numberRange.map { number ->
+            if (number in topNumbers) {
+                NumberPerformance(number, score = 1.0, tier = PerformanceTier.TOP)
+            } else {
+                NumberPerformance(number, score = 0.2, tier = PerformanceTier.MID)
+            }
+        }
+
+    @Test
+    fun testGenerateWithPerformances_minGames() {
+        val performances = performancesFor(Lottery.MEGA_SENA, topNumbers = (1..20).toSet())
+        assertThrows(IllegalArgumentException::class.java) {
+            generator().generateWithPerformances(Lottery.MEGA_SENA, performances, gameCount = 1)
+        }
+    }
+
+    @Test
+    fun testGenerateWithPerformances_maxGames() {
+        val performances = performancesFor(Lottery.MEGA_SENA, topNumbers = (1..20).toSet())
+        assertThrows(IllegalArgumentException::class.java) {
+            generator().generateWithPerformances(Lottery.MEGA_SENA, performances, gameCount = 6)
+        }
+    }
+
+    @Test
+    fun testGenerateWithPerformances_validRange() {
+        val performances = performancesFor(Lottery.MEGA_SENA, topNumbers = (1..20).toSet())
+        for (count in GameGenerator.MIN_GAMES..GameGenerator.MAX_GAMES) {
+            val batch = generator().generateWithPerformances(Lottery.MEGA_SENA, performances, gameCount = count)
+            assertEquals(count, batch.games.size)
+            assertTrue(batch.games.all { it.numbers.size == 6 && it.numbers.toSet().size == 6 })
+        }
+    }
+
+    @Test
+    fun testTierDistribution() {
+        // 20 de 60 dezenas no tier TOP (um terço) — ratio-alvo de 70% por jogo.
+        val topNumbers = (1..20).toSet()
+        val performances = performancesFor(Lottery.MEGA_SENA, topNumbers)
+        val batch = generator().generateWithPerformances(
+            Lottery.MEGA_SENA, performances, gameCount = GameGenerator.MAX_GAMES,
+        )
+
+        val expectedTopPerGame = Math.round(6 * GameGenerator.TOP_TIER_TARGET_RATIO).toInt()
+        batch.games.forEach { game ->
+            val topCount = game.numbers.count { it in topNumbers }
+            assertEquals(expectedTopPerGame, topCount)
+        }
+
+        val totalPicked = batch.games.sumOf { it.numbers.size }
+        val totalTop = batch.games.sumOf { game -> game.numbers.count { it in topNumbers } }
+        val ratio = totalTop.toDouble() / totalPicked
+        assertTrue("esperado ~70% do tier TOP, obtido $ratio", ratio in 0.6..0.8)
     }
 }

@@ -7,6 +7,7 @@ import com.volanteplus.loterias.domain.model.GameMode
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import com.volanteplus.loterias.ui.navigation.PerformanceCache
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -155,6 +156,23 @@ class VolanteViewModel(
                 marked
             } else {
                 null
+            }
+            if (state.generationStrategy == GenerationStrategy.BACKTEST_DRIVEN) {
+                val performances = PerformanceCache.get(state.lottery)
+                    ?: return@update state.copy(
+                        message = "Rode um backtest e toque em \"Usar estes dados para gerar " +
+                            "jogos\" antes de gerar com Backtest-Driven."
+                    )
+                return@update state.copy(
+                    generatedBatch = generator.generateWithPerformances(
+                        lottery = state.lottery,
+                        performances = performances,
+                        gameCount = state.batchCount,
+                        trevoStrategy = state.current.trevoStrategy,
+                        pool = pool,
+                    ),
+                    message = null,
+                )
             }
             state.copy(
                 generatedBatch = generator.generate(

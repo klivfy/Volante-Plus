@@ -52,6 +52,7 @@ import java.util.Locale
 @Composable
 fun BacktestScreen(
     viewModel: BacktestViewModel = viewModel(factory = BacktestViewModel.Factory),
+    onNavigateToVolante: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -121,6 +122,20 @@ fun BacktestScreen(
             state.report?.let { report ->
                 item { ReportSection(report) }
             }
+
+            if (state.performances != null) {
+                item {
+                    Button(
+                        onClick = {
+                            viewModel.useReportForGeneration()
+                            onNavigateToVolante()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Usar estes dados para gerar jogos")
+                    }
+                }
+            }
         }
     }
 }
@@ -169,7 +184,8 @@ private fun ConfigSection(
 ) {
     Column {
         Text("Estratégia sob teste", style = MaterialTheme.typography.titleSmall)
-        GenerationStrategy.entries.forEach { option ->
+        // Backtest-Driven consome o resultado de um backtest — não faz sentido testá-la aqui.
+        GenerationStrategy.entries.filterNot { it == GenerationStrategy.BACKTEST_DRIVEN }.forEach { option ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier

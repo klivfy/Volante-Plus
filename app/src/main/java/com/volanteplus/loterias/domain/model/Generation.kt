@@ -19,6 +19,17 @@ enum class GenerationStrategy(
         "Prioriza as dezenas mais frequentes da janela de treino — hipótese a refutar.",
         requiresHistory = true,
     ),
+
+    /**
+     * Usa o desempenho calculado por um backtest já executado (ver
+     * [com.volanteplus.loterias.domain.backtest.BacktestAnalyzer] e
+     * `PerformanceCache`): não exige histórico no momento da geração porque
+     * ele já foi consumido ao rodar o backtest.
+     */
+    BACKTEST_DRIVEN(
+        "Backtest-Driven",
+        "Usa o desempenho de um backtest já executado para priorizar dezenas.",
+    ),
 }
 
 /**

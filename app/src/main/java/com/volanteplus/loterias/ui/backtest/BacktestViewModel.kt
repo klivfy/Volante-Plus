@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.volanteplus.loterias.VolanteApplication
 import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.data.seed.AssetDrawSeeder
+import com.volanteplus.loterias.domain.backtest.BacktestAnalyzer
 import com.volanteplus.loterias.domain.backtest.BacktestConfig
 import com.volanteplus.loterias.domain.backtest.BacktestEngine
 import com.volanteplus.loterias.domain.backtest.BacktestReport
@@ -16,8 +17,10 @@ import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
+import com.volanteplus.loterias.domain.model.NumberPerformance
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
+import com.volanteplus.loterias.ui.navigation.PerformanceCache
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +43,8 @@ data class BacktestUiState(
     val syncProgress: Pair<Int, Int>? = null,
     val running: Boolean = false,
     val report: BacktestReport? = null,
+    /** Desempenho por dezena da janela de treino do último backtest concluído. */
+    val performances: List<NumberPerformance>? = null,
     val message: String? = null,
 ) {
     val canRun: Boolean
@@ -51,6 +56,7 @@ class BacktestViewModel(
     private val repository: DrawRepository,
     private val syncDrawHistory: SyncDrawHistory,
     private val seeder: AssetDrawSeeder? = null,
+    private val analyzer: BacktestAnalyzer = BacktestAnalyzer(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BacktestUiState())
@@ -90,7 +96,7 @@ class BacktestViewModel(
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(running = true, report = null, message = null) }
+            _uiState.update { it.copy(running = true, report = null, performances = null, message = null) }
             try {
                 val report = engine.run(
                     BacktestConfig(
@@ -101,11 +107,21 @@ class BacktestViewModel(
                         trevoStrategy = state.trevoStrategy,
                     )
                 )
-                _uiState.update { it.copy(running = false, report = report) }
+                val training = repository.getDrawsUpTo(state.lottery, cutoff)
+                val performances = analyzer.analyze(state.lottery, training)
+                _uiState.update { it.copy(running = false, report = report, performances = performances) }
             } catch (e: IllegalArgumentException) {
                 _uiState.update { it.copy(running = false, message = e.message) }
             }
         }
+    }
+
+    /** Exporta o desempenho do último backtest para o PerformanceCache. */
+    fun useReportForGeneration(): Boolean {
+        val state = _uiState.value
+        val performances = state.performances ?: return false
+        PerformanceCache.store(state.lottery, performances)
+        return true
     }
 
     /** Seed (se vazio) + sincronização incremental com a API da Caixa. */
