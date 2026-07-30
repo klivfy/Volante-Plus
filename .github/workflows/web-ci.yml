@@ -108,6 +108,12 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # GitHub rejeita `secrets` usado direto em `if:` (falha de validação do
+    # workflow inteiro, antes de qualquer job rodar — "Unrecognized
+    # named-value: 'secrets'"). Por isso o valor passa por uma env de job
+    # primeiro; os `if:` dos passos abaixo leem `env`, não `secrets`.
+    env:
+      VERCEL_CONFIGURED: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
 
     steps:
       - name: Checkout
@@ -117,7 +123,7 @@ jobs:
       # repositório (Settings → Secrets and variables → Actions). Sem eles,
       # o passo é pulado e o workflow continua verde — deploy é opcional.
       - name: Deploy para produção
-        if: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
+        if: env.VERCEL_CONFIGURED == 'true'
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -127,5 +133,5 @@ jobs:
           vercel-args: "--prod"
 
       - name: Deploy pulado (secrets da Vercel não configurados)
-        if: ${{ !(secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '') }}
+        if: env.VERCEL_CONFIGURED != 'true'
         run: echo "VERCEL_TOKEN/VERCEL_ORG_ID/VERCEL_PROJECT_ID não configurados nos secrets do repositório — deploy pulado. Ver docs/WEB.md#deploy."
