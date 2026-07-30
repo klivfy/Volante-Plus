@@ -2,9 +2,22 @@ name: Release
 
 # Publica o APK como Release do GitHub (download público e permanente),
 # ao contrário do artefato do CI, que expira em 14 dias e exige login.
+#
+# Três gatilhos:
+#   1. push de tag `v*`      — o caminho normal;
+#   2. workflow_dispatch     — republica uma tag existente (só aparece na UI
+#                              depois que este arquivo chegar à branch padrão);
+#   3. push na branch de     — atalho temporário: publica quando a mensagem do
+#      desenvolvimento         commit contém `[release]`, usando o versionName
+#                              de app/build.gradle.kts como tag.
+#
+# TODO: remover o gatilho 3 (o `branches:` abaixo e o ramo `else` do passo
+# "Resolve a tag") depois que esta branch for mesclada — a partir daí tag e
+# workflow_dispatch cobrem todos os casos.
 on:
   push:
     tags: ["v*"]
+    branches: ["claude/android-loterias-init-y1pr71"]
   workflow_dispatch:
     inputs:
       tag:
@@ -18,19 +31,56 @@ permissions:
 jobs:
   release:
     name: APK e Release
+    # Um push comum na branch não publica nada: só com `[release]` no commit.
+    if: >-
+      github.ref_type == 'tag' ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-      - name: Resolve a tag
-        id: meta
-        run: echo "tag=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+      - name: Resolve o ref a compilar
+        id: source
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_TAG:-}" ]; then
+            echo "ref=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.meta.outputs.tag }}
+          ref: ${{ steps.source.outputs.ref }}
           fetch-depth: 0
+
+      - name: Resolve a tag
+        id: meta
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_TAG:-}" ]; then
+            tag="${INPUT_TAG}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            tag="${{ github.ref_name }}"
+          else
+            # Push na branch: a tag sai do versionName declarado no build.
+            version="$(sed -n 's/.*versionName *= *"\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)"
+            if [ -z "$version" ]; then
+              echo "::error::versionName não encontrado em app/build.gradle.kts"
+              exit 1
+            fi
+            tag="v${version}"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Publicando como ${tag}"
 
       - name: JDK 17
         uses: actions/setup-java@v4
@@ -93,12 +143,21 @@ jobs:
           Play Store nem atualizar uma instalação assinada com outra chave.
           EOF
 
+      # Idempotente: reexecutar o workflow atualiza a Release em vez de falhar.
       - name: Publica a Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
-          gh release create "$TAG" "dist/volante-plus-${TAG}.apk" \
-            --title "Volante+ $TAG" \
-            --notes-file release-notes.md \
-            --prerelease
+          set -euo pipefail
+          apk="dist/volante-plus-${TAG}.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$apk" --clobber
+            gh release edit "$TAG" --notes-file release-notes.md --prerelease
+          else
+            gh release create "$TAG" "$apk" \
+              --target "${{ github.sha }}" \
+              --title "Volante+ $TAG" \
+              --notes-file release-notes.md \
+              --prerelease
+          fi
