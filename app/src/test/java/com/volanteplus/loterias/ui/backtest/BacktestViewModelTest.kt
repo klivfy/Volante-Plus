@@ -65,6 +65,7 @@ class BacktestViewModelTest {
         repository = repo,
         syncDrawHistory = SyncDrawHistory(repo, api),
         seeder = null,
+        workDispatcher = dispatcher,
     )
 
     @Test

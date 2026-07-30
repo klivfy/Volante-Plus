@@ -1,25 +1,53 @@
 package com.volanteplus.loterias.domain.generator
 
-import com.volanteplus.loterias.domain.model.Draw
-import com.volanteplus.loterias.domain.model.GenerationStrategy
+import com.volanteplus.loterias.domain.backtest.NumberPerformance
+import com.volanteplus.loterias.domain.backtest.PerformanceTier
+import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.Lottery
-import com.volanteplus.loterias.domain.model.NumberPerformance
-import com.volanteplus.loterias.domain.model.PerformanceTier
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.LocalDate
 import java.util.Random
 
 class GameGeneratorTest {
 
     private fun generator(seed: Long = 42L) = GameGenerator(Random(seed))
 
+    /**
+     * Desempenho sintético. O tier declarado é propositalmente sempre LOW:
+     * o gerador tem de recalcular os tiers a partir do peso.
+     */
+    private fun performances(
+        lottery: Lottery = Lottery.MEGA_SENA,
+        weight: (Int) -> Double = { 1.0 },
+    ): List<NumberPerformance> = lottery.numberRange.map { number ->
+        NumberPerformance(
+            number = number,
+            lottery = lottery,
+            hitCount = 0,
+            simulatedHitRate = 0.0,
+            weight = weight(number),
+            tier = PerformanceTier.LOW,
+        )
+    }
+
+    private fun trevoPerformances(weight: (Int) -> Double = { 1.0 }): List<NumberPerformance> =
+        Lottery.TREVO_RANGE.map { trevo ->
+            NumberPerformance(
+                number = trevo,
+                lottery = Lottery.MAIS_MILIONARIA,
+                hitCount = 0,
+                simulatedHitRate = 0.0,
+                weight = weight(trevo),
+                tier = PerformanceTier.LOW,
+            )
+        }
+
     @Test
-    fun `jogo tem 6 dezenas ordenadas dentro do intervalo`() {
-        val batch = generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, GameGenerator.MIN_GAMES)
+    fun `jogo tem 6 dezenas ordenadas e distintas dentro do intervalo`() = runTest {
+        val batch = generator().generate(Lottery.MEGA_SENA, GameGenerator.MIN_GAMES, performances())
         val game = batch.games.first()
 
         assertEquals(6, game.numbers.size)
@@ -29,84 +57,147 @@ class GameGeneratorTest {
     }
 
     @Test
-    fun `lote maximo na mega-sena e totalmente disjunto`() {
-        val batch = generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, GameGenerator.MAX_GAMES)
-        val all = batch.games.flatMap { it.numbers }
-
-        assertEquals(GameGenerator.MAX_GAMES * 6, all.size)
-        assertEquals(all.size, all.toSet().size)
+    fun `lote respeita a quantidade pedida em toda a faixa valida`() = runTest {
+        for (count in GameGenerator.MIN_GAMES..GameGenerator.MAX_GAMES) {
+            val batch = generator().generate(Lottery.MEGA_SENA, count, performances())
+            assertEquals(count, batch.games.size)
+            assertTrue(batch.games.all { it.numbers.size == 6 && it.numbers.toSet().size == 6 })
+        }
     }
 
     @Test
-    fun `milionaria mantem disjuncao no lote maximo`() {
-        val batch = generator().generate(
-            Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, GameGenerator.MAX_GAMES,
-        )
-        // MAX_GAMES * 6 = 30 < 50 dezenas: nenhuma repetição é necessária
-        val all = batch.games.flatMap { it.numbers }
-        assertEquals(GameGenerator.MAX_GAMES * 6, all.toSet().size)
-        assertTrue(batch.games.all { it.numbers.toSet().size == 6 })
+    fun `lote carrega o rotulo e o snapshot de desempenho`() = runTest {
+        val performances = performances()
+        val batch = generator().generate(Lottery.MEGA_SENA, 3, performances)
+
+        assertEquals(GameBatch.STRATEGY_LABEL, batch.strategyLabel)
+        assertEquals(performances.size, batch.performancesSnapshot.size)
     }
 
     @Test
-    fun `fechamento usa apenas as dezenas do pool`() {
+    fun `quantidade fora do limite e rejeitada`() = runTest {
+        listOf(0, 1, GameGenerator.MAX_GAMES + 1).forEach { count ->
+            val error = runCatching {
+                generator().generate(Lottery.MEGA_SENA, count, performances())
+            }.exceptionOrNull()
+            assertTrue("count=$count deveria falhar", error is IllegalArgumentException)
+        }
+    }
+
+    @Test
+    fun `desempenho vazio e rejeitado`() = runTest {
+        val error = runCatching {
+            generator().generate(Lottery.MEGA_SENA, 2, emptyList())
+        }.exceptionOrNull()
+        assertTrue(error is IllegalArgumentException)
+    }
+
+    @Test
+    fun `desempenho insuficiente para um jogo e rejeitado`() = runTest {
+        val error = runCatching {
+            generator().generate(
+                Lottery.MEGA_SENA,
+                2,
+                performances().take(GameGenerator.GAME_SIZE - 1),
+            )
+        }.exceptionOrNull()
+        assertTrue(error is IllegalArgumentException)
+    }
+
+    @Test
+    fun `dezenas de maior peso dominam o lote na proporcao do tier TOP`() = runTest {
+        // 24 de 60 dezenas (40%) formam o tier TOP; a meta é 70% das vagas.
+        val topNumbers = (1..24).toSet()
+        val performances = performances { if (it in topNumbers) 1.0 else 0.1 }
+
+        val generator = generator()
+        var slots = 0
+        var fromTop = 0
+        repeat(200) {
+            val batch = generator.generate(Lottery.MEGA_SENA, GameGenerator.MAX_GAMES, performances)
+            batch.games.forEach { game ->
+                slots += game.numbers.size
+                fromTop += game.numbers.count { it in topNumbers }
+            }
+        }
+
+        val ratio = fromTop.toDouble() / slots
+        assertTrue("esperado ~${GameGenerator.TOP_TIER_SHARE}, obtido $ratio", ratio in 0.65..0.75)
+    }
+
+    @Test
+    fun `dentro do tier a roleta respeita o peso relativo`() = runTest {
+        // Apenas 1..6 têm peso; o restante do tier TOP (7..24) tem peso zero e
+        // só entra depois que as seis primeiras se esgotam no jogo.
+        val performances = performances { if (it <= 6) 1.0 else 0.0 }
+        val generator = generator()
+        var slots = 0
+        var pesadas = 0
+        repeat(100) {
+            val batch = generator.generate(Lottery.MEGA_SENA, GameGenerator.MAX_GAMES, performances)
+            batch.games.forEach { game ->
+                slots += game.numbers.size
+                pesadas += game.numbers.count { it <= 6 }
+            }
+        }
+        val ratio = pesadas.toDouble() / slots
+        assertTrue("dezenas com peso deveriam dominar, obtido $ratio", ratio > 0.5)
+    }
+
+    @Test
+    fun `fechamento usa apenas as dezenas do pool`() = runTest {
         val pool = setOf(3, 7, 12, 19, 24, 33, 41, 55, 58, 60)
-        val batch = generator().generate(
-            Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 5, pool = pool,
-        )
+        val batch = generator().generate(Lottery.MEGA_SENA, 5, performances(), pool = pool)
 
         assertEquals(pool.sorted(), batch.sourcePool)
         assertTrue(batch.games.all { pool.containsAll(it.numbers) })
         assertTrue(batch.games.all { it.numbers.toSet().size == 6 })
+        assertEquals(pool.size, batch.performancesSnapshot.size)
     }
 
     @Test
-    fun `fechamento cobre todas as dezenas marcadas antes de repetir`() {
-        val pool = setOf(1, 5, 10, 15, 20, 25, 30, 35, 40, 45)
-        val batch = generator().generate(
-            Lottery.MEGA_SENA, GenerationStrategy.BALANCED, 3, pool = pool,
-        )
-        // 2 jogos (12 vagas) já superam as 10 dezenas: cobertura total até o 2º
-        val firstTwo = batch.games.take(2).flatMap { it.numbers }.toSet()
-        assertEquals(pool, firstTwo)
-    }
+    fun `fechamento rejeita pool invalido`() = runTest {
+        val poolPequeno = runCatching {
+            generator().generate(Lottery.MEGA_SENA, 2, performances(), pool = setOf(1, 2, 3, 4, 5))
+        }.exceptionOrNull()
+        assertTrue(poolPequeno is IllegalArgumentException)
 
-    @Test
-    fun `fechamento rejeita pool invalido`() {
-        assertThrows(IllegalArgumentException::class.java) {
+        val foraDoIntervalo = runCatching {
             generator().generate(
-                Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 2,
-                pool = setOf(1, 2, 3, 4, 5),
-            )
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            generator().generate(
-                Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, 2,
+                Lottery.MAIS_MILIONARIA,
+                2,
+                performances(Lottery.MAIS_MILIONARIA),
                 pool = setOf(1, 2, 3, 4, 5, 51),
             )
-        }
+        }.exceptionOrNull()
+        assertTrue(foraDoIntervalo is IllegalArgumentException)
     }
 
     @Test
-    fun `estrategia equilibrada gera 3 pares e 3 impares`() {
-        val batch = generator().generate(Lottery.MEGA_SENA, GenerationStrategy.BALANCED, 5)
+    fun `fechamento minimo aceita jogos repetidos em vez de falhar`() = runTest {
+        // Com exatamente 6 dezenas só existe uma combinação possível: os
+        // resorteios se esgotam e o lote sai com jogos idênticos.
+        val pool = setOf(2, 9, 17, 23, 31, 44)
+        val batch = generator().generate(Lottery.MEGA_SENA, 3, performances(), pool = pool)
 
-        batch.games.forEach { game ->
-            assertEquals(3, game.numbers.count { it % 2 == 0 })
-            assertEquals(3, game.numbers.count { it % 2 != 0 })
-        }
+        assertEquals(3, batch.games.size)
+        assertTrue(batch.games.all { it.numbers == pool.sorted() })
     }
 
     @Test
-    fun `mega-sena nao recebe trevos`() {
-        val batch = generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 3)
+    fun `mega-sena nao recebe trevos`() = runTest {
+        val batch = generator().generate(Lottery.MEGA_SENA, 3, performances())
         assertTrue(batch.games.all { it.trevoDuplas.isEmpty() })
     }
 
     @Test
-    fun `modo economico gera exatamente 1 dupla de trevos valida`() {
+    fun `modo economico gera exatamente 1 dupla de trevos valida`() = runTest {
         val batch = generator().generate(
-            Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, 3, TrevoStrategy.ECONOMICO,
+            lottery = Lottery.MAIS_MILIONARIA,
+            count = 3,
+            performances = performances(Lottery.MAIS_MILIONARIA),
+            trevoPerformances = trevoPerformances(),
+            trevoStrategy = TrevoStrategy.ECONOMICO,
         )
         batch.games.forEach { game ->
             val dupla = game.trevoDuplas.single()
@@ -116,9 +207,45 @@ class GameGeneratorTest {
     }
 
     @Test
-    fun `cobertura total gera as 15 duplas`() {
+    fun `trevos sem desempenho caem no fallback de pesos iguais`() = runTest {
         val batch = generator().generate(
-            Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, GameGenerator.MIN_GAMES, TrevoStrategy.COBERTURA_TOTAL,
+            lottery = Lottery.MAIS_MILIONARIA,
+            count = GameGenerator.MAX_GAMES,
+            performances = performances(Lottery.MAIS_MILIONARIA),
+            trevoPerformances = emptyList(),
+        )
+        batch.games.forEach { game ->
+            val dupla = game.trevoDuplas.single()
+            assertEquals(2, dupla.size)
+            assertTrue(dupla.all { it in Lottery.TREVO_RANGE })
+        }
+    }
+
+    @Test
+    fun `trevo de maior peso aparece mais que o de menor peso`() = runTest {
+        val trevos = trevoPerformances { if (it == 1) 1.0 else 0.01 }
+        val generator = generator()
+        val counts = IntArray(Lottery.TREVO_RANGE.last + 1)
+        repeat(100) {
+            val batch = generator.generate(
+                lottery = Lottery.MAIS_MILIONARIA,
+                count = GameGenerator.MAX_GAMES,
+                performances = performances(Lottery.MAIS_MILIONARIA),
+                trevoPerformances = trevos,
+            )
+            batch.games.forEach { game -> game.trevoDuplas.single().forEach { counts[it]++ } }
+        }
+        assertTrue("trevo 1 deveria dominar: ${counts.toList()}", counts[1] > counts[6])
+    }
+
+    @Test
+    fun `cobertura total gera as 15 duplas`() = runTest {
+        val batch = generator().generate(
+            lottery = Lottery.MAIS_MILIONARIA,
+            count = GameGenerator.MIN_GAMES,
+            performances = performances(Lottery.MAIS_MILIONARIA),
+            trevoPerformances = trevoPerformances(),
+            trevoStrategy = TrevoStrategy.COBERTURA_TOTAL,
         )
         val duplas = batch.games.first().trevoDuplas
 
@@ -128,107 +255,17 @@ class GameGeneratorTest {
     }
 
     @Test
-    fun `mais sorteadas escolhe as dezenas mais frequentes da janela de treino`() {
-        val hot = listOf(7, 14, 21, 28, 35, 42)
-        val history = (1..5).map { contest ->
-            Draw(Lottery.MEGA_SENA, contest, LocalDate.of(2024, 1, contest), hot)
-        }
-
-        val batch = generator().generate(
-            Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 2, history = history,
-        )
-
-        // 1º jogo: exatamente as 6 mais frequentes; 2º jogo: repetição mínima
-        assertEquals(hot.sorted(), batch.games[0].numbers)
-        assertTrue(batch.games[1].numbers.none(hot::contains))
-    }
-
-    @Test
-    fun `mais sorteadas sem historico e rejeitada`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 2)
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            generator().generate(
-                Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 2, history = emptyList(),
-            )
-        }
-    }
-
-    @Test
-    fun `mesma semente produz o mesmo lote`() {
-        val first = generator(7L).generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 5)
-        val second = generator(7L).generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 5)
+    fun `mesma semente produz o mesmo lote`() = runTest {
+        val performances = performances { it / 60.0 }
+        val first = generator(7L).generate(Lottery.MEGA_SENA, 5, performances)
+        val second = generator(7L).generate(Lottery.MEGA_SENA, 5, performances)
         assertEquals(first.games.map { it.numbers }, second.games.map { it.numbers })
     }
 
     @Test
-    fun `quantidade fora do limite e rejeitada`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 0)
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 1)
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, GameGenerator.MAX_GAMES + 1)
-        }
-    }
-
-    /** Performances sintéticas: [topNumbers] no tier TOP, o resto no MID. */
-    private fun performancesFor(lottery: Lottery, topNumbers: Set<Int>): List<NumberPerformance> =
-        lottery.numberRange.map { number ->
-            if (number in topNumbers) {
-                NumberPerformance(number, score = 1.0, tier = PerformanceTier.TOP)
-            } else {
-                NumberPerformance(number, score = 0.2, tier = PerformanceTier.MID)
-            }
-        }
-
-    @Test
-    fun testGenerateWithPerformances_minGames() {
-        val performances = performancesFor(Lottery.MEGA_SENA, topNumbers = (1..20).toSet())
-        assertThrows(IllegalArgumentException::class.java) {
-            generator().generateWithPerformances(Lottery.MEGA_SENA, performances, gameCount = 1)
-        }
-    }
-
-    @Test
-    fun testGenerateWithPerformances_maxGames() {
-        val performances = performancesFor(Lottery.MEGA_SENA, topNumbers = (1..20).toSet())
-        assertThrows(IllegalArgumentException::class.java) {
-            generator().generateWithPerformances(Lottery.MEGA_SENA, performances, gameCount = 6)
-        }
-    }
-
-    @Test
-    fun testGenerateWithPerformances_validRange() {
-        val performances = performancesFor(Lottery.MEGA_SENA, topNumbers = (1..20).toSet())
-        for (count in GameGenerator.MIN_GAMES..GameGenerator.MAX_GAMES) {
-            val batch = generator().generateWithPerformances(Lottery.MEGA_SENA, performances, gameCount = count)
-            assertEquals(count, batch.games.size)
-            assertTrue(batch.games.all { it.numbers.size == 6 && it.numbers.toSet().size == 6 })
-        }
-    }
-
-    @Test
-    fun testTierDistribution() {
-        // 20 de 60 dezenas no tier TOP (um terço) — ratio-alvo de 70% por jogo.
-        val topNumbers = (1..20).toSet()
-        val performances = performancesFor(Lottery.MEGA_SENA, topNumbers)
-        val batch = generator().generateWithPerformances(
-            Lottery.MEGA_SENA, performances, gameCount = GameGenerator.MAX_GAMES,
-        )
-
-        val expectedTopPerGame = Math.round(6 * GameGenerator.TOP_TIER_TARGET_RATIO).toInt()
-        batch.games.forEach { game ->
-            val topCount = game.numbers.count { it in topNumbers }
-            assertEquals(expectedTopPerGame, topCount)
-        }
-
-        val totalPicked = batch.games.sumOf { it.numbers.size }
-        val totalTop = batch.games.sumOf { game -> game.numbers.count { it in topNumbers } }
-        val ratio = totalTop.toDouble() / totalPicked
-        assertTrue("esperado ~70% do tier TOP, obtido $ratio", ratio in 0.6..0.8)
+    fun `lote evita jogos repetidos quando ha combinacoes suficientes`() = runTest {
+        val batch = generator().generate(Lottery.MEGA_SENA, GameGenerator.MAX_GAMES, performances())
+        val distinct = batch.games.map { it.numbers }.toSet()
+        assertEquals(batch.games.size, distinct.size)
     }
 }

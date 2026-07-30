@@ -8,14 +8,14 @@ import java.security.SecureRandom
 import java.util.Random
 
 /**
- * Motor de backtesting: isola o histórico pela data de corte, gera jogos
- * com a estratégia sob teste para cada concurso da janela de validação e
- * cruza com os resultados reais.
+ * Motor de backtesting: isola o histórico pela data de corte, mede o
+ * desempenho das dezenas **apenas** na janela de treino, gera jogos com esse
+ * desempenho e cruza com os resultados reais da janela de validação.
  *
- * Honestidade metodológica: Aleatório puro e Equilibrado ignoram a janela
- * de treino — a hipótese nula do laboratório. Estratégias com histórico
- * (ex.: Mais sorteadas) recebem exclusivamente a janela de treino, nunca
- * os concursos posteriores ao corte que serão usados na validação.
+ * Honestidade metodológica: o [BacktestAnalyzer] recebe exclusivamente os
+ * concursos anteriores ao corte — nunca os posteriores, que serão usados na
+ * validação. O relatório mede se o único método de geração do app supera (ou
+ * não) o baseline hipergeométrico; a resposta esperada é que não supere.
  *
  * As estatísticas (média/variância/desvio padrão) são calculadas sobre os
  * acertos de dezenas por jogo. A taxa de eficácia é calculada por aposta
@@ -30,7 +30,14 @@ class BacktestEngine(private val repository: DrawRepository) {
             "Sem concursos após a data de corte ${config.cutoff} — nada a validar"
         }
 
-        val generator = GameGenerator(config.seed?.let { Random(it) } ?: SecureRandom())
+        // WHY: um único RNG compartilhado entre análise e geração — é ele que
+        // torna o relatório reproduzível quando config.seed está definida.
+        val random: Random = config.seed?.let { Random(it) } ?: SecureRandom()
+        val analyzer = BacktestAnalyzer(random)
+        val performances = analyzer.analyze(training, config)
+        val trevoPerformances = analyzer.analyzeTrevos(training, config)
+
+        val generator = GameGenerator(random)
         val hitsPerGame = mutableListOf<Int>()
         var totalBets = 0
         var prizeCount = 0
@@ -38,10 +45,10 @@ class BacktestEngine(private val repository: DrawRepository) {
         for (draw in validation) {
             val batch = generator.generate(
                 lottery = config.lottery,
-                strategy = config.strategy,
-                gameCount = config.gamesPerContest,
+                count = config.gamesPerContest,
+                performances = performances,
+                trevoPerformances = trevoPerformances,
                 trevoStrategy = config.trevoStrategy,
-                history = training,
             )
             for (game in batch.games) {
                 val numberHits = game.numbers.count(draw.numbers::contains)
@@ -74,6 +81,8 @@ class BacktestEngine(private val repository: DrawRepository) {
             expectedMeanHits = expectedMeanHits(config.lottery),
             prizeRate = prizeCount.toDouble() / totalBets,
             prizeCount = prizeCount,
+            performances = performances,
+            trevoPerformances = trevoPerformances,
         )
     }
 

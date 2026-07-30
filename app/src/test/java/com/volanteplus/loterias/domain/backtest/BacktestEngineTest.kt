@@ -1,7 +1,6 @@
 package com.volanteplus.loterias.domain.backtest
 
 import com.volanteplus.loterias.domain.model.Draw
-import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.testutil.InMemoryDrawRepository
@@ -28,7 +27,6 @@ class BacktestEngineTest {
 
     private fun config(gamesPerContest: Int = 3, seed: Long? = 42L) = BacktestConfig(
         lottery = Lottery.MEGA_SENA,
-        strategy = GenerationStrategy.RANDOM,
         cutoff = cutoff,
         gamesPerContest = gamesPerContest,
         seed = seed,
@@ -43,6 +41,18 @@ class BacktestEngineTest {
         assertEquals(60, report.totalGames)
         assertEquals(60, report.totalBets)
         assertEquals(60, report.hitDistribution.values.sum())
+    }
+
+    @Test
+    fun `desempenho do relatorio cobre o universo e vem so da janela de treino`() = runTest {
+        val report = BacktestEngine(seededRepository()).run(config())
+
+        assertEquals(Lottery.MEGA_SENA.numberRange.count(), report.performances.size)
+        assertTrue(report.trevoPerformances.isEmpty())
+        // 5 concursos de treino × 6 dezenas: nenhuma dezena pode ter mais
+        // aparições do que a janela de treino comporta.
+        assertTrue(report.performances.all { it.hitCount <= report.trainingDraws })
+        assertEquals(1.0, report.performances.first().weight, 1e-9)
     }
 
     @Test
@@ -78,6 +88,19 @@ class BacktestEngineTest {
     }
 
     @Test
+    fun `janela de treino vazia ainda produz lote com pesos uniformes`() = runTest {
+        val repo = InMemoryDrawRepository()
+        // apenas concursos após o corte: treino vazio
+        repo.upsertAll((1..3).map { megaDraw(it, LocalDate.of(2024, 7, it)) })
+
+        val report = BacktestEngine(repo).run(config(gamesPerContest = 2))
+
+        assertEquals(0, report.trainingDraws)
+        assertEquals(6, report.totalGames)
+        assertEquals(1, report.performances.map { it.weight }.distinct().size)
+    }
+
+    @Test
     fun `cobertura total multiplica apostas efetivas na milionaria`() = runTest {
         val repo = InMemoryDrawRepository()
         repo.upsertAll(
@@ -92,7 +115,6 @@ class BacktestEngineTest {
         val report = BacktestEngine(repo).run(
             BacktestConfig(
                 lottery = Lottery.MAIS_MILIONARIA,
-                strategy = GenerationStrategy.RANDOM,
                 cutoff = cutoff,
                 gamesPerContest = 2,
                 trevoStrategy = TrevoStrategy.COBERTURA_TOTAL,
@@ -103,29 +125,6 @@ class BacktestEngineTest {
         assertEquals(2, report.totalGames)
         assertEquals(30, report.totalBets) // 2 jogos × 15 duplas
         assertEquals(0.72, report.expectedMeanHits, 1e-9)
-    }
-
-    @Test
-    fun `estrategia com historico roda sobre a janela de treino`() = runTest {
-        val report = BacktestEngine(seededRepository()).run(
-            config().copy(strategy = GenerationStrategy.FREQUENCY)
-        )
-
-        assertEquals(5, report.trainingDraws)
-        assertEquals(60, report.totalGames)
-    }
-
-    @Test
-    fun `estrategia com historico falha sem janela de treino`() = runTest {
-        val repo = InMemoryDrawRepository()
-        // apenas concursos após o corte: treino vazio
-        repo.upsertAll(listOf(megaDraw(1, LocalDate.of(2024, 7, 10))))
-
-        val error = runCatching {
-            BacktestEngine(repo).run(config().copy(strategy = GenerationStrategy.FREQUENCY))
-        }.exceptionOrNull()
-
-        assertTrue(error is IllegalArgumentException)
     }
 
     @Test

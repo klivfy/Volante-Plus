@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -38,13 +36,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.volanteplus.loterias.domain.backtest.BacktestReport
-import com.volanteplus.loterias.domain.model.GenerationStrategy
+import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import java.util.Locale
@@ -96,7 +93,6 @@ fun BacktestScreen(
             item {
                 ConfigSection(
                     state = state,
-                    onSelectStrategy = viewModel::selectStrategy,
                     onSelectTrevoStrategy = viewModel::selectTrevoStrategy,
                     onSetGamesPerContest = viewModel::setGamesPerContest,
                     onSetCutoff = viewModel::setCutoffInput,
@@ -124,7 +120,7 @@ fun BacktestScreen(
                 item { ReportSection(report) }
             }
 
-            if (state.performances != null) {
+            if (state.report != null) {
                 item {
                     FilledTonalButton(
                         onClick = {
@@ -178,34 +174,19 @@ private fun HistoryCard(state: BacktestUiState, onSync: () -> Unit) {
 @Composable
 private fun ConfigSection(
     state: BacktestUiState,
-    onSelectStrategy: (GenerationStrategy) -> Unit,
     onSelectTrevoStrategy: (TrevoStrategy) -> Unit,
     onSetGamesPerContest: (Int) -> Unit,
     onSetCutoff: (String) -> Unit,
 ) {
     Column {
-        Text("Estratégia sob teste", style = MaterialTheme.typography.titleSmall)
-        // Backtest-Driven consome o resultado de um backtest — não faz sentido testá-la aqui.
-        GenerationStrategy.entries.filterNot { it == GenerationStrategy.BACKTEST_DRIVEN }.forEach { option ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .selectable(
-                        selected = option == state.strategy,
-                        role = Role.RadioButton,
-                        onClick = { onSelectStrategy(option) },
-                    ),
-            ) {
-                RadioButton(selected = option == state.strategy, onClick = null)
-                Text(
-                    text = option.displayName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
-            }
-        }
+        Text("Método sob teste", style = MaterialTheme.typography.titleSmall)
+        Text(
+            text = "${GameBatch.STRATEGY_LABEL}: o desempenho das dezenas é medido apenas na " +
+                "janela de treino e validado contra os concursos posteriores ao corte.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
 
         if (state.lottery.hasTrevos) {
             Text(

@@ -1,7 +1,7 @@
 package com.volanteplus.loterias.ui.navigation
 
+import com.volanteplus.loterias.domain.backtest.NumberPerformance
 import com.volanteplus.loterias.domain.model.Lottery
-import com.volanteplus.loterias.domain.model.NumberPerformance
 
 /**
  * Ponte entre a tela de Backtesting e a tela de Volante: não há
@@ -10,13 +10,20 @@ import com.volanteplus.loterias.domain.model.NumberPerformance
  * telas por este cache em memória, chaveado por loteria.
  */
 object PerformanceCache {
-    private val cache = mutableMapOf<Lottery, List<NumberPerformance>>()
 
-    fun store(lottery: Lottery, performances: List<NumberPerformance>) {
-        cache[lottery] = performances
+    /** Desempenho de dezenas e trevos de um mesmo backtest. */
+    data class Snapshot(
+        val numbers: List<NumberPerformance>,
+        val trevos: List<NumberPerformance> = emptyList(),
+    )
+
+    private val cache = mutableMapOf<Lottery, Snapshot>()
+
+    fun store(lottery: Lottery, snapshot: Snapshot) {
+        cache[lottery] = snapshot
     }
 
-    fun get(lottery: Lottery): List<NumberPerformance>? = cache[lottery]
+    fun get(lottery: Lottery): Snapshot? = cache[lottery]
 
     fun clear() {
         cache.clear()

@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -32,7 +33,6 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -54,7 +54,6 @@ import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
 import com.volanteplus.loterias.domain.model.GeneratedGame
-import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.ui.theme.VolantePlusTheme
@@ -66,6 +65,7 @@ import kotlin.math.roundToInt
 fun VolanteScreen(viewModel: VolanteViewModel = viewModel(factory = VolanteViewModel.Factory)) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val nextDrawInfo by viewModel.nextDrawInfo.collectAsStateWithLifecycle()
+    val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.message) {
@@ -99,13 +99,13 @@ fun VolanteScreen(viewModel: VolanteViewModel = viewModel(factory = VolanteViewM
             GameModeTabs(selected = state.gameMode, onSelect = viewModel::selectGameMode)
             VolanteContent(
                 state = state,
+                isAnalyzing = isAnalyzing,
                 onToggleNumber = viewModel::toggleNumber,
                 onToggleTrevo = viewModel::toggleTrevo,
                 onSelectTrevoStrategy = viewModel::selectTrevoStrategy,
                 onClear = viewModel::clearSelection,
                 onSetBatchCount = viewModel::setBatchCount,
-                onSelectStrategy = viewModel::selectGenerationStrategy,
-                onGenerate = viewModel::generateBatch,
+                onGenerate = { viewModel.generateGames(state.batchCount) },
             )
         }
     }
@@ -142,12 +142,12 @@ private fun GameModeTabs(selected: GameMode, onSelect: (GameMode) -> Unit) {
 @Composable
 private fun VolanteContent(
     state: VolanteUiState,
+    isAnalyzing: Boolean,
     onToggleNumber: (Int) -> Unit,
     onToggleTrevo: (Int) -> Unit,
     onSelectTrevoStrategy: (TrevoStrategy) -> Unit,
     onClear: () -> Unit,
     onSetBatchCount: (Int) -> Unit,
-    onSelectStrategy: (GenerationStrategy) -> Unit,
     onGenerate: () -> Unit,
 ) {
     val lottery = state.lottery
@@ -209,7 +209,7 @@ private fun VolanteContent(
         item(span = { GridItemSpan(maxLineSpan) }) {
             GeneratorControls(
                 batchCount = state.batchCount,
-                strategy = state.generationStrategy,
+                isAnalyzing = isAnalyzing,
                 fechamentoHint = if (state.gameMode == GameMode.FECHAMENTO) {
                     "Fechamento: os jogos usam apenas as dezenas marcadas no volante " +
                         "(mín. ${lottery.minSelection}). Cada dezena marcada entra em jogo " +
@@ -218,7 +218,6 @@ private fun VolanteContent(
                     null
                 },
                 onSetCount = onSetBatchCount,
-                onSelectStrategy = onSelectStrategy,
                 onGenerate = onGenerate,
             )
         }
@@ -234,10 +233,9 @@ private fun VolanteContent(
 @Composable
 private fun GeneratorControls(
     batchCount: Int,
-    strategy: GenerationStrategy,
+    isAnalyzing: Boolean,
     fechamentoHint: String?,
     onSetCount: (Int) -> Unit,
-    onSelectStrategy: (GenerationStrategy) -> Unit,
     onGenerate: () -> Unit,
 ) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
@@ -287,40 +285,35 @@ private fun GeneratorControls(
         )
 
         Text(
-            text = "Estratégia",
+            text = GameBatch.STRATEGY_LABEL,
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(top = 16.dp),
         )
-        // Estratégias com histórico só rodam sob o protocolo de backtesting
-        GenerationStrategy.entries.filterNot { it.requiresHistory }.forEach { option ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .selectable(
-                        selected = option == strategy,
-                        role = Role.RadioButton,
-                        onClick = { onSelectStrategy(option) },
-                    ),
-            ) {
-                RadioButton(selected = option == strategy, onClick = null)
-                Column(modifier = Modifier.padding(start = 4.dp)) {
-                    Text(option.displayName, style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        text = option.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
+        Text(
+            text = "Os jogos saem do desempenho medido no histórico local — não há " +
+                "estratégia a escolher.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
 
         Button(
             onClick = onGenerate,
+            enabled = !isAnalyzing,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         ) {
-            Text("Gerar lote")
+            if (isAnalyzing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                )
+                Text(
+                    text = "Analisando histórico…",
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            } else {
+                Text("Gerar jogos")
+            }
         }
     }
 }
@@ -330,7 +323,7 @@ private fun GeneratedBatchList(batch: GameBatch) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
         val origin = batch.sourcePool?.let { " · Fechamento de ${it.size} dezenas" } ?: ""
         Text(
-            text = "Jogos gerados (${batch.strategy.displayName}$origin)",
+            text = "Jogos gerados (${batch.strategyLabel}$origin)",
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(bottom = 8.dp),
         )

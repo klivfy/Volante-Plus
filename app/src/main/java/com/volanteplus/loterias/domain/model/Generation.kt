@@ -1,36 +1,6 @@
 package com.volanteplus.loterias.domain.model
 
-/** Estratégias de geração de jogos. */
-enum class GenerationStrategy(
-    val displayName: String,
-    val description: String,
-    /** Estratégias com histórico só rodam sob o protocolo de backtesting. */
-    val requiresHistory: Boolean = false,
-) {
-    /** RNG criptográfico. Zero viés, zero filtro. */
-    RANDOM("Aleatório puro", "RNG criptográfico. Zero viés, zero filtro."),
-
-    /** Espalha pares/ímpares matematicamente (3 de cada por jogo). */
-    BALANCED("Equilibrado", "Espalha pares/ímpares matematicamente."),
-
-    /** "Números quentes": a promessa clássica que o backtesting coloca à prova. */
-    FREQUENCY(
-        "Mais sorteadas",
-        "Prioriza as dezenas mais frequentes da janela de treino — hipótese a refutar.",
-        requiresHistory = true,
-    ),
-
-    /**
-     * Usa o desempenho calculado por um backtest já executado (ver
-     * [com.volanteplus.loterias.domain.backtest.BacktestAnalyzer] e
-     * `PerformanceCache`): não exige histórico no momento da geração porque
-     * ele já foi consumido ao rodar o backtest.
-     */
-    BACKTEST_DRIVEN(
-        "Backtest-Driven",
-        "Usa o desempenho de um backtest já executado para priorizar dezenas.",
-    ),
-}
+import com.volanteplus.loterias.domain.backtest.NumberPerformance
 
 /**
  * Jogo gerado: [numbers] sempre ordenado; [trevoDuplas] vazio para loterias
@@ -41,10 +11,21 @@ data class GeneratedGame(
     val trevoDuplas: List<Set<Int>> = emptyList(),
 )
 
+/**
+ * Lote gerado. Desde a unificação das estratégias existe uma única forma de
+ * gerar jogos — a partir do desempenho medido no backtesting — então
+ * [strategyLabel] é rótulo de exibição, não uma escolha do usuário.
+ */
 data class GameBatch(
     val lottery: Lottery,
-    val strategy: GenerationStrategy,
     val games: List<GeneratedGame>,
+    /** Desempenho que originou o lote, preservado para auditoria. */
+    val performancesSnapshot: List<NumberPerformance> = emptyList(),
     /** Dezenas de origem no modo Fechamento; null quando o lote usa o volante inteiro. */
     val sourcePool: List<Int>? = null,
-)
+    val strategyLabel: String = STRATEGY_LABEL,
+) {
+    companion object {
+        const val STRATEGY_LABEL = "Backtest-Driven"
+    }
+}
