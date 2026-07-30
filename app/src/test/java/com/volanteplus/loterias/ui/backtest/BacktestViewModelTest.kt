@@ -2,6 +2,7 @@ package com.volanteplus.loterias.ui.backtest
 
 import com.volanteplus.loterias.data.remote.CaixaDrawDto
 import com.volanteplus.loterias.data.remote.CaixaLotteryApi
+import com.volanteplus.loterias.data.remote.NextDrawDto
 import com.volanteplus.loterias.domain.backtest.BacktestEngine
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
@@ -49,6 +50,8 @@ class BacktestViewModelTest {
 
         override suspend fun fetchLatest(lottery: Lottery) = dto(latestContest)
         override suspend fun fetchContest(lottery: Lottery, contestNumber: Int) = dto(contestNumber)
+        override suspend fun fetchNextDraw(lottery: Lottery): Result<NextDrawDto> =
+            Result.failure(UnsupportedOperationException("não usado neste teste"))
     }
 
     private fun megaDraw(contest: Int, date: LocalDate) =

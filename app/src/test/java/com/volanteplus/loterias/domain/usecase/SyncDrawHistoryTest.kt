@@ -2,6 +2,7 @@ package com.volanteplus.loterias.domain.usecase
 
 import com.volanteplus.loterias.data.remote.CaixaDrawDto
 import com.volanteplus.loterias.data.remote.CaixaLotteryApi
+import com.volanteplus.loterias.data.remote.NextDrawDto
 import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
@@ -57,6 +58,9 @@ private class FakeCaixaApi(
         if (contestNumber in failingContests) throw IOException("falha simulada")
         return dto(contestNumber)
     }
+
+    override suspend fun fetchNextDraw(lottery: Lottery): Result<NextDrawDto> =
+        Result.failure(UnsupportedOperationException("não usado neste teste"))
 }
 
 class SyncDrawHistoryTest {

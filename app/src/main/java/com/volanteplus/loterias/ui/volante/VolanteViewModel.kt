@@ -28,7 +28,7 @@ data class VolanteUiState(
     val selections: Map<Lottery, VolanteSelection> =
         Lottery.entries.associateWith { VolanteSelection() },
     /** Controle de lote do gerador ("QUANTOS JOGOS"). */
-    val batchCount: Int = 1,
+    val batchCount: Int = GameGenerator.MIN_GAMES,
     val generationStrategy: GenerationStrategy = GenerationStrategy.RANDOM,
     val generatedBatch: GameBatch? = null,
     /** Mensagem transitória (ex.: limite de dezenas atingido). */
@@ -128,7 +128,7 @@ class VolanteViewModel(
     /** Botões de quantidade fixa (3, 5, 10) do controle de lote. */
     fun setBatchCount(count: Int) {
         _uiState.update {
-            it.copy(batchCount = count.coerceIn(1, GameGenerator.MAX_GAMES))
+            it.copy(batchCount = count.coerceIn(GameGenerator.MIN_GAMES, GameGenerator.MAX_GAMES))
         }
     }
 

@@ -1,5 +1,6 @@
 package com.volanteplus.loterias.domain.backtest
 
+import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
@@ -11,7 +12,7 @@ data class BacktestConfig(
     /** Concursos com data <= corte ficam na janela de treino; o resto valida. */
     val cutoff: LocalDate,
     /** Jogos gerados por concurso da janela de validação. */
-    val gamesPerContest: Int = 1,
+    val gamesPerContest: Int = GameGenerator.MIN_GAMES,
     val trevoStrategy: TrevoStrategy = TrevoStrategy.ECONOMICO,
     /** Semente para reprodutibilidade do relatório; null usa SecureRandom. */
     val seed: Long? = null,

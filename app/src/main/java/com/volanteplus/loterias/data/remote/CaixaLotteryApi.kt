@@ -3,6 +3,7 @@ package com.volanteplus.loterias.data.remote
 import com.volanteplus.loterias.domain.model.Lottery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -14,6 +15,13 @@ interface CaixaLotteryApi {
 
     /** Concurso específico. */
     suspend fun fetchContest(lottery: Lottery, contestNumber: Int): CaixaDrawDto
+
+    /**
+     * Dados do próximo concurso (data e prêmio estimado). Result em vez de
+     * exceção: consumido por um caso de uso com fallback gracioso quando a
+     * API está fora do ar.
+     */
+    suspend fun fetchNextDraw(lottery: Lottery): Result<NextDrawDto>
 }
 
 /**
@@ -26,27 +34,37 @@ class HttpCaixaLotteryApi(
 ) : CaixaLotteryApi {
 
     override suspend fun fetchLatest(lottery: Lottery): CaixaDrawDto =
-        get("$baseUrl/${lottery.apiPath}")
+        get("$baseUrl/${lottery.apiPath}", CaixaDrawDto.serializer())
 
     override suspend fun fetchContest(lottery: Lottery, contestNumber: Int): CaixaDrawDto =
-        get("$baseUrl/${lottery.apiPath}/$contestNumber")
+        get("$baseUrl/${lottery.apiPath}/$contestNumber", CaixaDrawDto.serializer())
 
-    private suspend fun get(url: String): CaixaDrawDto = withContext(Dispatchers.IO) {
-        val connection = URL(url).openConnection() as HttpURLConnection
+    override suspend fun fetchNextDraw(lottery: Lottery): Result<NextDrawDto> =
         try {
-            connection.connectTimeout = TIMEOUT_MS
-            connection.readTimeout = TIMEOUT_MS
-            connection.setRequestProperty("Accept", "application/json")
-            val code = connection.responseCode
-            if (code != HttpURLConnection.HTTP_OK) {
-                throw IOException("HTTP $code em $url")
-            }
-            val body = connection.inputStream.bufferedReader().use { it.readText() }
-            json.decodeFromString(CaixaDrawDto.serializer(), body)
-        } finally {
-            connection.disconnect()
+            // WHY: o próprio endpoint do último concurso já traz data e prêmio
+            // estimado do próximo — não há endpoint dedicado na API da Caixa.
+            Result.success(get("$baseUrl/${lottery.apiPath}", NextDrawDto.serializer()))
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-    }
+
+    private suspend fun <T> get(url: String, serializer: KSerializer<T>): T =
+        withContext(Dispatchers.IO) {
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = TIMEOUT_MS
+                connection.readTimeout = TIMEOUT_MS
+                connection.setRequestProperty("Accept", "application/json")
+                val code = connection.responseCode
+                if (code != HttpURLConnection.HTTP_OK) {
+                    throw IOException("HTTP $code em $url")
+                }
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                json.decodeFromString(serializer, body)
+            } finally {
+                connection.disconnect()
+            }
+        }
 
     companion object {
         const val DEFAULT_BASE_URL = "https://servicebus2.caixa.gov.br/portaldeloterias/api"

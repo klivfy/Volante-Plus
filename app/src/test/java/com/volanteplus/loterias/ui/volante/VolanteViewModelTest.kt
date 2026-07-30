@@ -93,7 +93,7 @@ class VolanteViewModelTest {
     fun `controle de lote incrementa e trava no maximo`() {
         val vm = viewModel()
         repeat(15) { vm.incrementBatchCount() }
-        assertEquals(10, vm.uiState.value.batchCount)
+        assertEquals(5, vm.uiState.value.batchCount)
         vm.setBatchCount(5)
         assertEquals(5, vm.uiState.value.batchCount)
     }

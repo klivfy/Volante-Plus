@@ -15,9 +15,10 @@ import java.util.Random
  * Regra de repetição mínima do lote: nenhuma dezena se repete entre jogos
  * enquanto houver dezenas inéditas; quando as inéditas não bastam para um
  * jogo, elas entram primeiro e o restante vem do pool reposto. Assim toda
- * dezena disponível aparece no lote antes de qualquer repetição (Mega-Sena:
- * 10 jogos disjuntos cobrem as 60; +Milionária: as 50 aparecem até o 9º
- * jogo).
+ * dezena disponível aparece no lote antes de qualquer repetição (o lote
+ * máximo de [MAX_GAMES] jogos nunca esgota o intervalo completo de nenhuma
+ * das loterias, então essa regra só se manifesta no modo Fechamento, cujo
+ * pool é bem menor).
  *
  * Modo Fechamento: [generate] aceita um `pool` com as dezenas marcadas no
  * volante e desdobra os jogos usando apenas essas dezenas, sob a mesma
@@ -37,7 +38,9 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         /** Concursos da janela de treino; obrigatório para estratégias com histórico. */
         history: List<Draw>? = null,
     ): GameBatch {
-        require(gameCount in 1..MAX_GAMES) { "Quantidade de jogos deve estar em 1..$MAX_GAMES" }
+        require(gameCount in MIN_GAMES..MAX_GAMES) {
+            "Quantidade de jogos deve estar em $MIN_GAMES..$MAX_GAMES"
+        }
         if (strategy.requiresHistory) {
             require(!history.isNullOrEmpty()) {
                 "Estratégia ${strategy.displayName} exige histórico de concursos (janela de treino vazia)"
@@ -134,7 +137,10 @@ class GameGenerator(private val random: Random = SecureRandom()) {
 
     companion object {
         const val GAME_SIZE = Draw.NUMBERS_DRAWN
-        const val MAX_GAMES = 10
+        // WHY: teto reduzido de 10 para 5 — lotes maiores raramente eram usados e
+        // encareciam a geração/renderização; piso de 2 evita lote degenerado de 1 jogo.
+        const val MIN_GAMES = 2
+        const val MAX_GAMES = 5
 
         /** As C(6,2) = 15 duplas possíveis de trevos (Cobertura total). */
         val allTrevoPairs: List<Set<Int>> = buildList {

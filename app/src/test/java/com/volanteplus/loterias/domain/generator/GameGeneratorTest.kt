@@ -17,8 +17,8 @@ class GameGeneratorTest {
 
     @Test
     fun `jogo tem 6 dezenas ordenadas dentro do intervalo`() {
-        val batch = generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 1)
-        val game = batch.games.single()
+        val batch = generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, GameGenerator.MIN_GAMES)
+        val game = batch.games.first()
 
         assertEquals(6, game.numbers.size)
         assertEquals(game.numbers.sorted(), game.numbers)
@@ -27,33 +27,23 @@ class GameGeneratorTest {
     }
 
     @Test
-    fun `lote de 10 na mega-sena e totalmente disjunto e cobre as 60 dezenas`() {
-        val batch = generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 10)
+    fun `lote maximo na mega-sena e totalmente disjunto`() {
+        val batch = generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, GameGenerator.MAX_GAMES)
         val all = batch.games.flatMap { it.numbers }
 
-        assertEquals(60, all.size)
-        assertEquals(Lottery.MEGA_SENA.numberRange.toSet(), all.toSet())
+        assertEquals(GameGenerator.MAX_GAMES * 6, all.size)
+        assertEquals(all.size, all.toSet().size)
     }
 
     @Test
-    fun `milionaria mantem disjuncao ate esgotar o intervalo`() {
+    fun `milionaria mantem disjuncao no lote maximo`() {
         val batch = generator().generate(
-            Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, 10,
+            Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, GameGenerator.MAX_GAMES,
         )
-        // 8 jogos * 6 = 48 de 50 dezenas: os 8 primeiros não podem repetir
-        val firstEight = batch.games.take(8).flatMap { it.numbers }
-        assertEquals(48, firstEight.toSet().size)
+        // MAX_GAMES * 6 = 30 < 50 dezenas: nenhuma repetição é necessária
+        val all = batch.games.flatMap { it.numbers }
+        assertEquals(GameGenerator.MAX_GAMES * 6, all.toSet().size)
         assertTrue(batch.games.all { it.numbers.toSet().size == 6 })
-    }
-
-    @Test
-    fun `milionaria com 10 jogos cobre as 50 dezenas antes de repetir`() {
-        val batch = generator().generate(
-            Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, 10,
-        )
-        // repetição mínima: as 2 inéditas restantes entram no 9º jogo
-        val firstNine = batch.games.take(9).flatMap { it.numbers }.toSet()
-        assertEquals(Lottery.MAIS_MILIONARIA.numberRange.toSet(), firstNine)
     }
 
     @Test
@@ -83,13 +73,13 @@ class GameGeneratorTest {
     fun `fechamento rejeita pool invalido`() {
         assertThrows(IllegalArgumentException::class.java) {
             generator().generate(
-                Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 1,
+                Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 2,
                 pool = setOf(1, 2, 3, 4, 5),
             )
         }
         assertThrows(IllegalArgumentException::class.java) {
             generator().generate(
-                Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, 1,
+                Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, 2,
                 pool = setOf(1, 2, 3, 4, 5, 51),
             )
         }
@@ -126,9 +116,9 @@ class GameGeneratorTest {
     @Test
     fun `cobertura total gera as 15 duplas`() {
         val batch = generator().generate(
-            Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, 1, TrevoStrategy.COBERTURA_TOTAL,
+            Lottery.MAIS_MILIONARIA, GenerationStrategy.RANDOM, GameGenerator.MIN_GAMES, TrevoStrategy.COBERTURA_TOTAL,
         )
-        val duplas = batch.games.single().trevoDuplas
+        val duplas = batch.games.first().trevoDuplas
 
         assertEquals(15, duplas.size)
         assertEquals(15, duplas.toSet().size)
@@ -154,11 +144,11 @@ class GameGeneratorTest {
     @Test
     fun `mais sorteadas sem historico e rejeitada`() {
         assertThrows(IllegalArgumentException::class.java) {
-            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 1)
+            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 2)
         }
         assertThrows(IllegalArgumentException::class.java) {
             generator().generate(
-                Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 1, history = emptyList(),
+                Lottery.MEGA_SENA, GenerationStrategy.FREQUENCY, 2, history = emptyList(),
             )
         }
     }
@@ -176,7 +166,10 @@ class GameGeneratorTest {
             generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 0)
         }
         assertThrows(IllegalArgumentException::class.java) {
-            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 11)
+            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, 1)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            generator().generate(Lottery.MEGA_SENA, GenerationStrategy.RANDOM, GameGenerator.MAX_GAMES + 1)
         }
     }
 }

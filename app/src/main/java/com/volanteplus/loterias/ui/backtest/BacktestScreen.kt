@@ -213,7 +213,7 @@ private fun ConfigSection(
             modifier = Modifier.padding(top = 12.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(1, 3, 5, 10).forEach { count ->
+            listOf(2, 3, 5).forEach { count ->
                 FilterChip(
                     selected = state.gamesPerContest == count,
                     onClick = { onSetGamesPerContest(count) },

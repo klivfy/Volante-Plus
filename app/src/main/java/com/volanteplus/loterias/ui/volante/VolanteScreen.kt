@@ -257,7 +257,7 @@ private fun GeneratorControls(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedButton(onClick = onIncrement) { Text("+1") }
-            listOf(3, 5, 10).forEach { count ->
+            listOf(2, 3, 5).forEach { count ->
                 FilterChip(
                     selected = batchCount == count,
                     onClick = { onSetCount(count) },

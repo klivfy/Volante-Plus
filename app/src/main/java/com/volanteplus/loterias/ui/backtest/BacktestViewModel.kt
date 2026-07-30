@@ -12,6 +12,7 @@ import com.volanteplus.loterias.data.seed.AssetDrawSeeder
 import com.volanteplus.loterias.domain.backtest.BacktestConfig
 import com.volanteplus.loterias.domain.backtest.BacktestEngine
 import com.volanteplus.loterias.domain.backtest.BacktestReport
+import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
@@ -29,7 +30,7 @@ data class BacktestUiState(
     val lottery: Lottery = Lottery.MEGA_SENA,
     val strategy: GenerationStrategy = GenerationStrategy.RANDOM,
     val trevoStrategy: TrevoStrategy = TrevoStrategy.ECONOMICO,
-    val gamesPerContest: Int = 1,
+    val gamesPerContest: Int = GameGenerator.MIN_GAMES,
     /** Data de corte digitada (ISO: aaaa-mm-dd). */
     val cutoffInput: String = "",
     val cutoffError: Boolean = false,
