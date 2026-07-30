@@ -11,7 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import java.io.IOException
 
-private class FakeCaixaApi(
+private class FakeNextDrawCaixaApi(
     private val result: Result<NextDrawDto>,
 ) : CaixaLotteryApi {
     override suspend fun fetchLatest(lottery: Lottery): CaixaDrawDto =
@@ -34,7 +34,7 @@ class GetNextDrawInfoUseCaseTest {
 
     @Test
     fun `emite o proximo concurso quando a api responde com sucesso`() = runTest {
-        val useCase = GetNextDrawInfoUseCase(FakeCaixaApi(Result.success(dto())))
+        val useCase = GetNextDrawInfoUseCase(FakeNextDrawCaixaApi(Result.success(dto())))
 
         val info = useCase(Lottery.MEGA_SENA).first()
 
@@ -44,7 +44,7 @@ class GetNextDrawInfoUseCaseTest {
 
     @Test
     fun `emite null quando a api falha`() = runTest {
-        val useCase = GetNextDrawInfoUseCase(FakeCaixaApi(Result.failure(IOException("indisponível"))))
+        val useCase = GetNextDrawInfoUseCase(FakeNextDrawCaixaApi(Result.failure(IOException("indisponível"))))
 
         val info = useCase(Lottery.MEGA_SENA).first()
 
