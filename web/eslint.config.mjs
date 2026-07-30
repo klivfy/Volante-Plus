@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Gerados por next-pwa a cada build de produção (ver .gitignore) — não
+    // é código nosso, é o bundle minificado do workbox-webpack-plugin.
+    "public/sw.js",
+    "public/workbox-*.js",
+    "public/swe-worker*.js",
   ]),
 ]);
 

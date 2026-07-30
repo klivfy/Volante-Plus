@@ -1,7 +1,12 @@
 # Volante+ — Laboratório Estatístico de Loterias
 
-App Android (Kotlin + Jetpack Compose, Material Design 3) para teste de hipóteses
-estatísticas sobre Mega-Sena e +Milionária.
+[![Android CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/android-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/android-ci.yml)
+[![Web CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/web-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/web-ci.yml)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Mestrys/Volante-Plus&root-directory=web)
+
+App Android (Kotlin + Jetpack Compose, Material Design 3) e versão web
+(Next.js + PWA, ver `web/`) para teste de hipóteses estatísticas sobre
+Mega-Sena e +Milionária.
 
 > Gerador estatístico para Mega-Sena e +Milionária. Sem palpite, sem número quente.
 

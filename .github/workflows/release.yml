@@ -32,9 +32,13 @@ jobs:
   release:
     name: APK e Release
     # Um push comum na branch não publica nada: só com `[release]` no commit.
+    # `[web-only]` no commit da tag pula a Release Android — usado quando a
+    # tag `v*` marca um lançamento da plataforma web/PWA sem mudança de
+    # código Android (ex.: v2.0.0). workflow_dispatch ignora esse marcador
+    # de propósito: é sempre um pedido explícito de publicar uma tag.
     if: >-
-      github.ref_type == 'tag' ||
       github.event_name == 'workflow_dispatch' ||
+      (github.ref_type == 'tag' && !contains(github.event.head_commit.message, '[web-only]')) ||
       contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
     timeout-minutes: 30
