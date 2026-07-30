@@ -7,6 +7,8 @@ import "@fontsource/open-sans/700.css";
 import "@fontsource/open-sans/800.css";
 import "./globals.css";
 import ThemeProvider from "./providers";
+import BottomNav from "@/components/BottomNav";
+import { BOTTOM_NAV_HEIGHT } from "@/components/navigation";
 
 export const metadata: Metadata = {
   title: "Volante+ — Análise de Loterias",
@@ -34,7 +36,17 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <div
+            style={{
+              paddingBottom: `calc(${BOTTOM_NAV_HEIGHT}px + env(safe-area-inset-bottom))`,
+              minHeight: '100dvh',
+            }}
+          >
+            {children}
+          </div>
+          <BottomNav />
+        </ThemeProvider>
       </body>
     </html>
   );

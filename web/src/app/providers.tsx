@@ -4,21 +4,28 @@ import { ReactNode } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
 import { darkTheme, lightTheme } from '@/theme';
 
 /**
  * Aplica o tema Material 3 seguindo a preferência do sistema.
  *
- * `noSsr` evita o flash claro→escuro: sem ele a primeira renderização assume
- * o tema claro no servidor e só troca depois de hidratar no cliente.
+ * `AppRouterCacheProvider` é obrigatório com o App Router: sem ele, o
+ * Emotion injeta as folhas de estilo do `CssBaseline` de um jeito no
+ * servidor e de outro no cliente, e a hidratação diverge logo na primeira
+ * tag `<style>`. `noSsr` no `useMediaQuery` evita o flash claro→escuro: sem
+ * ele a primeira renderização assume o tema claro no servidor e só troca
+ * depois de hidratar no cliente.
  */
 export default function Providers({ children }: { children: ReactNode }) {
   const prefersDark = useMediaQuery('(prefers-color-scheme: dark)', { noSsr: true });
 
   return (
-    <ThemeProvider theme={prefersDark ? darkTheme : lightTheme}>
-      <CssBaseline />
-      {children}
-    </ThemeProvider>
+    <AppRouterCacheProvider>
+      <ThemeProvider theme={prefersDark ? darkTheme : lightTheme}>
+        <CssBaseline />
+        {children}
+      </ThemeProvider>
+    </AppRouterCacheProvider>
   );
 }
