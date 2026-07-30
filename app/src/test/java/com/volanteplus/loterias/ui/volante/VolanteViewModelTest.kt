@@ -122,7 +122,7 @@ class VolanteViewModelTest {
 
         val batch = vm.uiState.value.generatedBatch!!
         assertEquals(GenerationStrategy.BALANCED, batch.strategy)
-        assertEquals(15, batch.games.single().trevoDuplas.size)
+        assertEquals(15, batch.games.first().trevoDuplas.size)
     }
 
     @Test
