@@ -53,6 +53,20 @@ export async function syncNow(): Promise<void> {
 }
 
 /**
+ * Como `syncNow`, mas devolve quantos concursos novos entraram no banco — a
+ * base para atualizar o badge do ícone ("N novos sorteios"). Compara a
+ * contagem total de `draws` antes e depois do upsert; como `saveDraws` é
+ * idempotente pela chave composta, só concursos realmente inéditos aumentam a
+ * contagem.
+ */
+export async function syncAndCountNew(): Promise<number> {
+  const before = await db.draws.count();
+  await syncNow();
+  const after = await db.draws.count();
+  return Math.max(0, after - before);
+}
+
+/**
  * Sincroniza apenas se a última sincronização foi há mais de
  * `SYNC_INTERVAL_MS` (ou nunca aconteceu) — fallback usado ao abrir o app,
  * para os casos em que nem Periodic Background Sync nem `chrome.alarms`

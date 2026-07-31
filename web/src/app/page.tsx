@@ -17,6 +17,7 @@ import GameCard from '@/components/GameCard';
 import GameSlider from '@/components/GameSlider';
 import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
+import NotificationOptIn from '@/components/NotificationOptIn';
 import { generateGames } from '@/engine/gameGenerator';
 import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
@@ -119,13 +120,16 @@ export default function VolantePage() {
   return (
     <Container component="main" maxWidth="lg" sx={{ py: 3 }}>
       <Stack spacing={3}>
-        <Box>
-          <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
-            {t('volante.title')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {t('volante.subtitle')}
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+          <Box>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
+              {t('volante.title')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t('volante.subtitle')}
+            </Typography>
+          </Box>
+          <NotificationOptIn />
         </Box>
 
         <LotterySelector value={lottery} onChange={setLottery} disabled={isBusy} />

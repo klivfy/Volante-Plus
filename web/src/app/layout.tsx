@@ -15,6 +15,18 @@ export const metadata: Metadata = {
   description:
     "Aplicação web para análise e geração de jogos de loterias usando backtesting e desempenho histórico",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Volante+",
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icon-192x192.png", sizes: "192x192", type: "image/png" }],
+  },
   other: {
     // Ícone de "tile" ao fixar o PWA na tela Iniciar do Windows. Caminho
     // adaptado para /icon-144x144.png (em vez de /icons/icon-144.png) para

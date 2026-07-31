@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Lottery } from '../../types/domain';
 import * as caixaApi from '../caixaApi';
 import { db, getDraws } from '../db';
-import { registerBackgroundSync, SYNC_INTERVAL_MS, syncIfStale, syncNow } from '../syncService';
+import { registerBackgroundSync, syncAndCountNew, SYNC_INTERVAL_MS, syncIfStale, syncNow } from '../syncService';
 
 beforeEach(async () => {
   await db.draws.clear();
@@ -44,6 +44,31 @@ describe('syncNow', () => {
 
     await expect(syncNow()).resolves.toBeUndefined();
     expect(await getDraws(Lottery.MEGA_SENA)).toEqual([]);
+  });
+});
+
+describe('syncAndCountNew', () => {
+  it('conta apenas os concursos realmente novos (saveDraws é idempotente)', async () => {
+    await db.draws.put(megaSenaDraw);
+    const novo = { ...megaSenaDraw, contestNumber: 2, date: '2024-01-08' };
+    vi.spyOn(caixaApi, 'fetchDrawHistory').mockImplementation(async (lottery) =>
+      lottery === Lottery.MEGA_SENA ? [megaSenaDraw, novo] : [],
+    );
+    vi.spyOn(caixaApi, 'fetchNextDraw').mockResolvedValue(null);
+
+    const count = await syncAndCountNew();
+
+    expect(count).toBe(1);
+  });
+
+  it('devolve 0 quando nada de novo chega', async () => {
+    await db.draws.put(megaSenaDraw);
+    vi.spyOn(caixaApi, 'fetchDrawHistory').mockImplementation(async (lottery) =>
+      lottery === Lottery.MEGA_SENA ? [megaSenaDraw] : [],
+    );
+    vi.spyOn(caixaApi, 'fetchNextDraw').mockResolvedValue(null);
+
+    expect(await syncAndCountNew()).toBe(0);
   });
 });
 

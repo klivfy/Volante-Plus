@@ -75,3 +75,56 @@ então para testar qualquer coisa relacionada a PWA/offline é preciso:
 npm run build
 npm run start
 ```
+
+## Handlers extras do service worker
+
+O SW gerado pelo Workbox não cobre `push`, `notificationclick` nem
+`periodicsync`. Esses handlers ficam em `web/src/worker/index.ts`, que o
+`next-pwa` compila (`customWorkerSrc`) e injeta no `sw.js` via `importScripts`.
+O arquivo `public/worker-*.js` é artefato de build (gitignored), como o
+próprio `sw.js`.
+
+## Notificações push (novos sorteios)
+
+Fluxo completo de Web Push, todo best-effort (degrada sem suporte/permissão):
+
+1. **Opt-in** — o botão "Ativar notificações" (`NotificationOptIn`, via
+   `usePushNotifications`) pede permissão e inscreve o navegador no
+   `PushManager` (`services/pushService.ts`), mandando a inscrição para
+   `POST /api/push/subscribe`.
+2. **Envio** — quando um novo sorteio é detectado, um `POST /api/push/send`
+   (função serverless, protegida por `PUSH_SEND_SECRET`) dispara o push a todos
+   os inscritos com `web-push`. Pensado para ser acionado por um **Vercel
+   Cron** ou pelo sincronizador.
+3. **Recebimento** — o handler `push` do worker mostra a notificação; o clique
+   (`notificationclick`) foca/abre o app.
+4. **Fallback com app aberto** — `showLocalNotification` mostra uma notificação
+   local imediata, sem depender do servidor.
+
+**Configuração (opcional).** Gere as chaves com `npx web-push
+generate-vapid-keys` e preencha em `.env` (ver `.env.example`):
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+`VAPID_SUBJECT` e `PUSH_SEND_SECRET`. Sem as chaves, o app funciona normalmente
+— só o opt-in de push não aparece.
+
+> **Persistência das inscrições.** O backend de exemplo
+> (`src/server/pushStore.ts`) guarda as inscrições **em memória** — não
+> sobrevive a cold starts nem é compartilhado entre instâncias serverless. Em
+> produção, troque essa camada por um KV/DB real; a interface
+> (`addSubscription`/`removeSubscription`/`sendToAll`) foi isolada para isso.
+
+## Sincronização em segundo plano (Background Sync)
+
+- **Periodic Background Sync** — quando o navegador suporta,
+  `registerBackgroundSync` (`services/syncService.ts`) registra a tag
+  `volante-plus-sync`. Ao disparar, o handler `periodicsync` do worker avisa as
+  abas abertas (`postMessage`), que rodam a sincronização (`syncAndCountNew`) —
+  a persistência real usa o IndexedDB via Dexie, que vive no contexto da
+  página.
+- **Fallback ao abrir o app** — `PwaLifecycle` chama `syncIfStale()` na
+  montagem, cobrindo os casos sem suporte a Periodic Background Sync (ou com o
+  app fechado por muito tempo). Só sincroniza se a última vez foi há mais de
+  24h.
+- **Badge do ícone** — havendo concursos novos após a sincronização,
+  `services/badge.ts` atualiza o badge do PWA (`navigator.setAppBadge`) e uma
+  notificação local avisa. O badge é limpo quando o usuário volta ao app.

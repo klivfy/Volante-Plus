@@ -18,6 +18,11 @@ const withPWA = withPWAInit({
   dest: "public",
   register: true,
   extendDefaultRuntimeCaching: true,
+  // Handlers de push/notificationclick/periodicsync que o Workbox não cobre;
+  // next-pwa compila este arquivo e o injeta no sw.js gerado. Ver
+  // `src/worker/index.ts`.
+  customWorkerSrc: "src/worker",
+  customWorkerDest: "public",
   workboxOptions: {
     skipWaiting: true,
     runtimeCaching: [
