@@ -1,0 +1,852 @@
+[
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 251,
+    "date": "2025-08-16",
+    "numbers": [
+      14,
+      15,
+      31,
+      35,
+      37,
+      38
+    ],
+    "trevos": [
+      4,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 252,
+    "date": "2025-08-23",
+    "numbers": [
+      1,
+      2,
+      9,
+      15,
+      42,
+      48
+    ],
+    "trevos": [
+      3,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 253,
+    "date": "2025-08-30",
+    "numbers": [
+      25,
+      27,
+      28,
+      35,
+      39,
+      46
+    ],
+    "trevos": [
+      3,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 254,
+    "date": "2025-09-06",
+    "numbers": [
+      20,
+      33,
+      40,
+      43,
+      44,
+      46
+    ],
+    "trevos": [
+      3,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 255,
+    "date": "2025-09-13",
+    "numbers": [
+      10,
+      20,
+      34,
+      37,
+      41,
+      48
+    ],
+    "trevos": [
+      3,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 256,
+    "date": "2025-09-20",
+    "numbers": [
+      8,
+      10,
+      26,
+      31,
+      34,
+      42
+    ],
+    "trevos": [
+      1,
+      2
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 257,
+    "date": "2025-09-27",
+    "numbers": [
+      9,
+      23,
+      34,
+      42,
+      43,
+      46
+    ],
+    "trevos": [
+      2,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 258,
+    "date": "2025-10-04",
+    "numbers": [
+      11,
+      22,
+      31,
+      32,
+      33,
+      39
+    ],
+    "trevos": [
+      4,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 259,
+    "date": "2025-10-11",
+    "numbers": [
+      2,
+      3,
+      25,
+      28,
+      42,
+      49
+    ],
+    "trevos": [
+      1,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 260,
+    "date": "2025-10-18",
+    "numbers": [
+      2,
+      7,
+      11,
+      13,
+      22,
+      24
+    ],
+    "trevos": [
+      2,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 261,
+    "date": "2025-10-25",
+    "numbers": [
+      8,
+      10,
+      20,
+      21,
+      26,
+      40
+    ],
+    "trevos": [
+      4,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 262,
+    "date": "2025-11-01",
+    "numbers": [
+      2,
+      4,
+      25,
+      27,
+      31,
+      35
+    ],
+    "trevos": [
+      3,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 263,
+    "date": "2025-11-08",
+    "numbers": [
+      12,
+      13,
+      23,
+      42,
+      43,
+      45
+    ],
+    "trevos": [
+      1,
+      2
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 264,
+    "date": "2025-11-15",
+    "numbers": [
+      1,
+      16,
+      19,
+      26,
+      27,
+      37
+    ],
+    "trevos": [
+      3,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 265,
+    "date": "2025-11-22",
+    "numbers": [
+      7,
+      14,
+      26,
+      33,
+      42,
+      44
+    ],
+    "trevos": [
+      1,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 266,
+    "date": "2025-11-29",
+    "numbers": [
+      2,
+      16,
+      23,
+      37,
+      43,
+      44
+    ],
+    "trevos": [
+      2,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 267,
+    "date": "2025-12-06",
+    "numbers": [
+      9,
+      15,
+      19,
+      35,
+      39,
+      43
+    ],
+    "trevos": [
+      1,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 268,
+    "date": "2025-12-13",
+    "numbers": [
+      5,
+      19,
+      26,
+      28,
+      35,
+      38
+    ],
+    "trevos": [
+      1,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 269,
+    "date": "2025-12-20",
+    "numbers": [
+      1,
+      16,
+      18,
+      31,
+      42,
+      46
+    ],
+    "trevos": [
+      1,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 270,
+    "date": "2025-12-27",
+    "numbers": [
+      6,
+      14,
+      27,
+      32,
+      36,
+      50
+    ],
+    "trevos": [
+      3,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 271,
+    "date": "2026-01-03",
+    "numbers": [
+      4,
+      7,
+      16,
+      43,
+      47,
+      50
+    ],
+    "trevos": [
+      3,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 272,
+    "date": "2026-01-10",
+    "numbers": [
+      15,
+      23,
+      29,
+      32,
+      43,
+      50
+    ],
+    "trevos": [
+      3,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 273,
+    "date": "2026-01-17",
+    "numbers": [
+      1,
+      8,
+      9,
+      17,
+      28,
+      33
+    ],
+    "trevos": [
+      2,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 274,
+    "date": "2026-01-24",
+    "numbers": [
+      14,
+      20,
+      31,
+      36,
+      41,
+      45
+    ],
+    "trevos": [
+      4,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 275,
+    "date": "2026-01-31",
+    "numbers": [
+      2,
+      21,
+      27,
+      35,
+      37,
+      44
+    ],
+    "trevos": [
+      1,
+      2
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 276,
+    "date": "2026-02-07",
+    "numbers": [
+      12,
+      14,
+      25,
+      38,
+      40,
+      43
+    ],
+    "trevos": [
+      1,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 277,
+    "date": "2026-02-14",
+    "numbers": [
+      10,
+      33,
+      34,
+      38,
+      43,
+      46
+    ],
+    "trevos": [
+      1,
+      3
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 278,
+    "date": "2026-02-21",
+    "numbers": [
+      2,
+      25,
+      30,
+      43,
+      47,
+      48
+    ],
+    "trevos": [
+      1,
+      3
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 279,
+    "date": "2026-02-28",
+    "numbers": [
+      15,
+      27,
+      28,
+      40,
+      42,
+      43
+    ],
+    "trevos": [
+      2,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 280,
+    "date": "2026-03-07",
+    "numbers": [
+      2,
+      12,
+      13,
+      20,
+      26,
+      34
+    ],
+    "trevos": [
+      1,
+      2
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 281,
+    "date": "2026-03-14",
+    "numbers": [
+      1,
+      4,
+      10,
+      30,
+      33,
+      40
+    ],
+    "trevos": [
+      5,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 282,
+    "date": "2026-03-21",
+    "numbers": [
+      7,
+      10,
+      14,
+      22,
+      25,
+      47
+    ],
+    "trevos": [
+      2,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 283,
+    "date": "2026-03-28",
+    "numbers": [
+      1,
+      10,
+      18,
+      26,
+      29,
+      30
+    ],
+    "trevos": [
+      2,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 284,
+    "date": "2026-04-04",
+    "numbers": [
+      2,
+      6,
+      12,
+      31,
+      35,
+      38
+    ],
+    "trevos": [
+      1,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 285,
+    "date": "2026-04-11",
+    "numbers": [
+      6,
+      19,
+      23,
+      35,
+      37,
+      44
+    ],
+    "trevos": [
+      3,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 286,
+    "date": "2026-04-18",
+    "numbers": [
+      24,
+      26,
+      29,
+      32,
+      41,
+      45
+    ],
+    "trevos": [
+      4,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 287,
+    "date": "2026-04-25",
+    "numbers": [
+      24,
+      29,
+      31,
+      41,
+      45,
+      46
+    ],
+    "trevos": [
+      1,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 288,
+    "date": "2026-05-02",
+    "numbers": [
+      4,
+      34,
+      37,
+      43,
+      46,
+      48
+    ],
+    "trevos": [
+      1,
+      2
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 289,
+    "date": "2026-05-09",
+    "numbers": [
+      4,
+      6,
+      8,
+      13,
+      32,
+      39
+    ],
+    "trevos": [
+      4,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 290,
+    "date": "2026-05-16",
+    "numbers": [
+      2,
+      3,
+      18,
+      27,
+      38,
+      44
+    ],
+    "trevos": [
+      2,
+      3
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 291,
+    "date": "2026-05-23",
+    "numbers": [
+      7,
+      17,
+      18,
+      29,
+      31,
+      45
+    ],
+    "trevos": [
+      2,
+      3
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 292,
+    "date": "2026-05-30",
+    "numbers": [
+      7,
+      18,
+      31,
+      36,
+      45,
+      47
+    ],
+    "trevos": [
+      3,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 293,
+    "date": "2026-06-06",
+    "numbers": [
+      3,
+      4,
+      6,
+      19,
+      27,
+      35
+    ],
+    "trevos": [
+      3,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 294,
+    "date": "2026-06-13",
+    "numbers": [
+      2,
+      5,
+      7,
+      23,
+      28,
+      34
+    ],
+    "trevos": [
+      3,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 295,
+    "date": "2026-06-20",
+    "numbers": [
+      2,
+      24,
+      25,
+      32,
+      40,
+      42
+    ],
+    "trevos": [
+      1,
+      5
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 296,
+    "date": "2026-06-27",
+    "numbers": [
+      6,
+      9,
+      15,
+      23,
+      30,
+      33
+    ],
+    "trevos": [
+      1,
+      2
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 297,
+    "date": "2026-07-04",
+    "numbers": [
+      2,
+      6,
+      12,
+      28,
+      42,
+      45
+    ],
+    "trevos": [
+      1,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 298,
+    "date": "2026-07-11",
+    "numbers": [
+      5,
+      8,
+      10,
+      26,
+      36,
+      47
+    ],
+    "trevos": [
+      3,
+      6
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 299,
+    "date": "2026-07-18",
+    "numbers": [
+      8,
+      18,
+      30,
+      32,
+      36,
+      38
+    ],
+    "trevos": [
+      2,
+      4
+    ]
+  },
+  {
+    "lottery": "maismilionaria",
+    "contestNumber": 300,
+    "date": "2026-07-25",
+    "numbers": [
+      1,
+      16,
+      17,
+      19,
+      28,
+      45
+    ],
+    "trevos": [
+      1,
+      6
+    ]
+  }
+]

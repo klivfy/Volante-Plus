@@ -9,6 +9,7 @@ import {
   getPerformances,
   saveDraws,
   savePerformances,
+  seedIfEmpty,
 } from '../db';
 
 function draw(contestNumber: number, date: string, lottery: Lottery = Lottery.MEGA_SENA): Draw {
@@ -18,11 +19,16 @@ function draw(contestNumber: number, date: string, lottery: Lottery = Lottery.ME
 beforeEach(async () => {
   await db.draws.clear();
   await db.performances.clear();
+  // getDraws/getDrawsUpTo/getDrawsAfter chamam seedIfEmpty() sozinhos (ver
+  // "seed offline" abaixo); marcar como já aplicado aqui mantém estes testes
+  // de CRUD puro isolados desse comportamento.
+  await db.config.put({ key: 'seedApplied', value: 'true' });
 });
 
 afterEach(async () => {
   await db.draws.clear();
   await db.performances.clear();
+  await db.config.clear();
 });
 
 describe('draws — saveDraws / getDraws', () => {
@@ -141,5 +147,44 @@ describe('performances — savePerformances / getPerformances', () => {
     ]);
 
     expect(await getPerformances(Lottery.MAIS_MILIONARIA)).toBeUndefined();
+  });
+});
+
+describe('seed offline (primeiro uso)', () => {
+  // Aqui, diferente do resto do arquivo, a flag "seedApplied" também
+  // precisa começar limpa — é exatamente o que este bloco testa.
+  beforeEach(async () => {
+    await db.config.clear();
+  });
+
+  it('popula draws com o seed quando o banco nunca teve histórico', async () => {
+    await seedIfEmpty();
+
+    expect(await getDraws(Lottery.MEGA_SENA)).not.toHaveLength(0);
+    expect(await getDraws(Lottery.MAIS_MILIONARIA)).not.toHaveLength(0);
+  });
+
+  it('getDraws aciona o seed sozinho na primeira leitura', async () => {
+    const result = await getDraws(Lottery.MEGA_SENA);
+
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('não reaplica o seed depois da primeira vez, mesmo se o histórico for apagado de novo', async () => {
+    await seedIfEmpty();
+    await db.draws.clear();
+
+    await seedIfEmpty();
+
+    expect(await getDraws(Lottery.MEGA_SENA)).toHaveLength(0);
+  });
+
+  it('não sobrescreve histórico real já sincronizado antes da primeira checagem', async () => {
+    await saveDraws([draw(9999, '2026-01-01')]);
+
+    await seedIfEmpty();
+
+    const result = await getDraws(Lottery.MEGA_SENA);
+    expect(result.map((d) => d.contestNumber)).toEqual([9999]);
   });
 });
