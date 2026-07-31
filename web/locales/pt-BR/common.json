@@ -44,6 +44,7 @@
     "gamesBets": "Jogos / apostas",
     "gamesBetsValue": "{{games}} / {{bets}}",
     "meanHits": "Média de acertos",
+    "hitDistribution": "Distribuição de acertos",
     "expected": "(esperado: {{value}})",
     "variance": "Variância",
     "stdDeviation": "Desvio padrão",

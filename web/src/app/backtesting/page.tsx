@@ -11,23 +11,20 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Slider from '@mui/material/Slider';
 import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableRow from '@mui/material/TableRow';
-import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { runBacktest } from '@/engine/backtestEngine';
+import LotterySelector from '@/components/LotterySelector';
+import { useBacktestWorker } from '@/hooks/useBacktestWorker';
 import { getDrawsAfter, getDrawsUpTo, savePerformances } from '@/services/db';
-import { BacktestReport, Lottery, MAX_GAMES, MIN_GAMES } from '@/types/domain';
-
-type Status = 'idle' | 'running' | 'ready' | 'error';
+import { Lottery, MAX_GAMES, MIN_GAMES } from '@/types/domain';
 
 const percentFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'percent',
@@ -36,10 +33,6 @@ const percentFormatter = new Intl.NumberFormat('pt-BR', {
 });
 
 const decimalFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
-
-function yieldToUi(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
 
 interface TrendProps {
   observed: number;
@@ -61,33 +54,50 @@ function Trend({ observed, expected }: TrendProps) {
   );
 }
 
+function formatHitDistribution(distribution: Record<number, number>): string {
+  return Object.entries(distribution)
+    .map(([hits, count]) => [Number(hits), count] as const)
+    .sort((a, b) => a[0] - b[0])
+    .map(([hits, count]) => `${hits}×${count}`)
+    .join(' · ');
+}
+
 export default function BacktestingPage() {
   const { t } = useTranslation();
-  const lotteryLabel: Record<Lottery, string> = {
-    [Lottery.MEGA_SENA]: t('lottery.megaSena'),
-    [Lottery.MAIS_MILIONARIA]: t('lottery.maisMilionaria'),
-  };
   const router = useRouter();
   const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
   const [cutoffDate, setCutoffDate] = useState('');
   const [gamesPerContest, setGamesPerContest] = useState(MIN_GAMES);
-  const [status, setStatus] = useState<Status>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [report, setReport] = useState<BacktestReport | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const { report, loading: workerLoading, error: workerError, run } = useBacktestWorker();
+
+  // O relatório vive no worker e não pode ser "resetado" daqui; ao trocar de
+  // loteria marcamos o relatório atual como obsoleto (ajuste durante a
+  // renderização, não em efeito — mesma abordagem de `useNextDraw`), até que um
+  // novo backtest seja disparado para a loteria selecionada.
+  const [trackedLottery, setTrackedLottery] = useState(lottery);
+  const [reportStale, setReportStale] = useState(true);
+  if (lottery !== trackedLottery) {
+    setTrackedLottery(lottery);
+    setReportStale(true);
+    setLocalError(null);
+  }
 
   const cutoffValid = /^\d{4}-\d{2}-\d{2}$/.test(cutoffDate);
+  const running = submitting || workerLoading;
+  const errorMessage = localError ?? workerError;
+  const showReport = report !== null && !reportStale;
 
   async function handleRun(): Promise<void> {
+    setLocalError(null);
     if (!cutoffValid) {
-      setErrorMessage(t('backtesting.invalidCutoff'));
-      setStatus('error');
+      setLocalError(t('backtesting.invalidCutoff'));
       return;
     }
 
-    setStatus('running');
-    setErrorMessage(null);
-    await yieldToUi();
-
+    setSubmitting(true);
     try {
       const [training, validation] = await Promise.all([
         getDrawsUpTo(lottery, cutoffDate),
@@ -95,22 +105,31 @@ export default function BacktestingPage() {
       ]);
 
       if (validation.length === 0) {
-        setErrorMessage(t('backtesting.noValidationDraws', { date: cutoffDate }));
-        setStatus('error');
+        setLocalError(t('backtesting.noValidationDraws', { date: cutoffDate }));
         return;
       }
 
-      const result = runBacktest(lottery, training, validation, { gamesPerContest });
-      setReport(result);
-      setStatus('ready');
+      setReportStale(false);
+      // Cálculo pesado (Monte Carlo + geração contra cada concurso de
+      // validação) fora da thread principal — a UI segue responsiva.
+      run({
+        kind: 'backtest',
+        lottery,
+        trainingDraws: training,
+        validationDraws: validation,
+        gamesPerContest,
+      });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t('backtesting.runError'));
-      setStatus('error');
+      setLocalError(error instanceof Error ? error.message : t('backtesting.runError'));
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function handleUseForGeneration(): Promise<void> {
-    if (!report) return;
+    if (!report || reportStale) return;
+    // Cache `manual`: tem prioridade sobre a análise automática e expira
+    // sozinho após `MANUAL_CACHE_TTL_MS` (ver `savePerformances`).
     await savePerformances(lottery, report.performances, report.trevoPerformances, {
       source: 'manual',
       force: true,
@@ -119,10 +138,10 @@ export default function BacktestingPage() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
+    <Container component="main" maxWidth="md" sx={{ py: 3 }}>
       <Stack spacing={3}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
             {t('backtesting.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -130,10 +149,7 @@ export default function BacktestingPage() {
           </Typography>
         </Box>
 
-        <Tabs value={lottery} onChange={(_, value) => setLottery(value)} variant="fullWidth">
-          <Tab value={Lottery.MEGA_SENA} label={lotteryLabel[Lottery.MEGA_SENA]} />
-          <Tab value={Lottery.MAIS_MILIONARIA} label={lotteryLabel[Lottery.MAIS_MILIONARIA]} />
-        </Tabs>
+        <LotterySelector value={lottery} onChange={setLottery} disabled={running} />
 
         <Card variant="outlined">
           <CardContent>
@@ -145,11 +161,12 @@ export default function BacktestingPage() {
                 onChange={(event) => setCutoffDate(event.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
                 helperText={t('backtesting.cutoffHelper')}
+                disabled={running}
                 fullWidth
               />
 
               <Box>
-                <Typography variant="subtitle2" gutterBottom>
+                <Typography variant="subtitle2" gutterBottom id="games-per-contest-label">
                   {t('backtesting.gamesPerContest')}
                 </Typography>
                 <Slider
@@ -158,6 +175,8 @@ export default function BacktestingPage() {
                   min={MIN_GAMES}
                   max={MAX_GAMES}
                   step={1}
+                  disabled={running}
+                  aria-labelledby="games-per-contest-label"
                   marks={Array.from({ length: MAX_GAMES - MIN_GAMES + 1 }, (_, i) => ({
                     value: MIN_GAMES + i,
                     label: `${MIN_GAMES + i}`,
@@ -170,18 +189,19 @@ export default function BacktestingPage() {
                 variant="contained"
                 size="large"
                 onClick={handleRun}
-                disabled={status === 'running'}
-                startIcon={status === 'running' ? <CircularProgress size={18} color="inherit" /> : undefined}
+                disabled={running}
+                aria-busy={running}
+                startIcon={running ? <CircularProgress size={18} color="inherit" aria-hidden /> : undefined}
               >
-                {status === 'running' ? t('backtesting.running') : t('backtesting.run')}
+                {running ? t('backtesting.running') : t('backtesting.run')}
               </Button>
             </Stack>
           </CardContent>
         </Card>
 
-        {status === 'error' && errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+        {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
-        {report && (
+        {showReport && report && (
           <>
             <TableContainer component={Card} variant="outlined">
               <Table size="small">
@@ -215,6 +235,10 @@ export default function BacktestingPage() {
                         })}
                       </Typography>
                     </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>{t('backtesting.hitDistribution')}</TableCell>
+                    <TableCell align="right">{formatHitDistribution(report.hitDistribution)}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>{t('backtesting.variance')}</TableCell>

@@ -10,8 +10,15 @@ export interface PerformanceRecord {
   lottery: Lottery;
   performances: NumberPerformance[];
   trevoPerformances: NumberPerformance[];
-  /** ISO 8601; informativo ("atualizado em"), não expira o cache sozinho. */
+  /** ISO 8601; informativo ("atualizado em"). */
   updatedAt: string;
+  /**
+   * ISO 8601 opcional. Se presente e já no passado, o cache é considerado
+   * expirado: `getPerformances` o descarta e devolve `undefined`, forçando um
+   * recálculo. Usado para dar validade a um backtest `manual` — ver
+   * `MANUAL_CACHE_TTL_MS`.
+   */
+  expiresAt?: string;
   /** `manual` (tela de backtesting) tem prioridade sobre `auto` (análise automática ao abrir o app). */
   source: PerformanceSource;
 }
@@ -23,6 +30,14 @@ export interface ConfigRecord {
 }
 
 const SEEDED_CONFIG_KEY = 'seedApplied';
+
+/**
+ * Validade padrão de um cache `manual`: 24h. O histórico é ressincronizado com
+ * frequência, então um backtest manual "colado" no cache indefinidamente
+ * ficaria defasado em relação aos concursos novos. Passado esse prazo o cache
+ * expira e a análise `auto` volta a valer.
+ */
+export const MANUAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 class VolanteDatabase extends Dexie {
   draws!: Table<Draw, [Lottery, number]>;
@@ -114,9 +129,9 @@ export async function savePerformances(
   lottery: Lottery,
   performances: NumberPerformance[],
   trevoPerformances: NumberPerformance[] = [],
-  options: { source?: PerformanceSource; force?: boolean } = {},
+  options: { source?: PerformanceSource; force?: boolean; ttlMs?: number } = {},
 ): Promise<void> {
-  const { source = 'auto', force = false } = options;
+  const { source = 'auto', force = false, ttlMs } = options;
 
   if (!force && source === 'auto') {
     const existing = await db.performances.get(lottery);
@@ -125,16 +140,38 @@ export async function savePerformances(
     }
   }
 
+  // Um backtest `manual` ganha validade padrão (`MANUAL_CACHE_TTL_MS`) para não
+  // ficar "colado" indefinidamente; `ttlMs` sobrescreve, e a análise `auto`
+  // não expira sozinha (é sempre recalculável na próxima abertura).
+  const effectiveTtl = ttlMs ?? (source === 'manual' ? MANUAL_CACHE_TTL_MS : undefined);
+  const expiresAt =
+    effectiveTtl === undefined ? undefined : new Date(Date.now() + effectiveTtl).toISOString();
+
   await db.performances.put({
     lottery,
     performances,
     trevoPerformances,
     source,
     updatedAt: new Date().toISOString(),
+    expiresAt,
   });
 }
 
-/** Desempenho cacheado da loteria, ou `undefined` se nunca foi calculado/salvo. */
+/**
+ * Desempenho cacheado da loteria, ou `undefined` se nunca foi calculado/salvo
+ * — ou se o cache expirou (`expiresAt` no passado), caso em que o registro é
+ * descartado antes de retornar.
+ */
 export async function getPerformances(lottery: Lottery): Promise<PerformanceRecord | undefined> {
-  return db.performances.get(lottery);
+  const record = await db.performances.get(lottery);
+  if (record?.expiresAt && Date.parse(record.expiresAt) <= Date.now()) {
+    await db.performances.delete(lottery);
+    return undefined;
+  }
+  return record;
+}
+
+/** Remove o desempenho cacheado da loteria — usado para limpar um backtest manual. */
+export async function clearPerformances(lottery: Lottery): Promise<void> {
+  await db.performances.delete(lottery);
 }

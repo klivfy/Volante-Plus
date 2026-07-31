@@ -42,6 +42,39 @@ describe('computeBacktestAnalysis', () => {
     expect(response.type).toBe('success');
   });
 
+  it('devolve o relatório completo para uma requisição kind: backtest', () => {
+    const training = [draw(1, [1, 2, 3, 4, 5, 6]), draw(2, [1, 2, 3, 4, 5, 6])];
+    const validation = [draw(3, [1, 2, 3, 4, 5, 6])];
+
+    const response = computeBacktestAnalysis({
+      kind: 'backtest',
+      lottery: Lottery.MEGA_SENA,
+      trainingDraws: training,
+      validationDraws: validation,
+      gamesPerContest: 2,
+      seed: 42,
+    });
+
+    expect(response.type).toBe('report');
+    if (response.type === 'report') {
+      expect(response.report.trainingDraws).toBe(2);
+      expect(response.report.validationDraws).toBe(1);
+      expect(response.report.totalGames).toBe(2);
+      expect(response.report.performances).toHaveLength(60);
+    }
+  });
+
+  it('devolve erro quando o backtest não tem concursos de validação', () => {
+    const response = computeBacktestAnalysis({
+      kind: 'backtest',
+      lottery: Lottery.MEGA_SENA,
+      trainingDraws: [draw(1, [1, 2, 3, 4, 5, 6])],
+      validationDraws: [],
+    });
+
+    expect(response.type).toBe('error');
+  });
+
   it('devolve uma resposta de erro quando analyzeBacktest lança', () => {
     // @ts-expect-error loteria inválida de propósito, para exercitar o branch de erro
     const response = computeBacktestAnalysis({ draws: [], lottery: 'inexistente' });

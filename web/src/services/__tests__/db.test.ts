@@ -2,11 +2,13 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Draw, Lottery } from '../../types/domain';
 import {
+  clearPerformances,
   db,
   getDraws,
   getDrawsAfter,
   getDrawsUpTo,
   getPerformances,
+  MANUAL_CACHE_TTL_MS,
   saveDraws,
   savePerformances,
   seedIfEmpty,
@@ -147,6 +149,58 @@ describe('performances — savePerformances / getPerformances', () => {
     ]);
 
     expect(await getPerformances(Lottery.MAIS_MILIONARIA)).toBeUndefined();
+  });
+
+  it('não deixa a análise auto expirar (sem expiresAt)', async () => {
+    await savePerformances(
+      Lottery.MEGA_SENA,
+      [{ number: 1, hitCount: 1, simulatedHitRate: 0.1, weight: 1, tier: 'top' }],
+      [],
+      { source: 'auto' },
+    );
+
+    const record = await getPerformances(Lottery.MEGA_SENA);
+    expect(record?.expiresAt).toBeUndefined();
+  });
+
+  it('dá validade padrão (MANUAL_CACHE_TTL_MS) a um backtest manual', async () => {
+    const before = Date.now();
+    await savePerformances(
+      Lottery.MEGA_SENA,
+      [{ number: 1, hitCount: 1, simulatedHitRate: 0.1, weight: 1, tier: 'top' }],
+      [],
+      { source: 'manual', force: true },
+    );
+
+    const record = await getPerformances(Lottery.MEGA_SENA);
+    expect(record?.expiresAt).toBeDefined();
+    const expiry = Date.parse(record!.expiresAt!);
+    expect(expiry).toBeGreaterThanOrEqual(before + MANUAL_CACHE_TTL_MS - 1000);
+  });
+
+  it('descarta e devolve undefined quando o cache já expirou', async () => {
+    await db.performances.put({
+      lottery: Lottery.MEGA_SENA,
+      performances: [{ number: 1, hitCount: 1, simulatedHitRate: 0.1, weight: 1, tier: 'top' }],
+      trevoPerformances: [],
+      source: 'manual',
+      updatedAt: new Date(Date.now() - 2 * MANUAL_CACHE_TTL_MS).toISOString(),
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+    });
+
+    expect(await getPerformances(Lottery.MEGA_SENA)).toBeUndefined();
+    // O registro expirado é removido, não só ignorado na leitura.
+    expect(await db.performances.get(Lottery.MEGA_SENA)).toBeUndefined();
+  });
+
+  it('clearPerformances remove o cache da loteria', async () => {
+    await savePerformances(Lottery.MEGA_SENA, [
+      { number: 1, hitCount: 1, simulatedHitRate: 0.1, weight: 1, tier: 'top' },
+    ]);
+
+    await clearPerformances(Lottery.MEGA_SENA);
+
+    expect(await getPerformances(Lottery.MEGA_SENA)).toBeUndefined();
   });
 });
 

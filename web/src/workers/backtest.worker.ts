@@ -1,23 +1,46 @@
 import { analyzeBacktest, analyzeTrevoBacktest, DEFAULT_SIMULATIONS_PER_NUMBER } from '../engine/backtestAnalyzer';
-import { Draw, Lottery, NumberPerformance } from '../types/domain';
+import { runBacktest } from '../engine/backtestEngine';
+import { BacktestReport, Draw, Lottery, NumberPerformance } from '../types/domain';
 
 /**
- * Web Worker do `analyzeBacktest` — a análise varre até centenas de concursos
- * com centenas de rodadas de Monte Carlo por dezena, e rodar isso na thread
- * principal trava a UI durante o cálculo. O worker tira esse custo da thread
- * principal; a lógica em si continua em `engine/backtestAnalyzer.ts`, pura e
- * sem dependência de DOM/Worker, para poder ser testada diretamente.
+ * Web Worker de backtesting — a análise varre até centenas de concursos com
+ * centenas de rodadas de Monte Carlo por dezena, e o relatório completo ainda
+ * gera jogos contra cada concurso de validação. Rodar isso na thread principal
+ * trava a UI durante o cálculo. O worker tira esse custo da thread principal; a
+ * lógica em si continua em `engine/` (pura, sem dependência de DOM/Worker) para
+ * poder ser testada diretamente.
+ *
+ * Dois tipos de requisição, discriminados por `kind`:
+ * - `analyze` (padrão): só o desempenho das dezenas (`usePerformanceCache`).
+ * - `backtest`: o relatório completo com validação (tela de backtesting).
  */
 
-export interface BacktestWorkerRequest {
+/** Só o desempenho das dezenas — usada pelo cache de performances. */
+export interface BacktestAnalyzeRequest {
+  kind?: 'analyze';
   draws: Draw[];
   lottery: Lottery;
   /** Rodadas de Monte Carlo por dezena; padrão `DEFAULT_SIMULATIONS_PER_NUMBER`. */
   simulationsPerDraw?: number;
 }
 
+/** Relatório completo: treina no histórico até o corte e valida no restante. */
+export interface BacktestReportRequest {
+  kind: 'backtest';
+  lottery: Lottery;
+  trainingDraws: Draw[];
+  validationDraws: Draw[];
+  /** Jogos gerados por concurso de validação; padrão do motor (`MIN_GAMES`). */
+  gamesPerContest?: number;
+  /** Semente opcional para tornar o relatório reproduzível. */
+  seed?: number;
+}
+
+export type BacktestWorkerRequest = BacktestAnalyzeRequest | BacktestReportRequest;
+
 export type BacktestWorkerResponse =
   | { type: 'success'; performances: NumberPerformance[]; trevoPerformances: NumberPerformance[] }
+  | { type: 'report'; report: BacktestReport }
   | { type: 'error'; message: string };
 
 /** Núcleo puro do worker — testável sem `self`/`postMessage`. */
@@ -25,6 +48,14 @@ export function computeBacktestAnalysis(
   request: BacktestWorkerRequest,
 ): BacktestWorkerResponse {
   try {
+    if (request.kind === 'backtest') {
+      const report = runBacktest(request.lottery, request.trainingDraws, request.validationDraws, {
+        gamesPerContest: request.gamesPerContest,
+        seed: request.seed,
+      });
+      return { type: 'report', report };
+    }
+
     const simulationsPerDraw = request.simulationsPerDraw ?? DEFAULT_SIMULATIONS_PER_NUMBER;
     const performances = analyzeBacktest(request.draws, request.lottery, simulationsPerDraw);
     // `analyzeTrevoBacktest` já devolve `[]` para loterias sem trevos — sempre
