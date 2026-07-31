@@ -1,5 +1,7 @@
 # Release directory — build artifacts (regenerated on deployment)
 release/web/.next/
+release/web/workbox-*.js
+release/web/workbox-*.js.map
 release/web/node_modules/
 release/web/*.log
 
