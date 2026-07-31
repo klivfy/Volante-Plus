@@ -1,0 +1,11 @@
+# Release directory — build artifacts (regenerated on deployment)
+release/web/.next/
+release/web/node_modules/
+release/web/*.log
+
+# Keep documentation and static assets
+!release/web/README.md
+!release/web/LIGHTHOUSE-AUDIT.md
+!release/web/manifest.json
+!release/web/public/
+!release/SUMMARY.md
