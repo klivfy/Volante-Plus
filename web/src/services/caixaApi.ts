@@ -1,4 +1,4 @@
-import { Lottery, NextDrawInfo } from '../types/domain';
+import { Draw, Lottery, NextDrawInfo } from '../types/domain';
 
 /**
  * Caminho da API pública para cada loteria. Segue a nomenclatura da
@@ -107,6 +107,79 @@ export async function fetchNextDraw(lottery: Lottery): Promise<NextDrawInfo | nu
       drawDate: parseDrawDate(rawDate),
       estimatedPrize,
     };
+  } catch {
+    return null;
+  }
+}
+
+/** Shape tolerante de um concurso já realizado, como devolvido pela API de histórico. */
+interface RawDrawResponse {
+  numero?: number;
+  numeroConcurso?: number;
+  concurso?: number;
+  dataApuracao?: string;
+  data_apuracao?: string;
+  data?: string;
+  dezenas?: Array<string | number>;
+  listaDezenas?: Array<string | number>;
+  dezenasSorteadas?: Array<string | number>;
+  trevos?: Array<string | number>;
+  trevosSorteados?: Array<string | number>;
+}
+
+function toNumberArray(values: Array<string | number> | undefined): number[] | undefined {
+  if (!values) return undefined;
+  const numbers = values.map((value) => Number(value));
+  return numbers.every((n) => Number.isFinite(n)) ? numbers : undefined;
+}
+
+function parseRawDraw(lottery: Lottery, raw: RawDrawResponse): Draw | null {
+  const contestNumber = firstDefined(raw.numero, raw.numeroConcurso, raw.concurso);
+  const rawDate = firstDefined(raw.dataApuracao, raw.data_apuracao, raw.data);
+  const numbers = toNumberArray(firstDefined(raw.dezenas, raw.listaDezenas, raw.dezenasSorteadas));
+  const trevos = toNumberArray(firstDefined(raw.trevos, raw.trevosSorteados));
+
+  if (contestNumber === undefined || rawDate === undefined || numbers === undefined) {
+    return null;
+  }
+
+  try {
+    return {
+      lottery,
+      contestNumber,
+      date: parseDrawDate(rawDate),
+      numbers,
+      ...(trevos ? { trevos } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Histórico completo de concursos já realizados de uma loteria.
+ *
+ * Nunca lança: qualquer falha (rede, resposta não-OK, JSON malformado,
+ * concurso individual sem os campos esperados) resulta em `null` ou, no caso
+ * de um item isolado malformado, na sua omissão silenciosa da lista —
+ * consumido por quem faz o fallback para o seed offline (`data/seed`).
+ */
+export async function fetchDrawHistory(lottery: Lottery): Promise<Draw[] | null> {
+  try {
+    const response = await fetch(`${baseUrl()}/${API_PATH[lottery]}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) {
+      return null;
+    }
+
+    const raw = (await response.json()) as unknown;
+    const items = Array.isArray(raw) ? raw : [raw];
+    const draws = items
+      .map((item) => parseRawDraw(lottery, item as RawDrawResponse))
+      .filter((draw): draw is Draw => draw !== null);
+
+    return draws;
   } catch {
     return null;
   }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Lottery } from '../../types/domain';
-import { fetchNextDraw, parseDrawDate } from '../caixaApi';
+import { fetchDrawHistory, fetchNextDraw, parseDrawDate } from '../caixaApi';
 
 const BASE_URL = 'https://example.test/api';
 
@@ -146,5 +146,79 @@ describe('fetchNextDraw', () => {
     });
 
     expect(await fetchNextDraw(Lottery.MEGA_SENA)).toBeNull();
+  });
+});
+
+describe('fetchDrawHistory', () => {
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_CAIXA_API_BASE_URL', BASE_URL);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('monta a URL correta e parseia a lista de concursos', async () => {
+    mockFetchOnce({
+      json: async () => [
+        { numero: 1, dataApuracao: '2024-01-01', dezenas: ['01', '02', '03', '04', '05', '06'] },
+        { numero: 2, dataApuracao: '2024-01-08', dezenas: [7, 8, 9, 10, 11, 12] },
+      ],
+    });
+
+    const result = await fetchDrawHistory(Lottery.MEGA_SENA);
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/megasena`,
+      expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
+    );
+    expect(result).toEqual([
+      { lottery: Lottery.MEGA_SENA, contestNumber: 1, date: '2024-01-01', numbers: [1, 2, 3, 4, 5, 6] },
+      { lottery: Lottery.MEGA_SENA, contestNumber: 2, date: '2024-01-08', numbers: [7, 8, 9, 10, 11, 12] },
+    ]);
+  });
+
+  it('inclui trevos quando presentes na resposta', async () => {
+    mockFetchOnce({
+      json: async () => [
+        {
+          numero: 10,
+          dataApuracao: '2024-03-01',
+          dezenas: [1, 2, 3, 4, 5, 6],
+          trevos: [1, 2],
+        },
+      ],
+    });
+
+    const result = await fetchDrawHistory(Lottery.MAIS_MILIONARIA);
+
+    expect(result?.[0].trevos).toEqual([1, 2]);
+  });
+
+  it('omite concursos individuais malformados sem descartar os demais', async () => {
+    mockFetchOnce({
+      json: async () => [
+        { numero: 1, dataApuracao: '2024-01-01', dezenas: [1, 2, 3, 4, 5, 6] },
+        { numero: 2 },
+      ],
+    });
+
+    const result = await fetchDrawHistory(Lottery.MEGA_SENA);
+
+    expect(result).toHaveLength(1);
+    expect(result?.[0].contestNumber).toBe(1);
+  });
+
+  it('devolve null quando a resposta HTTP não é ok', async () => {
+    mockFetchOnce({ ok: false });
+
+    expect(await fetchDrawHistory(Lottery.MEGA_SENA)).toBeNull();
+  });
+
+  it('devolve null quando o fetch lança (rede indisponível)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+
+    expect(await fetchDrawHistory(Lottery.MEGA_SENA)).toBeNull();
   });
 });

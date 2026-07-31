@@ -2,6 +2,9 @@ import Dexie, { Table } from 'dexie';
 import { getSeedData } from '../data/seed';
 import { Draw, Lottery, NumberPerformance } from '../types/domain';
 
+/** Origem do desempenho cacheado — usada para priorizar backtest manual sobre análise automática. */
+export type PerformanceSource = 'manual' | 'auto';
+
 /** Desempenho cacheado de uma loteria — chave primária é a própria loteria. */
 export interface PerformanceRecord {
   lottery: Lottery;
@@ -9,6 +12,8 @@ export interface PerformanceRecord {
   trevoPerformances: NumberPerformance[];
   /** ISO 8601; informativo ("atualizado em"), não expira o cache sozinho. */
   updatedAt: string;
+  /** `manual` (tela de backtesting) tem prioridade sobre `auto` (análise automática ao abrir o app). */
+  source: PerformanceSource;
 }
 
 /** Par chave/valor genérico — hoje só guarda a flag de seed já aplicado. */
@@ -97,16 +102,34 @@ export async function getDrawsAfter(lottery: Lottery, cutoffDate: string): Promi
     .sortBy('contestNumber');
 }
 
-/** Substitui o desempenho cacheado da loteria (fonte: análise local ou backtesting). */
+/**
+ * Substitui o desempenho cacheado da loteria.
+ *
+ * `source` define a prioridade: um cache `manual` (backtesting explícito do
+ * usuário) nunca é sobrescrito por uma análise `auto` (rodada automaticamente
+ * ao abrir o app) — só por outro `manual`, ou explicitamente via
+ * `force: true`.
+ */
 export async function savePerformances(
   lottery: Lottery,
   performances: NumberPerformance[],
   trevoPerformances: NumberPerformance[] = [],
+  options: { source?: PerformanceSource; force?: boolean } = {},
 ): Promise<void> {
+  const { source = 'auto', force = false } = options;
+
+  if (!force && source === 'auto') {
+    const existing = await db.performances.get(lottery);
+    if (existing?.source === 'manual') {
+      return;
+    }
+  }
+
   await db.performances.put({
     lottery,
     performances,
     trevoPerformances,
+    source,
     updatedAt: new Date().toISOString(),
   });
 }

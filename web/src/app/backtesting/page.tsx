@@ -111,7 +111,10 @@ export default function BacktestingPage() {
 
   async function handleUseForGeneration(): Promise<void> {
     if (!report) return;
-    await savePerformances(lottery, report.performances, report.trevoPerformances);
+    await savePerformances(lottery, report.performances, report.trevoPerformances, {
+      source: 'manual',
+      force: true,
+    });
     router.push('/');
   }
 
