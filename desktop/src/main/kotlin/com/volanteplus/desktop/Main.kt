@@ -42,9 +42,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Item
 import androidx.compose.ui.window.Notification
-import androidx.compose.ui.window.Separator
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement

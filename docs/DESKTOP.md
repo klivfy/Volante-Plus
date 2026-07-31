@@ -184,11 +184,15 @@ código-fonte do Compose Multiplatform antes de cada push (assinaturas de
 compilação de verdade só acontece no CI**
 (`.github/workflows/desktop-ci.yml` e `android-ci.yml`, que rodam em
 runners do GitHub sem essa restrição) — e foi o CI, não a revisão manual,
-que pegou dois problemas reais: a versão mínima do Kotlin exigida pelo
+que pegou três problemas reais: a versão mínima do Kotlin exigida pelo
 plugin `org.jetbrains.compose` (documentação indicava 2.1.0, o plugin
-exige 2.2.0) e a API de carregamento de fonte por caminho de string
-(removida na versão 1.11, ver nota acima). Rode localmente antes de
-confiar cegamente nesta entrega.
+exige 2.2.0), a API de carregamento de fonte por caminho de string
+(removida na versão 1.11, ver nota acima) e imports inválidos de `Item`
+e `Separator` de `androidx.compose.ui.window` no menu da bandeja — essas
+duas funções são membros da interface `MenuScope` (o receiver do lambda
+`menu = { ... }` do `Tray`), não funções de topo de pacote, então não têm
+import próprio; resolvem sozinhas dentro do lambda. Rode localmente antes
+de confiar cegamente nesta entrega.
 
 ## Empacotamento Windows (.msi / .exe)
 
