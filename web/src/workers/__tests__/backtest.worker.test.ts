@@ -16,6 +16,21 @@ describe('computeBacktestAnalysis', () => {
     if (response.type === 'success') {
       expect(response.performances).toHaveLength(60);
       expect(response.performances.find((p) => p.number === 1)?.hitCount).toBe(2);
+      expect(response.trevoPerformances).toEqual([]);
+    }
+  });
+
+  it('inclui trevoPerformances para loterias com trevos', () => {
+    const draws = [
+      { lottery: Lottery.MAIS_MILIONARIA, contestNumber: 1, date: '2024-01-01', numbers: [1, 2, 3, 4, 5, 6], trevos: [1, 2] },
+    ];
+
+    const response = computeBacktestAnalysis({ draws, lottery: Lottery.MAIS_MILIONARIA, simulationsPerDraw: 0 });
+
+    expect(response.type).toBe('success');
+    if (response.type === 'success') {
+      expect(response.trevoPerformances).toHaveLength(6);
+      expect(response.trevoPerformances.find((p) => p.number === 1)?.hitCount).toBe(1);
     }
   });
 

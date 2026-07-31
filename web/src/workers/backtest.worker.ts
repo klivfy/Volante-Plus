@@ -1,4 +1,4 @@
-import { analyzeBacktest, DEFAULT_SIMULATIONS_PER_NUMBER } from '../engine/backtestAnalyzer';
+import { analyzeBacktest, analyzeTrevoBacktest, DEFAULT_SIMULATIONS_PER_NUMBER } from '../engine/backtestAnalyzer';
 import { Draw, Lottery, NumberPerformance } from '../types/domain';
 
 /**
@@ -17,7 +17,7 @@ export interface BacktestWorkerRequest {
 }
 
 export type BacktestWorkerResponse =
-  | { type: 'success'; performances: NumberPerformance[] }
+  | { type: 'success'; performances: NumberPerformance[]; trevoPerformances: NumberPerformance[] }
   | { type: 'error'; message: string };
 
 /** Núcleo puro do worker — testável sem `self`/`postMessage`. */
@@ -25,12 +25,12 @@ export function computeBacktestAnalysis(
   request: BacktestWorkerRequest,
 ): BacktestWorkerResponse {
   try {
-    const performances = analyzeBacktest(
-      request.draws,
-      request.lottery,
-      request.simulationsPerDraw ?? DEFAULT_SIMULATIONS_PER_NUMBER,
-    );
-    return { type: 'success', performances };
+    const simulationsPerDraw = request.simulationsPerDraw ?? DEFAULT_SIMULATIONS_PER_NUMBER;
+    const performances = analyzeBacktest(request.draws, request.lottery, simulationsPerDraw);
+    // `analyzeTrevoBacktest` já devolve `[]` para loterias sem trevos — sempre
+    // seguro chamar, sem precisar de um `hasTrevos` aqui no worker.
+    const trevoPerformances = analyzeTrevoBacktest(request.draws, request.lottery, simulationsPerDraw);
+    return { type: 'success', performances, trevoPerformances };
   } catch (error) {
     return {
       type: 'error',

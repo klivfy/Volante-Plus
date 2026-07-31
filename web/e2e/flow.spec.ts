@@ -4,8 +4,8 @@ test('fluxo completo: abrir página → selecionar loteria → gerar jogos → v
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Volante+' })).toBeVisible();
 
-  await page.getByRole('tab', { name: '+Milionária' }).click();
-  await expect(page.getByRole('tab', { name: '+Milionária' })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: '+Milionária' }).click();
+  await expect(page.getByRole('button', { name: '+Milionária' })).toHaveAttribute('aria-pressed', 'true');
 
   const generateButton = page.getByRole('button', { name: /gerar jogos/i });
   // Enquanto o histórico local é analisado, o botão fica desabilitado

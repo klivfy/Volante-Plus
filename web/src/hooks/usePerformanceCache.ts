@@ -35,7 +35,13 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
   const [source, setSource] = useState<PerformanceRecord['source'] | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { result, loading: workerLoading, error: workerError, run } = useBacktestWorker();
+  const {
+    result,
+    trevoPerformances: workerTrevoPerformances,
+    loading: workerLoading,
+    error: workerError,
+    run,
+  } = useBacktestWorker();
   const pendingLotteryRef = useRef<Lottery | null>(null);
 
   useEffect(() => {
@@ -70,12 +76,14 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
     if (!result || pendingLotteryRef.current === null) return;
     const targetLottery = pendingLotteryRef.current;
     pendingLotteryRef.current = null;
+    const trevos = workerTrevoPerformances ?? [];
 
     setPerformances(result);
+    setTrevoPerformances(trevos);
     setSource('auto');
     setLoading(false);
-    void savePerformances(targetLottery, result, [], { source: 'auto' });
-  }, [result]);
+    void savePerformances(targetLottery, result, trevos, { source: 'auto' });
+  }, [result, workerTrevoPerformances]);
 
   const refreshAuto = useCallback(() => {
     pendingLotteryRef.current = lottery;

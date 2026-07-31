@@ -8,12 +8,13 @@ import { Lottery } from '../types/domain';
 export interface LotterySelectorProps {
   value: Lottery;
   onChange: (lottery: Lottery) => void;
+  disabled?: boolean;
 }
 
 const OPTIONS = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA];
 
 /** Seletor de loteria via `Chip` filtrável do MUI — alternativa compacta às `Tabs`. */
-export default function LotterySelector({ value, onChange }: LotterySelectorProps) {
+export default function LotterySelector({ value, onChange, disabled = false }: LotterySelectorProps) {
   const { t } = useTranslation();
   const label: Record<Lottery, string> = {
     [Lottery.MEGA_SENA]: t('lottery.megaSena'),
@@ -21,7 +22,7 @@ export default function LotterySelector({ value, onChange }: LotterySelectorProp
   };
 
   return (
-    <Stack direction="row" spacing={1}>
+    <Stack direction="row" spacing={1} role="group" aria-label={t('volante.lotterySelectorLabel')}>
       {OPTIONS.map((lottery) => (
         <Chip
           key={lottery}
@@ -29,6 +30,8 @@ export default function LotterySelector({ value, onChange }: LotterySelectorProp
           color={value === lottery ? 'primary' : 'default'}
           variant={value === lottery ? 'filled' : 'outlined'}
           onClick={() => onChange(lottery)}
+          disabled={disabled}
+          aria-pressed={value === lottery}
         />
       ))}
     </Stack>

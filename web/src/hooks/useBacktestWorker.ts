@@ -6,6 +6,7 @@ import type { BacktestWorkerRequest, BacktestWorkerResponse } from '../workers/b
 
 export interface UseBacktestWorkerResult {
   result: NumberPerformance[] | null;
+  trevoPerformances: NumberPerformance[] | null;
   loading: boolean;
   error: string | null;
   /** Envia uma nova análise ao worker; substitui `result`/`error` anteriores. */
@@ -20,6 +21,7 @@ export interface UseBacktestWorkerResult {
 export function useBacktestWorker(): UseBacktestWorkerResult {
   const workerRef = useRef<Worker | null>(null);
   const [result, setResult] = useState<NumberPerformance[] | null>(null);
+  const [trevoPerformances, setTrevoPerformances] = useState<NumberPerformance[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +33,7 @@ export function useBacktestWorker(): UseBacktestWorkerResult {
       setLoading(false);
       if (event.data.type === 'success') {
         setResult(event.data.performances);
+        setTrevoPerformances(event.data.trevoPerformances);
         setError(null);
       } else {
         setError(event.data.message);
@@ -53,5 +56,5 @@ export function useBacktestWorker(): UseBacktestWorkerResult {
     workerRef.current?.postMessage(request);
   }, []);
 
-  return { result, loading, error, run };
+  return { result, trevoPerformances, loading, error, run };
 }

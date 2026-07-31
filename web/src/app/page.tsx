@@ -11,22 +11,28 @@ import Grid from '@mui/material/Grid';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import GameCard from '@/components/GameCard';
 import GameSlider from '@/components/GameSlider';
 import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
-import { analyzeBacktest, analyzeTrevoBacktest } from '@/engine/backtestAnalyzer';
 import { generateGames } from '@/engine/gameGenerator';
 import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
-import { getDraws, getPerformances } from '@/services/db';
-import { GameBatch, GeneratedGame, Lottery, MIN_GAMES, NumberPerformance } from '@/types/domain';
+import { usePerformanceCache } from '@/hooks/usePerformanceCache';
+import { GameBatch, GeneratedGame, Lottery, MIN_GAMES } from '@/types/domain';
 
-type PageStatus = 'loading' | 'analyzing' | 'ready' | 'error';
+/**
+ * `idle`: performances prontas, nenhum lote gerado ainda.
+ * `analyzing`: aguardando o cache/worker de performances (`usePerformanceCache`).
+ * `ready`: último lote gerado está em tela.
+ * `generating`: `generateGames` rodando (envolvido num tick assíncrono só para o spinner aparecer).
+ * `error`: falha ao carregar performances ou ao gerar jogos.
+ */
+type PageStatus = 'idle' | 'analyzing' | 'ready' | 'generating' | 'error';
 
-/** Cede um tick ao event loop antes de um cálculo síncrono pesado, para a UI pintar o estado "Analisando" primeiro. */
+/** Cede um tick ao event loop antes de um cálculo síncrono, para a UI pintar o estado "Gerando" primeiro. */
 function yieldToUi(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -43,68 +49,48 @@ function gameToText(lottery: Lottery, game: GeneratedGame): string {
 export default function VolantePage() {
   const { t } = useTranslation();
   const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
-  const [status, setStatus] = useState<PageStatus>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [performances, setPerformances] = useState<NumberPerformance[]>([]);
-  const [trevoPerformances, setTrevoPerformances] = useState<NumberPerformance[]>([]);
+  const [generating, setGenerating] = useState(false);
   const [batchCount, setBatchCount] = useState<number>(MIN_GAMES);
   const [generatedBatch, setGeneratedBatch] = useState<GameBatch | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const nextDraw = useNextDraw(lottery);
+  const { performances, trevoPerformances, loading, error } = usePerformanceCache(lottery);
 
-  useEffect(() => {
-    let cancelled = false;
+  // Loteria trocada: o lote gerado era para a análise anterior, não faz
+  // sentido continuar em tela. Ajuste durante a renderização (não em efeito)
+  // para refletir isso no mesmo commit, como em `useNextDraw`.
+  const [trackedLottery, setTrackedLottery] = useState(lottery);
+  if (lottery !== trackedLottery) {
+    setTrackedLottery(lottery);
+    setGeneratedBatch(null);
+  }
 
-    async function loadPerformances(): Promise<void> {
-      setStatus('loading');
-      setGeneratedBatch(null);
-      try {
-        const cached = await getPerformances(lottery);
-        if (cancelled) return;
+  const status: PageStatus = error
+    ? 'error'
+    : generating
+      ? 'generating'
+      : loading
+        ? 'analyzing'
+        : generatedBatch
+          ? 'ready'
+          : 'idle';
 
-        if (cached) {
-          setPerformances(cached.performances);
-          setTrevoPerformances(cached.trevoPerformances);
-          setStatus('ready');
-          return;
-        }
+  const canGenerate = status === 'idle' || status === 'ready';
+  const isBusy = status === 'analyzing' || status === 'generating';
 
-        setStatus('analyzing');
-        await yieldToUi();
-
-        const draws = await getDraws(lottery);
-        if (cancelled) return;
-
-        const numberPerformances = analyzeBacktest(draws, lottery);
-        const trevos = hasTrevos(lottery) ? analyzeTrevoBacktest(draws, lottery) : [];
-        if (cancelled) return;
-
-        setPerformances(numberPerformances);
-        setTrevoPerformances(trevos);
-        setStatus('ready');
-      } catch {
-        if (!cancelled) {
-          setErrorMessage(t('volante.performanceError'));
-          setStatus('error');
-        }
-      }
-    }
-
-    loadPerformances();
-    return () => {
-      cancelled = true;
-    };
-  }, [lottery, t]);
-
-  function handleGenerate(): void {
+  async function handleGenerate(): Promise<void> {
+    setGenerating(true);
+    await yieldToUi();
     try {
       const batch = generateGames(lottery, batchCount, performances, {
         trevoPerformances,
       });
       setGeneratedBatch(batch);
-    } catch (error) {
-      setToast(error instanceof Error ? error.message : t('volante.generateError'));
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : t('volante.generateError'));
+    } finally {
+      setGenerating(false);
     }
   }
 
@@ -131,10 +117,10 @@ export default function VolantePage() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
+    <Container component="main" maxWidth="lg" sx={{ py: 3 }}>
       <Stack spacing={3}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
             {t('volante.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -142,33 +128,38 @@ export default function VolantePage() {
           </Typography>
         </Box>
 
-        <LotterySelector value={lottery} onChange={setLottery} />
+        <LotterySelector value={lottery} onChange={setLottery} disabled={isBusy} />
 
         <NextDrawCard nextDraw={nextDraw.data} loading={nextDraw.loading} />
 
-        {status === 'error' && <Alert severity="error">{errorMessage}</Alert>}
+        {status === 'error' && <Alert severity="error">{t('volante.performanceError')}</Alert>}
 
         <Card variant="outlined">
           <CardContent>
-            <GameSlider value={batchCount} onChange={setBatchCount} />
+            <GameSlider value={batchCount} onChange={setBatchCount} disabled={isBusy} />
             <Button
               fullWidth
               variant="contained"
               size="large"
               onClick={handleGenerate}
-              disabled={status !== 'ready'}
+              disabled={!canGenerate}
+              aria-busy={isBusy}
               sx={{ mt: 2 }}
-              startIcon={status === 'analyzing' ? <CircularProgress size={18} color="inherit" /> : undefined}
+              startIcon={isBusy ? <CircularProgress size={18} color="inherit" aria-hidden /> : undefined}
             >
-              {status === 'analyzing' ? t('volante.analyzing') : t('volante.generate')}
+              {status === 'analyzing'
+                ? t('volante.analyzing')
+                : status === 'generating'
+                  ? t('volante.generating')
+                  : t('volante.generate')}
             </Button>
           </CardContent>
         </Card>
 
         {generatedBatch && (
-          <Grid container spacing={2}>
+          <Grid container spacing={2} role="list" aria-label={t('volante.generatedGamesList')}>
             {generatedBatch.games.map((game, index) => (
-              <Grid key={index} size={{ xs: 12, sm: 6 }}>
+              <Grid key={index} role="listitem" size={{ xs: 12, sm: 6, md: 4 }}>
                 <GameCard
                   lottery={lottery}
                   game={game}
