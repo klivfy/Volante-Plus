@@ -41,3 +41,8 @@ extension/popup-app/node_modules/
 extension/popup-app/.next/
 extension/popup-app/out/
 extension/popup-app/tsconfig.tsbuildinfo
+
+# Release build artifacts (regenerated on deployment)
+release/web/.next/
+release/web/workbox-*.js
+release/web/workbox-*.js.map
