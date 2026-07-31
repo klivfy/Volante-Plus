@@ -47,7 +47,11 @@ jobs:
       # eles, o instalador sai sem assinatura (o de sempre até hoje) e o
       # restante do workflow segue normalmente — ver docs/DESKTOP.md.
       - name: Assina os instaladores (Authenticode)
-        if: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 != '' }}
+        # Secrets não podem ser referenciados diretamente num `if:` (o
+        # workflow falha na validação estática, antes de qualquer job
+        # rodar) — por isso o valor passa primeiro por uma env var, que aí
+        # sim pode ser testada na condição.
+        if: ${{ env.PFX_BASE64 != '' }}
         shell: pwsh
         env:
           PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
