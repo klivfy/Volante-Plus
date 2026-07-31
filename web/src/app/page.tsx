@@ -19,6 +19,7 @@ import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
 import NotificationOptIn from '@/components/NotificationOptIn';
 import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } from '@/services/analytics';
+import { reportUserError, reportError, addBreadcrumb } from '@/services/errorReporter';
 import { generateGames } from '@/engine/gameGenerator';
 import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
@@ -86,6 +87,11 @@ export default function VolantePage() {
     setGenerating(true);
     await yieldToUi();
     try {
+      addBreadcrumb('Starting game generation', {
+        lottery: lottery.toString(),
+        batchCount,
+      });
+
       trackBacktestDataUsage({
         lottery: lottery.toString(),
         dataSource: performances.length > 0 ? 'cached' : 'worker-computed',
@@ -99,7 +105,14 @@ export default function VolantePage() {
       });
       setGeneratedBatch(batch);
     } catch (err) {
-      setToast(err instanceof Error ? err.message : t('volante.generateError'));
+      const errorMsg = err instanceof Error ? err.message : t('volante.generateError');
+      reportUserError(err instanceof Error ? err : new Error(errorMsg), {
+        tags: {
+          feature: 'game-generation',
+          lottery: lottery.toString(),
+        },
+      });
+      setToast(errorMsg);
     } finally {
       setGenerating(false);
     }

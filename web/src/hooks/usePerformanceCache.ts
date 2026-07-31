@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBacktestWorker } from './useBacktestWorker';
 import { trackBacktestAnalysis } from '../services/analytics';
+import { reportDbError, reportWorkerError, addBreadcrumb } from '../services/errorReporter';
 import { getDraws, getPerformances, PerformanceRecord, savePerformances } from '../services/db';
 import { DEFAULT_SIMULATIONS_PER_NUMBER } from '../engine/backtestAnalyzer';
 import { Lottery, NumberPerformance } from '../types/domain';
@@ -51,23 +52,37 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
     async function load(): Promise<void> {
       setLoading(true);
       setError(null);
-      const cached = await getPerformances(lottery);
-      if (cancelled) return;
-
-      if (cached) {
-        setPerformances(cached.performances);
-        setTrevoPerformances(cached.trevoPerformances);
-        setSource(cached.source);
-        setLoading(false);
-        trackBacktestAnalysis({
-          lottery: lottery.toString(),
-          source: cached.source,
-        });
-      } else {
-        pendingLotteryRef.current = lottery;
-        const draws = await getDraws(lottery);
+      try {
+        addBreadcrumb(`Loading performances for ${lottery}`, { lottery: lottery.toString() });
+        const cached = await getPerformances(lottery);
         if (cancelled) return;
-        run({ draws, lottery, simulationsPerDraw: DEFAULT_SIMULATIONS_PER_NUMBER });
+
+        if (cached) {
+          setPerformances(cached.performances);
+          setTrevoPerformances(cached.trevoPerformances);
+          setSource(cached.source);
+          setLoading(false);
+          trackBacktestAnalysis({
+            lottery: lottery.toString(),
+            source: cached.source,
+          });
+        } else {
+          pendingLotteryRef.current = lottery;
+          const draws = await getDraws(lottery);
+          if (cancelled) return;
+          run({ draws, lottery, simulationsPerDraw: DEFAULT_SIMULATIONS_PER_NUMBER });
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load performances';
+        setError(errorMsg);
+        reportDbError(err instanceof Error ? err : new Error(errorMsg), {
+          table: `performances_${lottery}`,
+          operation: 'load',
+          tags: {
+            lottery: lottery.toString(),
+          },
+        });
       }
     }
 
@@ -83,15 +98,40 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
     pendingLotteryRef.current = null;
     const trevos = workerTrevoPerformances ?? [];
 
-    setPerformances(result);
-    setTrevoPerformances(trevos);
-    setSource('auto');
-    setLoading(false);
-    trackBacktestAnalysis({
-      lottery: targetLottery.toString(),
-      source: 'auto',
-    });
-    void savePerformances(targetLottery, result, trevos, { source: 'auto' });
+    try {
+      addBreadcrumb('Worker completed backtest analysis', {
+        lottery: targetLottery.toString(),
+        performanceCount: result.length,
+      });
+
+      setPerformances(result);
+      setTrevoPerformances(trevos);
+      setSource('auto');
+      setLoading(false);
+      trackBacktestAnalysis({
+        lottery: targetLottery.toString(),
+        source: 'auto',
+      });
+      void savePerformances(targetLottery, result, trevos, { source: 'auto' }).catch((err) => {
+        reportDbError(err instanceof Error ? err : new Error('Failed to save performances'), {
+          table: `performances_${targetLottery}`,
+          operation: 'save',
+          tags: {
+            lottery: targetLottery.toString(),
+            source: 'auto',
+          },
+        });
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to process worker result';
+      reportWorkerError(err instanceof Error ? err : new Error(errorMsg), {
+        workerType: 'backtest',
+        messageType: 'result',
+        tags: {
+          lottery: targetLottery.toString(),
+        },
+      });
+    }
   }, [result, workerTrevoPerformances]);
 
   const refreshAuto = useCallback(() => {

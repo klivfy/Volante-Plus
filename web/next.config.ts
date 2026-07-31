@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /**
  * Mesmo host padrão de `src/services/caixaApi.ts` — o service worker precisa
@@ -68,4 +69,14 @@ const nextConfig: NextConfig = {
 // usado por `next-pwa` para gerar o service worker nunca rodaria. O script
 // `build` em package.json passa `--webpack` para voltar a usar webpack só
 // no build de produção (o dev continua em Turbopack).
-export default withPWA(nextConfig);
+const pwaConfig = withPWA(nextConfig);
+
+// Sentry é inicializado automaticamente quando NEXT_PUBLIC_SENTRY_DSN está
+// definido. Sem ele, Sentry é ignorado e nenhum overhead é adicionado.
+export default withSentryConfig(pwaConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  telemetry: false,
+  hideSourceMaps: true,
+});
