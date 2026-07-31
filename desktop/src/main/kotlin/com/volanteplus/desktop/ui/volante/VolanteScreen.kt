@@ -1,6 +1,8 @@
 package com.volanteplus.desktop.ui.volante
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.TooltipArea
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +22,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,6 +36,7 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -51,21 +55,22 @@ import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
 import com.volanteplus.loterias.domain.model.GeneratedGame
 import com.volanteplus.loterias.domain.model.Lottery
+import com.volanteplus.loterias.domain.model.NextDrawInfo
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import kotlin.math.roundToInt
 
 /**
  * Adaptação desktop de `ui/volante/VolanteScreen.kt` (Android). Diferenças:
- * sem card de próximo concurso (desktop ainda não busca isso — ver
- * docs/DESKTOP.md), `collectAsState` em vez de `collectAsStateWithLifecycle`
- * (não há Activity/lifecycle aqui) e strings literais em vez de
- * `stringResource` (sem sistema de recursos Android).
+ * `collectAsState` em vez de `collectAsStateWithLifecycle` (não há
+ * Activity/lifecycle aqui) e strings literais em vez de `stringResource`
+ * (sem sistema de recursos Android).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VolanteScreen(viewModel: VolanteViewModel) {
     val state by viewModel.uiState.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+    val nextDrawInfo by viewModel.nextDrawInfo.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.message) {
@@ -95,6 +100,7 @@ fun VolanteScreen(viewModel: VolanteViewModel) {
             VolanteContent(
                 state = state,
                 isAnalyzing = isAnalyzing,
+                nextDrawInfo = nextDrawInfo,
                 onToggleNumber = viewModel::toggleNumber,
                 onToggleTrevo = viewModel::toggleTrevo,
                 onSelectTrevoStrategy = viewModel::selectTrevoStrategy,
@@ -138,6 +144,7 @@ private fun GameModeTabs(selected: GameMode, onSelect: (GameMode) -> Unit) {
 private fun VolanteContent(
     state: VolanteUiState,
     isAnalyzing: Boolean,
+    nextDrawInfo: NextDrawInfo?,
     onToggleNumber: (Int) -> Unit,
     onToggleTrevo: (Int) -> Unit,
     onSelectTrevoStrategy: (TrevoStrategy) -> Unit,
@@ -155,6 +162,10 @@ private fun VolanteContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            NextDrawCard(nextDrawInfo, modifier = Modifier.padding(bottom = 8.dp))
+        }
+
         item(span = { GridItemSpan(maxLineSpan) }) {
             SelectionCounter(
                 count = selection.numbers.size,
@@ -225,6 +236,7 @@ private fun VolanteContent(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GeneratorControls(
     batchCount: Int,
@@ -292,22 +304,35 @@ private fun GeneratorControls(
             modifier = Modifier.padding(top = 4.dp),
         )
 
-        Button(
-            onClick = onGenerate,
-            enabled = !isAnalyzing,
+        TooltipArea(
+            tooltip = {
+                Surface(shape = RoundedCornerShape(4.dp), shadowElevation = 4.dp) {
+                    Text(
+                        text = "Atalho: Ctrl+G",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(8.dp),
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         ) {
-            if (isAnalyzing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                )
-                Text(
-                    text = "Analisando histórico…",
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-            } else {
-                Text("Gerar jogos (Ctrl+G)")
+            Button(
+                onClick = onGenerate,
+                enabled = !isAnalyzing,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (isAnalyzing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Text(
+                        text = "Analisando histórico…",
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                } else {
+                    Text("Gerar jogos (Ctrl+G)")
+                }
             }
         }
     }

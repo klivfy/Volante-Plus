@@ -39,6 +39,41 @@ jobs:
       - name: Empacota instaladores (.msi e .exe)
         run: ./gradlew.bat :desktop:packageMsi :desktop:packageExe
 
+      # O plugin do Compose Desktop só assina nativamente no macOS — no
+      # Windows, jpackage não assina o instalador, então a assinatura
+      # Authenticode roda aqui via signtool (já vem no Windows SDK do
+      # próprio runner windows-latest, sem dependência nova). Só executa se
+      # o repositório tiver os secrets do certificado configurados; sem
+      # eles, o instalador sai sem assinatura (o de sempre até hoje) e o
+      # restante do workflow segue normalmente — ver docs/DESKTOP.md.
+      - name: Assina os instaladores (Authenticode)
+        if: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 != '' }}
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:PFX_BASE64))
+
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match "\\x64\\" } |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) {
+            throw "signtool.exe não encontrado no Windows SDK deste runner."
+          }
+
+          $installers = Get-ChildItem -Path "desktop/build/compose/binaries/main" -Recurse -Include *.msi, *.exe
+          foreach ($installer in $installers) {
+            & $signtool sign /f $pfxPath /p $env:PFX_PASSWORD /fd SHA256 `
+              /tr http://timestamp.digicert.com /td SHA256 $installer.FullName
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao assinar $($installer.FullName)"
+            }
+          }
+
+          Remove-Item $pfxPath
+
       - name: Publica instaladores
         uses: actions/upload-artifact@v4
         with:

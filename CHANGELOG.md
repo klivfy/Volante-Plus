@@ -11,11 +11,22 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   código diretamente.
 - App desktop para Windows (`desktop/`, Compose Multiplatform): telas de
   Volante e Backtesting adaptadas das equivalentes Android, atalhos de
-  teclado (Ctrl+G gera jogos, Ctrl+B vai para Backtesting), importação de
-  histórico via CSV (sem persistência própria ainda — ver `docs/DESKTOP.md`).
+  teclado (Ctrl+G gera jogos, Ctrl+B vai para Backtesting, F11 tela cheia),
+  importação de histórico via CSV (sem persistência própria ainda — ver
+  `docs/DESKTOP.md`).
+- Desktop: bandeja do sistema (Abrir/Ver próximo concurso/Sair) com
+  notificação nativa quando um novo concurso é detectado, verificação
+  periódica em background e busca do próximo concurso (`GetNextDrawInfoUseCase`
+  movido de `app/` para `:shared`, junto com `CaixaLotteryApi` — também
+  Kotlin/JVM puro).
+- Desktop: preferências (`java.util.prefs`) para última loteria, tema e
+  tamanho da janela; tema sincronizado com o do Windows (detecção via
+  registro) com botão de alternância manual; janela redimensionável com
+  mínimo 600×400; tooltips nos botões principais.
 - `.github/workflows/desktop-ci.yml`: compila e empacota `.msi`/`.exe` de
   verdade num runner `windows-latest` (empacotamento nativo não permite
-  cross-compilation a partir de Linux/macOS).
+  cross-compilation a partir de Linux/macOS), com assinatura Authenticode
+  opcional via `signtool` quando o repositório tiver certificado configurado.
 
 ## [2.0.0]
 

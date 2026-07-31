@@ -40,7 +40,9 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
             packageName = "VolantePlus"
-            packageVersion = "2.0.0"
+            // Lido de gradle.properties (app.version) — versão do instalador
+            // desktop, independente do versionName do Android.
+            packageVersion = project.property("app.version") as String
 
             windows {
                 menuGroup = "Volante+"
