@@ -5,7 +5,7 @@
 
 import * as Sentry from '@sentry/nextjs';
 
-export const sentryConfig: Sentry.Init = {
+export const sentryConfig = {
   enabled: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -36,7 +36,7 @@ export const sentryConfig: Sentry.Init = {
   ],
 
   // Dados sensíveis a não capturar
-  beforeSend(event, hint) {
+  beforeSend(event: Sentry.Event, hint: Sentry.EventHint) {
     if (!event.request) return event;
 
     // Não capturar credenciais
@@ -50,17 +50,14 @@ export const sentryConfig: Sentry.Init = {
   // Breadcrumbs: rastreamento de ações antes do erro
   maxBreadcrumbs: 50,
 
-  // Integrations padrão (@sentry/nextjs inclui automaticamente)
-  integrations: [
-    new Sentry.Replay({
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
+  // Não publicar source maps em produção (mant-los locais)
+  // Usar SENTRY_AUTH_TOKEN para upload ao Sentry durante build
+  denyUrls: [
+    // Ignorar erros de browsers/extensions
+    /extension\//i,
+    /moz-extension\//i,
+    /chrome-extension\//i,
   ],
-
-  // Capturar replays de erros e de transações lentas
-  replaysOnErrorSampleRate: 1.0,
-  replaysSessionSampleRate: 0.1,
 };
 
 export default sentryConfig;

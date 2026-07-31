@@ -78,5 +78,4 @@ export default withSentryConfig(pwaConfig, {
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   telemetry: false,
-  hideSourceMaps: true,
 });

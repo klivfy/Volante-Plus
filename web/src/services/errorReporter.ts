@@ -158,7 +158,7 @@ export function reportUserError(
  */
 export function captureMessage(
   message: string,
-  severity: Omit<ErrorSeverity, 'fatal'> = 'info',
+  severity: 'error' | 'warning' | 'info' = 'info',
 ): void {
   if (!process.env.NEXT_PUBLIC_SENTRY_DSN) {
     console.log(message);
