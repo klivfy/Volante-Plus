@@ -23,7 +23,6 @@ Volante-Plus/
         │   ├── Main.kt              # application{} + Window + atalhos de teclado
         │   └── ui/{theme,navigation,volante,backtest}/
         └── resources/
-            ├── font/*.ttf            # Open Sans (mesmos arquivos do Android)
             └── icon.ico              # Ícone do instalador (256×256 + 48/32/16)
 ```
 
@@ -45,7 +44,7 @@ adaptações necessárias:
 | `viewModel(factory = ...)` (Compose) | `remember { ViewModel(...) }` + `DisposableEffect` em `Main.kt` |
 | `collectAsStateWithLifecycle()` | `collectAsState()` (sem Activity/lifecycle) |
 | `stringResource(R.string...)` | Strings literais (sem sistema de recursos Android) |
-| `Font(R.font.xxx, peso)` | `Font("font/xxx.ttf", peso)` — recurso de classpath, não `R.font` |
+| Open Sans (`Font(R.font.xxx, peso)`) | Fonte padrão do sistema (ver nota abaixo) |
 | "Sincronizar histórico" (API Caixa + Room) | "Importar CSV" (`java.awt.FileDialog` + o mesmo `CsvDrawParser` do seed Android) |
 | Card de próximo concurso | Removido nesta primeira versão (ver limitações) |
 
@@ -53,6 +52,17 @@ Migrar essas telas para `commonMain` de verdade é um passo futuro razoável
 (o essencial — Material3, `LazyVerticalGrid`, etc. — já é 100%
 multiplataforma), mas não foi feito agora para manter esta entrega
 delimitada.
+
+**Sobre a fonte**: a primeira versão tentou embarcar Open Sans via
+`Font("font/xxx.ttf", peso)` (caminho de classpath) — API que existia em
+versões anteriores do Compose Multiplatform, mas foi removida/substituída
+na 1.11 pelo novo sistema de "Compose Resources" (`Res.font.xxx`, gerado a
+partir de uma pasta `composeResources/font/`). Isso só foi descoberto
+porque o CI (rodando de verdade num Windows) recusou compilar — não havia
+como prever isso sem compilar contra essa versão exata. Migrar para o
+sistema novo de recursos ficou fora do escopo desta entrega; por ora o
+desktop usa a fonte padrão do sistema, mantendo a mesma escala de
+tamanhos/pesos do Android.
 
 ## Persistência: por decisão explícita, não há nesta versão
 
@@ -93,11 +103,16 @@ Google — AGP e todo o AndroidX/Compose vêm de lá) por política de rede,
 então nenhum `./gradlew` deste repositório roda localmente aqui — isso já
 valia para o `:app` original, antes de qualquer mudança desta fase. O
 código foi revisado manualmente contra a documentação oficial e o
-código-fonte do Compose Multiplatform (assinaturas de `rememberWindowState`,
-`Window(onPreviewKeyEvent = ...)`, `Font(resource = ...)`), mas **a
-primeira compilação de verdade acontece no CI** (`.github/workflows/desktop-ci.yml`
-e `android-ci.yml`, que rodam em runners do GitHub sem essa restrição).
-Rode localmente antes de confiar cegamente nesta entrega.
+código-fonte do Compose Multiplatform antes de cada push (assinaturas de
+`rememberWindowState`, `Window(onPreviewKeyEvent = ...)`), mas **a primeira
+compilação de verdade só acontece no CI**
+(`.github/workflows/desktop-ci.yml` e `android-ci.yml`, que rodam em
+runners do GitHub sem essa restrição) — e foi o CI, não a revisão manual,
+que pegou dois problemas reais: a versão mínima do Kotlin exigida pelo
+plugin `org.jetbrains.compose` (documentação indicava 2.1.0, o plugin
+exige 2.2.0) e a API de carregamento de fonte por caminho de string
+(removida na versão 1.11, ver nota acima). Rode localmente antes de
+confiar cegamente nesta entrega.
 
 ## Empacotamento Windows (.msi / .exe)
 
