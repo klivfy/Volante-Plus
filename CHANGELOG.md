@@ -4,6 +4,12 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
 ## [Unreleased]
 
+## [2.1.0]
+
+Lançamento da plataforma desktop Windows (`desktop/`) — o app passa a rodar
+como Android, web e agora também um nativo Windows. Nenhuma mudança de
+código Android ou web neste lançamento.
+
 ### Added
 - Módulo Kotlin Multiplatform `shared/`: domínio (backtesting, geração de
   jogos, modelos) extraído de `app/` — já era Kotlin puro, sem mudança de
@@ -27,6 +33,10 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   verdade num runner `windows-latest` (empacotamento nativo não permite
   cross-compilation a partir de Linux/macOS), com assinatura Authenticode
   opcional via `signtool` quando o repositório tiver certificado configurado.
+  Em tags `v*-desktop`, também publica os instaladores como Release draft
+  do GitHub.
+- `docs/WINDOWS.md`: processo de build, assinatura e submissão à Microsoft
+  Store (MSIX), checklist de atualização de versão e troubleshooting.
 
 ## [2.0.0]
 

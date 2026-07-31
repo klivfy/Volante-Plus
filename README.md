@@ -86,6 +86,26 @@ Requer JDK 17+ e Android SDK (compileSdk 35).
 ./gradlew :app:testDebugUnitTest  # testes unitários
 ```
 
+## Windows Desktop
+
+App nativo para Windows (Compose Multiplatform, `desktop/`), empacotado como
+`.msi`/`.exe` — ver [`docs/DESKTOP.md`](docs/DESKTOP.md) (arquitetura,
+bandeja do sistema, notificações, preferências) e
+[`docs/WINDOWS.md`](docs/WINDOWS.md) (build, assinatura e submissão à
+Microsoft Store).
+
+<!--
+  Sem badge de download da loja ainda: o app não foi submetido/publicado no
+  Partner Center nesta entrega (processo manual, ver docs/WINDOWS.md). Troque
+  este comentário pelo badge oficial da Microsoft Store assim que a
+  listagem estiver aprovada e a URL pública existir.
+-->
+
+```bash
+./gradlew :desktop:run          # roda localmente
+./gradlew :desktop:packageMsi   # gera o instalador .msi (precisa rodar num Windows)
+```
+
 ## Roadmap
 
 - [x] Setup MD3 + Open Sans + tela de Volante
