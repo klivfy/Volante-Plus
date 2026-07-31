@@ -1,0 +1,178 @@
+================================================================================
+VOLANTE+ CHROME EXTENSION - CHROME WEB STORE LISTING
+================================================================================
+
+TITLE (max 45 characters)
+================================================================================
+Volante+ - Gerador de Jogos de Loterias
+
+SHORT DESCRIPTION (max 132 characters)
+================================================================================
+Gera jogos de loterias direto da barra de ferramentas, com análise de desempenho e sincronização de novos sorteios.
+
+FULL DESCRIPTION (max 16,300 characters)
+================================================================================
+Volante+ é uma extensão de navegador para análise inteligente e geração de jogos de loterias brasileiras.
+
+RECURSOS PRINCIPAIS:
+
+✨ Geração de Jogos Inteligente
+- Analisa o desempenho histórico de números em loteria
+- Sugere combinações baseadas em backtesting estatístico
+- Suporta: Mega-Sena e +Milionária
+- Interface simplificada direto da barra de ferramentas
+
+🔄 Sincronização em Tempo Real
+- Monitora novos sorteios automaticamente
+- Notifica quando novos resultados são disponibilizados
+- Atualiza dados de desempenho em background sem interrupção
+
+📊 Análise de Desempenho
+- Visualiza padrões de números mais frequentes
+- Calcula probabilidades baseadas em histórico
+- Dados sincronizados com a aplicação web Volante+
+
+🔐 Privado e Seguro
+- Funciona completamente offline (com cache)
+- Dados locais armazenados no navegador
+- Sem rastreamento ou coleta de dados pessoais
+- Código aberto e auditável
+
+COMO USAR:
+
+1. Instale a extensão a partir da Chrome Web Store
+2. Clique no ícone Volante+ na barra de ferramentas
+3. Selecione a loteria desejada (Mega-Sena ou +Milionária)
+4. Visualize números com melhor desempenho
+5. Gere lotes de jogos automaticamente
+6. A extensão sincroniza dados em background a cada hora
+
+COMPATIBILIDADE:
+
+- Chrome: versão 100+
+- Edge: versão 100+ (compatibilidade MV3)
+- Funciona offline após primeira sincronização
+
+PERMISSÕES SOLICITADAS:
+
+- storage: Armazena dados de desempenho e preferências localmente
+- alarms: Agendamento de sincronização periódica de dados
+- Acesso a loteriascaixa-api.herokuapp.com: Busca dados oficiais de sorteios
+
+PRIVACIDADE:
+
+Volante+ não coleta nenhum dado pessoal. Todos os dados são armazenados
+localmente no seu navegador. Nenhum rastreamento é feito. A extensão
+respeita sua privacidade completamente.
+
+SUPORTE:
+
+Dúvidas ou problemas? Visite:
+- Site: https://volante-plus.app
+- GitHub: https://github.com/mestrys/volante-plus
+- Issues: https://github.com/mestrys/volante-plus/issues
+
+KEYWORDS (separated by commas, max 120 characters)
+================================================================================
+loteria, mega-sena, milionária, jogo, gerador, análise, desempenho, sorteio
+
+CATEGORY
+================================================================================
+Productivity
+
+PROMOTIONAL IMAGES (for Chrome Web Store listing)
+================================================================================
+Required images:
+1. Logo 128×128 (included in manifest)
+2. Promotional tile 440×280 (optional but recommended)
+3. Screenshot 1280×800 or 640×400 (at least 1, up to 5)
+4. Small promotional tile 300×300 (optional)
+
+Store assets location: ../../web/public/store-assets/
+
+LANGUAGE & LOCALIZATION
+================================================================================
+Primary Language: Portuguese (Brazil - pt-BR)
+Region: Brazil
+Language support: Português (Brasil)
+
+PRICING & DISTRIBUTION
+================================================================================
+Price: FREE
+Distribution: Public (available to all users)
+
+COMPLIANCE & VERIFICATION
+================================================================================
+Chrome Web Store requirements:
+✓ Manifest version: 3 (MV3 compliant)
+✓ Permissions: Minimal and justified
+✓ Host permissions: Only API endpoint for lottery data
+✓ Privacy policy: Required (see PRIVACY_POLICY.md)
+✓ Terms of service: Required (included in extension)
+✓ Clear description of functionality
+✓ No deceptive practices
+✓ Safe browsing compliance
+✓ No malware or unwanted behavior
+✓ Appropriate category and content rating
+
+DEVELOPER ACCOUNT REQUIREMENTS
+================================================================================
+Before submission, ensure you have:
+□ Google Account (or create one at accounts.google.com)
+□ Chrome Web Store Developer Account (register at chromewebstore.google.com)
+□ Developer account must be in good standing
+□ Payment method on file (credit card required for $5 registration fee)
+□ Identity verification completed
+□ Email address accessible and monitored
+
+SUBMISSION CHECKLIST
+================================================================================
+□ All required images uploaded
+□ Detailed description filled in
+□ Keywords and category selected
+□ Privacy policy URL provided
+□ Terms of service URL provided
+□ Promo images added (optional)
+□ Extension functionality tested on Chrome 100+
+□ No console errors or warnings
+□ Offline functionality verified
+□ Permissions justified and minimal
+□ manifest.json validated
+
+TIMELINE & EXPECTATIONS
+================================================================================
+- Developer account setup: 1-2 hours
+- Extension submission: 5 minutes (via Chrome Web Store dashboard)
+- Review process: 24-72 hours (typical)
+- Published status: Visible in Chrome Web Store within 1-7 days
+- Total time to live: 1-4 days in most cases
+
+Note: Google may require additional information or changes during review.
+
+REJECTION REASONS (common)
+================================================================================
+Avoid these common rejection causes:
+- Broken functionality or crashes
+- Unclear or misleading description
+- Permissions not justified
+- Privacy policy not accessible
+- Deceptive advertising
+- Content policy violations
+- Technical issues or bugs
+
+FEEDBACK & UPDATES
+================================================================================
+After publication:
+- Monitor Chrome Web Store reviews and ratings
+- Address user feedback promptly
+- Release updates for bug fixes and features
+- Maintain minimum rating of 4.0+ recommended
+- Update listing regularly with improvements
+
+================================================================================
+END OF STORE LISTING
+================================================================================
+
+Version: 2.0.0
+Date: 2026-07-31
+Status: Ready for submission
