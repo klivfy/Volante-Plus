@@ -1,13 +1,18 @@
-package com.volanteplus.loterias.testutil
+package com.volanteplus.loterias.data.repository
 
-import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import java.time.LocalDate
 
-/** Implementação em memória do repositório para testes de domínio. */
+/**
+ * Implementação em memória do repositório — usada em testes de domínio e,
+ * a partir do módulo `:desktop`, como repositório real (desktop ainda não
+ * tem persistência própria: o histórico entra por importação manual de CSV,
+ * via [com.volanteplus.loterias.data.seed.CsvDrawParser], e não sobrevive a
+ * fechar o app — ver docs/DESKTOP.md).
+ */
 class InMemoryDrawRepository : DrawRepository {
 
     private val stored = mutableMapOf<Pair<Lottery, Int>, Draw>()

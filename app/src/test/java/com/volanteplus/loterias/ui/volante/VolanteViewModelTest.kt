@@ -9,7 +9,7 @@ import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
-import com.volanteplus.loterias.testutil.InMemoryDrawRepository
+import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
 import com.volanteplus.loterias.ui.navigation.PerformanceCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

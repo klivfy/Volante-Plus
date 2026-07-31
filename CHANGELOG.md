@@ -2,6 +2,21 @@
 
 Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
+## [Unreleased]
+
+### Added
+- Módulo Kotlin Multiplatform `shared/`: domínio (backtesting, geração de
+  jogos, modelos) extraído de `app/` — já era Kotlin puro, sem mudança de
+  comportamento. `app/` passa a depender de `:shared` em vez de conter esse
+  código diretamente.
+- App desktop para Windows (`desktop/`, Compose Multiplatform): telas de
+  Volante e Backtesting adaptadas das equivalentes Android, atalhos de
+  teclado (Ctrl+G gera jogos, Ctrl+B vai para Backtesting), importação de
+  histórico via CSV (sem persistência própria ainda — ver `docs/DESKTOP.md`).
+- `.github/workflows/desktop-ci.yml`: compila e empacota `.msi`/`.exe` de
+  verdade num runner `windows-latest` (empacotamento nativo não permite
+  cross-compilation a partir de Linux/macOS).
+
 ## [2.0.0]
 
 Lançamento da plataforma web (`web/`) — o app deixa de ser só Android.

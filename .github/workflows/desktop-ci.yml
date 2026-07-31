@@ -1,0 +1,49 @@
+name: Desktop CI
+
+# Roda em windows-latest de propósito: o empacotamento nativo do Compose
+# Desktop (jpackage, por baixo do targetFormats(Msi, Exe)) não faz
+# cross-compilation — só gera instalador .msi/.exe rodando de fato num
+# Windows. Um runner Linux só serviria para compilar o Kotlin, não para
+# empacotar.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compilar e empacotar (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle (com cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compila :shared e :desktop
+        run: ./gradlew.bat :desktop:compileKotlinDesktop
+
+      - name: Empacota instaladores (.msi e .exe)
+        run: ./gradlew.bat :desktop:packageMsi :desktop:packageExe
+
+      - name: Publica instaladores
+        uses: actions/upload-artifact@v4
+        with:
+          name: volante-plus-desktop-windows
+          path: |
+            desktop/build/compose/binaries/main/msi/*.msi
+            desktop/build/compose/binaries/main/exe/*.exe
+          retention-days: 14

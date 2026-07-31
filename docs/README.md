@@ -3,7 +3,14 @@
 Laboratório estatístico de loterias (Mega-Sena e +Milionária): gera jogos,
 sincroniza o histórico oficial da Caixa e roda backtests contra esse
 histórico. Android nativo, Kotlin + Jetpack Compose, injeção manual (sem
-Hilt/Koin).
+Hilt/Koin). Este documento cobre o app Android — para web e desktop, ver
+`docs/WEB.md` e `docs/DESKTOP.md`.
+
+> **Nota:** `domain/` (backtesting, geração de jogos, modelos) e
+> `data/repository`/`data/seed` (interface `DrawRepository` e
+> `CsvDrawParser`) não moram mais em `app/`, e sim no módulo Kotlin
+> Multiplatform `shared/` — compartilhados com o app desktop (`desktop/`,
+> ver `docs/DESKTOP.md`). Os caminhos abaixo foram atualizados de acordo.
 
 ## Gerador de Jogos
 
@@ -71,16 +78,22 @@ auxiliares.
 ## Estrutura de diretórios (resumo)
 
 ```
-app/src/main/java/com/volanteplus/loterias/
+shared/src/commonMain/kotlin/com/volanteplus/loterias/   # Kotlin Multiplatform
+├── data/
+│   ├── repository/  DrawRepository (interface) / InMemoryDrawRepository
+│   └── seed/        CsvDrawParser
+└── domain/
+    ├── backtest/    BacktestEngine, BacktestAnalyzer, PrizeRules, Statistics
+    ├── generator/   GameGenerator
+    └── model/       Draw, Lottery, Generation, NumberPerformance, NextDrawInfo
+
+app/src/main/java/com/volanteplus/loterias/               # Só Android
 ├── data/
 │   ├── local/       Room (DrawEntity, DrawDao, VolanteDatabase, Converters)
 │   ├── remote/      API da Caixa (CaixaDrawDto, NextDrawDto, CaixaLotteryApi)
-│   ├── repository/  DrawRepository / RoomDrawRepository
-│   └── seed/        Seed CSV embarcado (AssetDrawSeeder, CsvDrawParser)
+│   ├── repository/  RoomDrawRepository (implementa DrawRepository de :shared)
+│   └── seed/        AssetDrawSeeder (Context/assets, usa CsvDrawParser de :shared)
 ├── domain/
-│   ├── backtest/    BacktestEngine, BacktestAnalyzer, PrizeRules, Statistics
-│   ├── generator/   GameGenerator
-│   ├── model/       Draw, Lottery, Generation, NumberPerformance, NextDrawInfo
 │   └── usecase/     SyncDrawHistory, GetNextDrawInfoUseCase
 └── ui/
     ├── backtest/    BacktestScreen, BacktestViewModel

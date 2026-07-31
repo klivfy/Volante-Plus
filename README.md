@@ -2,11 +2,14 @@
 
 [![Android CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/android-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/android-ci.yml)
 [![Web CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/web-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/web-ci.yml)
+[![Desktop CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/desktop-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/desktop-ci.yml)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Mestrys/Volante-Plus&root-directory=web)
 
-App Android (Kotlin + Jetpack Compose, Material Design 3) e versão web
-(Next.js + PWA, ver `web/`) para teste de hipóteses estatísticas sobre
-Mega-Sena e +Milionária.
+App Android (Kotlin + Jetpack Compose, Material Design 3), versão web
+(Next.js + PWA, ver `web/`) e app desktop para Windows (Compose
+Multiplatform, ver `desktop/`) para teste de hipóteses estatísticas sobre
+Mega-Sena e +Milionária. O domínio (backtesting, geração de jogos) é
+compartilhado entre Android e desktop via `shared/` (Kotlin Multiplatform).
 
 > Gerador estatístico para Mega-Sena e +Milionária. Sem palpite, sem número quente.
 

@@ -3,7 +3,7 @@ package com.volanteplus.loterias.domain.backtest
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
-import com.volanteplus.loterias.testutil.InMemoryDrawRepository
+import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

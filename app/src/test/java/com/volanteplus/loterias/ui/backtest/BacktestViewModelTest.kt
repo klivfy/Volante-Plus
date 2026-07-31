@@ -7,7 +7,7 @@ import com.volanteplus.loterias.domain.backtest.BacktestEngine
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
-import com.volanteplus.loterias.testutil.InMemoryDrawRepository
+import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
