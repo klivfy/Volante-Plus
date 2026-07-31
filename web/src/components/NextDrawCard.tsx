@@ -7,6 +7,7 @@ import CardContent from '@mui/material/CardContent';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { useTranslation } from 'react-i18next';
 import { NextDrawInfo } from '../types/domain';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
@@ -43,6 +44,8 @@ export interface NextDrawCardProps {
 }
 
 export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
+  const { t } = useTranslation();
+
   if (loading) {
     return (
       <Card variant="outlined">
@@ -64,7 +67,7 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
             <CloudOffIcon color="disabled" />
             <Typography variant="body2" color="text.secondary">
-              Não foi possível carregar os dados do próximo concurso. Verifique sua conexão.
+              {t('nextDraw.unavailable')}
             </Typography>
           </Stack>
         </CardContent>
@@ -81,16 +84,16 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
           <CalendarMonthIcon color="primary" sx={{ mt: 0.5 }} />
           <Stack spacing={0.25}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Concurso {nextDraw.contestNumber}
+              {t('nextDraw.contest', { number: nextDraw.contestNumber })}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {time ? `${date} às ${time}` : date}
+              {time ? t('nextDraw.at', { date, time }) : date}
             </Typography>
             <Typography variant="h6" color="primary" sx={{ mt: 0.5 }}>
               {currencyFormatter.format(nextDraw.estimatedPrize)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              prêmio estimado
+              {t('nextDraw.estimatedPrize')}
             </Typography>
           </Stack>
         </Stack>

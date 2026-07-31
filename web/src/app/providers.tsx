@@ -5,6 +5,8 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
+import { I18nextProvider } from 'react-i18next';
+import i18n from '@/i18n/config';
 import { darkTheme, lightTheme } from '@/theme';
 
 /**
@@ -21,11 +23,13 @@ export default function Providers({ children }: { children: ReactNode }) {
   const prefersDark = useMediaQuery('(prefers-color-scheme: dark)', { noSsr: true });
 
   return (
-    <AppRouterCacheProvider>
-      <ThemeProvider theme={prefersDark ? darkTheme : lightTheme}>
-        <CssBaseline />
-        {children}
-      </ThemeProvider>
-    </AppRouterCacheProvider>
+    <I18nextProvider i18n={i18n}>
+      <AppRouterCacheProvider>
+        <ThemeProvider theme={prefersDark ? darkTheme : lightTheme}>
+          <CssBaseline />
+          {children}
+        </ThemeProvider>
+      </AppRouterCacheProvider>
+    </I18nextProvider>
   );
 }

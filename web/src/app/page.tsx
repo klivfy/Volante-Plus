@@ -20,6 +20,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import NextDrawCard from '@/components/NextDrawCard';
 import { analyzeBacktest, analyzeTrevoBacktest } from '@/engine/backtestAnalyzer';
 import { generateGames } from '@/engine/gameGenerator';
@@ -27,11 +28,6 @@ import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
 import { getDraws, getPerformances } from '@/services/db';
 import { GameBatch, GeneratedGame, Lottery, MAX_GAMES, MIN_GAMES, NumberPerformance } from '@/types/domain';
-
-const LOTTERY_LABEL: Record<Lottery, string> = {
-  [Lottery.MEGA_SENA]: 'Mega-Sena',
-  [Lottery.MAIS_MILIONARIA]: '+Milionária',
-};
 
 type PageStatus = 'loading' | 'analyzing' | 'ready' | 'error';
 
@@ -50,6 +46,11 @@ function gameToText(lottery: Lottery, game: GeneratedGame): string {
 }
 
 export default function VolantePage() {
+  const { t } = useTranslation();
+  const lotteryLabel: Record<Lottery, string> = {
+    [Lottery.MEGA_SENA]: t('lottery.megaSena'),
+    [Lottery.MAIS_MILIONARIA]: t('lottery.maisMilionaria'),
+  };
   const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
   const [status, setStatus] = useState<PageStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export default function VolantePage() {
         setStatus('ready');
       } catch {
         if (!cancelled) {
-          setErrorMessage('Não foi possível calcular o desempenho das dezenas.');
+          setErrorMessage(t('volante.performanceError'));
           setStatus('error');
         }
       }
@@ -103,7 +104,7 @@ export default function VolantePage() {
     return () => {
       cancelled = true;
     };
-  }, [lottery]);
+  }, [lottery, t]);
 
   const showsTrevos = useMemo(() => hasTrevos(lottery), [lottery]);
 
@@ -114,16 +115,16 @@ export default function VolantePage() {
       });
       setGeneratedBatch(batch);
     } catch (error) {
-      setToast(error instanceof Error ? error.message : 'Não foi possível gerar os jogos.');
+      setToast(error instanceof Error ? error.message : t('volante.generateError'));
     }
   }
 
   async function handleCopy(game: GeneratedGame): Promise<void> {
     try {
       await navigator.clipboard.writeText(gameToText(lottery, game));
-      setToast('Jogo copiado para a área de transferência.');
+      setToast(t('volante.copiedToClipboard'));
     } catch {
-      setToast('Não foi possível copiar o jogo.');
+      setToast(t('volante.copyError'));
     }
   }
 
@@ -134,7 +135,7 @@ export default function VolantePage() {
       return;
     }
     try {
-      await navigator.share({ title: 'Volante+ — Jogo gerado', text });
+      await navigator.share({ title: t('volante.shareTitle'), text });
     } catch {
       // Usuário cancelou o compartilhamento — não é um erro a relatar.
     }
@@ -145,16 +146,16 @@ export default function VolantePage() {
       <Stack spacing={3}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            Volante+
+            {t('volante.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Gerador estatístico. Sem palpite, sem número quente.
+            {t('volante.subtitle')}
           </Typography>
         </Box>
 
         <Tabs value={lottery} onChange={(_, value) => setLottery(value)} variant="fullWidth">
-          <Tab value={Lottery.MEGA_SENA} label={LOTTERY_LABEL[Lottery.MEGA_SENA]} />
-          <Tab value={Lottery.MAIS_MILIONARIA} label={LOTTERY_LABEL[Lottery.MAIS_MILIONARIA]} />
+          <Tab value={Lottery.MEGA_SENA} label={lotteryLabel[Lottery.MEGA_SENA]} />
+          <Tab value={Lottery.MAIS_MILIONARIA} label={lotteryLabel[Lottery.MAIS_MILIONARIA]} />
         </Tabs>
 
         <NextDrawCard nextDraw={nextDraw.data} loading={nextDraw.loading} />
@@ -164,7 +165,7 @@ export default function VolantePage() {
         <Card variant="outlined">
           <CardContent>
             <Typography variant="subtitle2" gutterBottom>
-              Quantos jogos
+              {t('volante.howManyGames')}
             </Typography>
             <Slider
               value={batchCount}
@@ -187,7 +188,7 @@ export default function VolantePage() {
               sx={{ mt: 2 }}
               startIcon={status === 'analyzing' ? <CircularProgress size={18} color="inherit" /> : undefined}
             >
-              {status === 'analyzing' ? 'Analisando histórico…' : 'Gerar jogos'}
+              {status === 'analyzing' ? t('volante.analyzing') : t('volante.generate')}
             </Button>
           </CardContent>
         </Card>
@@ -199,7 +200,7 @@ export default function VolantePage() {
                 <Card variant="outlined" sx={{ height: '100%' }}>
                   <CardContent>
                     <Typography variant="caption" color="text.secondary">
-                      Jogo {String(index + 1).padStart(2, '0')}
+                      {t('volante.gameLabel', { number: String(index + 1).padStart(2, '0') })}
                     </Typography>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mt: 1 }}>
                       {game.numbers.map((number) => (
@@ -229,17 +230,17 @@ export default function VolantePage() {
                             key={dupla.join('-')}
                             size="small"
                             color="secondary"
-                            label={`Trevos ${dupla.join('-')}`}
+                            label={t('volante.trevosLabel', { numbers: dupla.join('-') })}
                           />
                         ))}
                       </Stack>
                     )}
                   </CardContent>
                   <CardActions>
-                    <IconButton aria-label="Copiar jogo" onClick={() => handleCopy(game)}>
+                    <IconButton aria-label={t('volante.copyGame')} onClick={() => handleCopy(game)}>
                       <ContentCopyIcon fontSize="small" />
                     </IconButton>
-                    <IconButton aria-label="Compartilhar jogo" onClick={() => handleShare(game)}>
+                    <IconButton aria-label={t('volante.shareGame')} onClick={() => handleShare(game)}>
                       <ShareIcon fontSize="small" />
                     </IconButton>
                   </CardActions>

@@ -21,9 +21,11 @@
     "@mui/material-nextjs": "^9.1.1",
     "dexie": "^4.4.4",
     "dexie-react-hooks": "^4.4.0",
+    "i18next": "^26.3.6",
     "next": "16.2.12",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-i18next": "^17.0.11"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

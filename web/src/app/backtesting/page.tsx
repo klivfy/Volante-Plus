@@ -22,14 +22,10 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { runBacktest } from '@/engine/backtestEngine';
 import { getDrawsAfter, getDrawsUpTo, savePerformances } from '@/services/db';
 import { BacktestReport, Lottery, MAX_GAMES, MIN_GAMES } from '@/types/domain';
-
-const LOTTERY_LABEL: Record<Lottery, string> = {
-  [Lottery.MEGA_SENA]: 'Mega-Sena',
-  [Lottery.MAIS_MILIONARIA]: '+Milionária',
-};
 
 type Status = 'idle' | 'running' | 'ready' | 'error';
 
@@ -66,6 +62,11 @@ function Trend({ observed, expected }: TrendProps) {
 }
 
 export default function BacktestingPage() {
+  const { t } = useTranslation();
+  const lotteryLabel: Record<Lottery, string> = {
+    [Lottery.MEGA_SENA]: t('lottery.megaSena'),
+    [Lottery.MAIS_MILIONARIA]: t('lottery.maisMilionaria'),
+  };
   const router = useRouter();
   const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
   const [cutoffDate, setCutoffDate] = useState('');
@@ -78,7 +79,7 @@ export default function BacktestingPage() {
 
   async function handleRun(): Promise<void> {
     if (!cutoffValid) {
-      setErrorMessage('Informe uma data de corte válida (aaaa-mm-dd).');
+      setErrorMessage(t('backtesting.invalidCutoff'));
       setStatus('error');
       return;
     }
@@ -94,7 +95,7 @@ export default function BacktestingPage() {
       ]);
 
       if (validation.length === 0) {
-        setErrorMessage(`Sem concursos após ${cutoffDate} no histórico local — nada a validar.`);
+        setErrorMessage(t('backtesting.noValidationDraws', { date: cutoffDate }));
         setStatus('error');
         return;
       }
@@ -103,7 +104,7 @@ export default function BacktestingPage() {
       setReport(result);
       setStatus('ready');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Falha ao executar o backtest.');
+      setErrorMessage(error instanceof Error ? error.message : t('backtesting.runError'));
       setStatus('error');
     }
   }
@@ -119,35 +120,34 @@ export default function BacktestingPage() {
       <Stack spacing={3}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            Backtesting
+            {t('backtesting.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Mede o desempenho das dezenas só na janela de treino e valida contra os concursos
-            posteriores à data de corte.
+            {t('backtesting.subtitle')}
           </Typography>
         </Box>
 
         <Tabs value={lottery} onChange={(_, value) => setLottery(value)} variant="fullWidth">
-          <Tab value={Lottery.MEGA_SENA} label={LOTTERY_LABEL[Lottery.MEGA_SENA]} />
-          <Tab value={Lottery.MAIS_MILIONARIA} label={LOTTERY_LABEL[Lottery.MAIS_MILIONARIA]} />
+          <Tab value={Lottery.MEGA_SENA} label={lotteryLabel[Lottery.MEGA_SENA]} />
+          <Tab value={Lottery.MAIS_MILIONARIA} label={lotteryLabel[Lottery.MAIS_MILIONARIA]} />
         </Tabs>
 
         <Card variant="outlined">
           <CardContent>
             <Stack spacing={2}>
               <TextField
-                label="Data de corte"
+                label={t('backtesting.cutoffDate')}
                 type="date"
                 value={cutoffDate}
                 onChange={(event) => setCutoffDate(event.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
-                helperText="Concursos até esta data ficam na janela de treino; o restante valida."
+                helperText={t('backtesting.cutoffHelper')}
                 fullWidth
               />
 
               <Box>
                 <Typography variant="subtitle2" gutterBottom>
-                  Jogos por concurso
+                  {t('backtesting.gamesPerContest')}
                 </Typography>
                 <Slider
                   value={gamesPerContest}
@@ -170,7 +170,7 @@ export default function BacktestingPage() {
                 disabled={status === 'running'}
                 startIcon={status === 'running' ? <CircularProgress size={18} color="inherit" /> : undefined}
               >
-                {status === 'running' ? 'Executando…' : 'Executar backtest'}
+                {status === 'running' ? t('backtesting.running') : t('backtesting.run')}
               </Button>
             </Stack>
           </CardContent>
@@ -184,40 +184,50 @@ export default function BacktestingPage() {
               <Table size="small">
                 <TableBody>
                   <TableRow>
-                    <TableCell>Concursos</TableCell>
+                    <TableCell>{t('backtesting.contests')}</TableCell>
                     <TableCell align="right">
-                      treino {report.trainingDraws} · validação {report.validationDraws}
+                      {t('backtesting.contestsValue', {
+                        training: report.trainingDraws,
+                        validation: report.validationDraws,
+                      })}
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>Jogos / apostas</TableCell>
+                    <TableCell>{t('backtesting.gamesBets')}</TableCell>
                     <TableCell align="right">
-                      {report.totalGames} / {report.totalBets}
+                      {t('backtesting.gamesBetsValue', {
+                        games: report.totalGames,
+                        bets: report.totalBets,
+                      })}
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>Média de acertos</TableCell>
+                    <TableCell>{t('backtesting.meanHits')}</TableCell>
                     <TableCell align="right">
                       {decimalFormatter.format(report.stats.mean)}
                       <Trend observed={report.stats.mean} expected={report.expectedMeanHits} />
                       <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                        (esperado: {decimalFormatter.format(report.expectedMeanHits)})
+                        {t('backtesting.expected', {
+                          value: decimalFormatter.format(report.expectedMeanHits),
+                        })}
                       </Typography>
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>Variância</TableCell>
+                    <TableCell>{t('backtesting.variance')}</TableCell>
                     <TableCell align="right">{decimalFormatter.format(report.stats.variance)}</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>Desvio padrão</TableCell>
+                    <TableCell>{t('backtesting.stdDeviation')}</TableCell>
                     <TableCell align="right">{decimalFormatter.format(report.stats.stdDeviation)}</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>Taxa de eficácia</TableCell>
+                    <TableCell>{t('backtesting.prizeRate')}</TableCell>
                     <TableCell align="right">
-                      {percentFormatter.format(report.prizeRate)} ({report.prizeCount} apostas
-                      premiadas)
+                      {t('backtesting.prizeRateValue', {
+                        rate: percentFormatter.format(report.prizeRate),
+                        count: report.prizeCount,
+                      })}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -225,12 +235,11 @@ export default function BacktestingPage() {
             </TableContainer>
 
             <Typography variant="caption" color="text.secondary">
-              A seta marca só a direção da diferença — dado o tamanho da amostra, ela costuma
-              caber dentro do ruído estatístico esperado pela hipótese nula.
+              {t('backtesting.footnote')}
             </Typography>
 
             <Button variant="outlined" size="large" onClick={handleUseForGeneration}>
-              Usar estes dados para gerar jogos
+              {t('backtesting.useForGeneration')}
             </Button>
           </>
         )}

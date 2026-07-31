@@ -1,0 +1,67 @@
+{
+  "nav": {
+    "volante": "Volante",
+    "backtesting": "Backtesting",
+    "sobre": "Sobre"
+  },
+  "lottery": {
+    "megaSena": "Mega-Sena",
+    "maisMilionaria": "+Milionária"
+  },
+  "volante": {
+    "title": "Volante+",
+    "subtitle": "Gerador estatístico. Sem palpite, sem número quente.",
+    "howManyGames": "Quantos jogos",
+    "generate": "Gerar jogos",
+    "analyzing": "Analisando histórico…",
+    "gameLabel": "Jogo {{number}}",
+    "trevosLabel": "Trevos {{numbers}}",
+    "copyGame": "Copiar jogo",
+    "shareGame": "Compartilhar jogo",
+    "shareTitle": "Volante+ — Jogo gerado",
+    "copiedToClipboard": "Jogo copiado para a área de transferência.",
+    "copyError": "Não foi possível copiar o jogo.",
+    "generateError": "Não foi possível gerar os jogos.",
+    "performanceError": "Não foi possível calcular o desempenho das dezenas."
+  },
+  "backtesting": {
+    "title": "Backtesting",
+    "subtitle": "Mede o desempenho das dezenas só na janela de treino e valida contra os concursos posteriores à data de corte.",
+    "cutoffDate": "Data de corte",
+    "cutoffHelper": "Concursos até esta data ficam na janela de treino; o restante valida.",
+    "gamesPerContest": "Jogos por concurso",
+    "run": "Executar backtest",
+    "running": "Executando…",
+    "invalidCutoff": "Informe uma data de corte válida (aaaa-mm-dd).",
+    "noValidationDraws": "Sem concursos após {{date}} no histórico local — nada a validar.",
+    "runError": "Falha ao executar o backtest.",
+    "contests": "Concursos",
+    "contestsValue": "treino {{training}} · validação {{validation}}",
+    "gamesBets": "Jogos / apostas",
+    "gamesBetsValue": "{{games}} / {{bets}}",
+    "meanHits": "Média de acertos",
+    "expected": "(esperado: {{value}})",
+    "variance": "Variância",
+    "stdDeviation": "Desvio padrão",
+    "prizeRate": "Taxa de eficácia",
+    "prizeRateValue": "{{rate}} ({{count}} apostas premiadas)",
+    "footnote": "A seta marca só a direção da diferença — dado o tamanho da amostra, ela costuma caber dentro do ruído estatístico esperado pela hipótese nula.",
+    "useForGeneration": "Usar estes dados para gerar jogos"
+  },
+  "nextDraw": {
+    "unavailable": "Não foi possível carregar os dados do próximo concurso. Verifique sua conexão.",
+    "contest": "Concurso {{number}}",
+    "at": "{{date}} às {{time}}",
+    "estimatedPrize": "prêmio estimado"
+  },
+  "sobre": {
+    "title": "Sobre o Volante+",
+    "subtitle": "Gerador estatístico para Mega-Sena e +Milionária. Sem palpite, sem número quente.",
+    "missionTitle": "Missão",
+    "missionBody": "Usar o histórico das loterias para testar, validar ou refutar empiricamente modelos matemáticos via backtesting transparente — sem promessas de \"números quentes\". Cada sorteio é um evento independente: nenhuma dezena carrega memória do que saiu antes.",
+    "howTitle": "Como os jogos são gerados",
+    "howBody": "O desempenho de cada dezena combina frequência real no histórico com uma simulação de Monte Carlo, e é classificado em três faixas — top, mid e low. A geração sorteia 70% das vagas do jogo na faixa top, 20% na mid e 10% na low, sempre com seleção proporcional ao peso dentro da faixa escolhida.",
+    "backtestTitle": "Backtesting",
+    "backtestBody": "A tela de Backtesting mede o desempenho das dezenas apenas na janela de treino (concursos até a data de corte) e valida os jogos gerados contra os concursos reais posteriores. O resultado é comparado ao baseline hipergeométrico — a média de acertos que o acaso puro já entregaria. A expectativa é que o método não o supere de forma consistente: é exatamente essa a hipótese que o app existe para testar."
+  }
+}
