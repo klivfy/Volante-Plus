@@ -1,33 +1,28 @@
 'use client';
 
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ShareIcon from '@mui/icons-material/Share';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
-import Chip from '@mui/material/Chip';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
-import Slider from '@mui/material/Slider';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import GameCard from '@/components/GameCard';
+import GameSlider from '@/components/GameSlider';
+import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
 import { analyzeBacktest, analyzeTrevoBacktest } from '@/engine/backtestAnalyzer';
 import { generateGames } from '@/engine/gameGenerator';
 import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
 import { getDraws, getPerformances } from '@/services/db';
-import { GameBatch, GeneratedGame, Lottery, MAX_GAMES, MIN_GAMES, NumberPerformance } from '@/types/domain';
+import { GameBatch, GeneratedGame, Lottery, MIN_GAMES, NumberPerformance } from '@/types/domain';
 
 type PageStatus = 'loading' | 'analyzing' | 'ready' | 'error';
 
@@ -47,10 +42,6 @@ function gameToText(lottery: Lottery, game: GeneratedGame): string {
 
 export default function VolantePage() {
   const { t } = useTranslation();
-  const lotteryLabel: Record<Lottery, string> = {
-    [Lottery.MEGA_SENA]: t('lottery.megaSena'),
-    [Lottery.MAIS_MILIONARIA]: t('lottery.maisMilionaria'),
-  };
   const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
   const [status, setStatus] = useState<PageStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -106,8 +97,6 @@ export default function VolantePage() {
     };
   }, [lottery, t]);
 
-  const showsTrevos = useMemo(() => hasTrevos(lottery), [lottery]);
-
   function handleGenerate(): void {
     try {
       const batch = generateGames(lottery, batchCount, performances, {
@@ -153,10 +142,7 @@ export default function VolantePage() {
           </Typography>
         </Box>
 
-        <Tabs value={lottery} onChange={(_, value) => setLottery(value)} variant="fullWidth">
-          <Tab value={Lottery.MEGA_SENA} label={lotteryLabel[Lottery.MEGA_SENA]} />
-          <Tab value={Lottery.MAIS_MILIONARIA} label={lotteryLabel[Lottery.MAIS_MILIONARIA]} />
-        </Tabs>
+        <LotterySelector value={lottery} onChange={setLottery} />
 
         <NextDrawCard nextDraw={nextDraw.data} loading={nextDraw.loading} />
 
@@ -164,21 +150,7 @@ export default function VolantePage() {
 
         <Card variant="outlined">
           <CardContent>
-            <Typography variant="subtitle2" gutterBottom>
-              {t('volante.howManyGames')}
-            </Typography>
-            <Slider
-              value={batchCount}
-              onChange={(_, value) => setBatchCount(value as number)}
-              min={MIN_GAMES}
-              max={MAX_GAMES}
-              step={1}
-              marks={Array.from({ length: MAX_GAMES - MIN_GAMES + 1 }, (_, i) => ({
-                value: MIN_GAMES + i,
-                label: `${MIN_GAMES + i}`,
-              }))}
-              valueLabelDisplay="auto"
-            />
+            <GameSlider value={batchCount} onChange={setBatchCount} />
             <Button
               fullWidth
               variant="contained"
@@ -197,54 +169,13 @@ export default function VolantePage() {
           <Grid container spacing={2}>
             {generatedBatch.games.map((game, index) => (
               <Grid key={index} size={{ xs: 12, sm: 6 }}>
-                <Card variant="outlined" sx={{ height: '100%' }}>
-                  <CardContent>
-                    <Typography variant="caption" color="text.secondary">
-                      {t('volante.gameLabel', { number: String(index + 1).padStart(2, '0') })}
-                    </Typography>
-                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mt: 1 }}>
-                      {game.numbers.map((number) => (
-                        <Box
-                          key={number}
-                          sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            bgcolor: 'primary.main',
-                            color: 'primary.contrastText',
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                          }}
-                        >
-                          {String(number).padStart(2, '0')}
-                        </Box>
-                      ))}
-                    </Stack>
-                    {showsTrevos && game.trevoDuplas && game.trevoDuplas.length > 0 && (
-                      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mt: 1.5 }}>
-                        {game.trevoDuplas.map((dupla) => (
-                          <Chip
-                            key={dupla.join('-')}
-                            size="small"
-                            color="secondary"
-                            label={t('volante.trevosLabel', { numbers: dupla.join('-') })}
-                          />
-                        ))}
-                      </Stack>
-                    )}
-                  </CardContent>
-                  <CardActions>
-                    <IconButton aria-label={t('volante.copyGame')} onClick={() => handleCopy(game)}>
-                      <ContentCopyIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton aria-label={t('volante.shareGame')} onClick={() => handleShare(game)}>
-                      <ShareIcon fontSize="small" />
-                    </IconButton>
-                  </CardActions>
-                </Card>
+                <GameCard
+                  lottery={lottery}
+                  game={game}
+                  index={index + 1}
+                  onCopy={handleCopy}
+                  onShare={handleShare}
+                />
               </Grid>
             ))}
           </Grid>

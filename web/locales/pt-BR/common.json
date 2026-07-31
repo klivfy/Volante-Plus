@@ -48,6 +48,11 @@
     "footnote": "A seta marca só a direção da diferença — dado o tamanho da amostra, ela costuma caber dentro do ruído estatístico esperado pela hipótese nula.",
     "useForGeneration": "Usar estes dados para gerar jogos"
   },
+  "errorBoundary": {
+    "title": "Algo deu errado",
+    "body": "Ocorreu um erro inesperado nesta tela. Você pode tentar novamente.",
+    "retry": "Tentar novamente"
+  },
   "nextDraw": {
     "unavailable": "Não foi possível carregar os dados do próximo concurso. Verifique sua conexão.",
     "contest": "Concurso {{number}}",

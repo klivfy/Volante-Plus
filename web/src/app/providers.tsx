@@ -8,6 +8,7 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/i18n/config';
 import { darkTheme, lightTheme } from '@/theme';
+import AppErrorBoundary from '@/components/AppErrorBoundary';
 
 /**
  * Aplica o tema Material 3 seguindo a preferência do sistema.
@@ -27,7 +28,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       <AppRouterCacheProvider>
         <ThemeProvider theme={prefersDark ? darkTheme : lightTheme}>
           <CssBaseline />
-          {children}
+          <AppErrorBoundary>{children}</AppErrorBoundary>
         </ThemeProvider>
       </AppRouterCacheProvider>
     </I18nextProvider>
