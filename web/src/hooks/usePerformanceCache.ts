@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBacktestWorker } from './useBacktestWorker';
+import { trackBacktestAnalysis } from '../services/analytics';
 import { getDraws, getPerformances, PerformanceRecord, savePerformances } from '../services/db';
 import { DEFAULT_SIMULATIONS_PER_NUMBER } from '../engine/backtestAnalyzer';
 import { Lottery, NumberPerformance } from '../types/domain';
@@ -58,6 +59,10 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
         setTrevoPerformances(cached.trevoPerformances);
         setSource(cached.source);
         setLoading(false);
+        trackBacktestAnalysis({
+          lottery: lottery.toString(),
+          source: cached.source,
+        });
       } else {
         pendingLotteryRef.current = lottery;
         const draws = await getDraws(lottery);
@@ -82,6 +87,10 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
     setTrevoPerformances(trevos);
     setSource('auto');
     setLoading(false);
+    trackBacktestAnalysis({
+      lottery: targetLottery.toString(),
+      source: 'auto',
+    });
     void savePerformances(targetLottery, result, trevos, { source: 'auto' });
   }, [result, workerTrevoPerformances]);
 

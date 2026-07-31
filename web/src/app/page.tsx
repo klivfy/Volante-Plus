@@ -18,6 +18,7 @@ import GameSlider from '@/components/GameSlider';
 import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
 import NotificationOptIn from '@/components/NotificationOptIn';
+import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } from '@/services/analytics';
 import { generateGames } from '@/engine/gameGenerator';
 import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
@@ -65,6 +66,7 @@ export default function VolantePage() {
   if (lottery !== trackedLottery) {
     setTrackedLottery(lottery);
     setGeneratedBatch(null);
+    trackLotterySelection(lottery);
   }
 
   const status: PageStatus = error
@@ -84,8 +86,16 @@ export default function VolantePage() {
     setGenerating(true);
     await yieldToUi();
     try {
+      trackBacktestDataUsage({
+        lottery: lottery.toString(),
+        dataSource: performances.length > 0 ? 'cached' : 'worker-computed',
+      });
       const batch = generateGames(lottery, batchCount, performances, {
         trevoPerformances,
+      });
+      trackGameGeneration({
+        lottery: lottery.toString(),
+        batchSize: batchCount,
       });
       setGeneratedBatch(batch);
     } catch (err) {
