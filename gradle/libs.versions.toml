@@ -1,9 +1,9 @@
 [versions]
 agp = "8.7.3"
-// 2.2.0: mínimo exigido pelo plugin org.jetbrains.compose 1.11.1 (Compose
-// Multiplatform, usado por :desktop) — descoberto só no CI, já que 2.1.0
-// parecia compatível segundo a documentação, mas o próprio plugin rejeita
-// com "Minimal supported Kotlin Gradle Plugin version is 2.2.0".
+# 2.2.0: mínimo exigido pelo plugin org.jetbrains.compose 1.11.1 (Compose
+# Multiplatform, usado por :desktop) — descoberto só no CI, já que 2.1.0
+# parecia compatível segundo a documentação, mas o próprio plugin rejeita
+# com "Minimal supported Kotlin Gradle Plugin version is 2.2.0".
 kotlin = "2.2.0"
 ksp = "2.2.0-2.0.2"
 room = "2.7.1"
