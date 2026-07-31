@@ -103,9 +103,11 @@ roda quando os secrets abaixo estiverem configurados no repositório
 | `VERCEL_TOKEN` | Token de deploy da conta/organização Vercel. |
 | `VERCEL_ORG_ID` | ID da organização Vercel (`.vercel/project.json` após `vercel link`). |
 | `VERCEL_PROJECT_ID` | ID do projeto Vercel. |
+| `DEPLOY_NOTIFY_WEBHOOK_URL` | Opcional. URL de um webhook (ex.: Slack/Discord "Incoming Webhook") que recebe um POST JSON `{"text": "..."}` a cada deploy de produção bem-sucedido. Sem esse secret, o passo de notificação é pulado. |
 
-Sem esses secrets, o job de deploy é pulado — o resto do CI (lint, testes,
-build) continua rodando normalmente. Para deploy manual: `npx vercel --cwd web`.
+Sem os três primeiros secrets, o job de deploy é pulado — o resto do CI
+(lint, testes, build) continua rodando normalmente. Para deploy manual:
+`npx vercel --cwd web`.
 
 ## Testes
 

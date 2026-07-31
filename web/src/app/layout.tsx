@@ -15,6 +15,14 @@ export const metadata: Metadata = {
   description:
     "Aplicação web para análise e geração de jogos de loterias usando backtesting e desempenho histórico",
   manifest: "/manifest.json",
+  other: {
+    // Ícone de "tile" ao fixar o PWA na tela Iniciar do Windows. Caminho
+    // adaptado para /icon-144x144.png (em vez de /icons/icon-144.png) para
+    // seguir a mesma convenção dos outros ícones do manifest, todos na raiz
+    // de public/.
+    "msapplication-TileImage": "/icon-144x144.png",
+    "msapplication-TileColor": "#6750A4",
+  },
 };
 
 // A partir do Next 16 `viewport` e `themeColor` saíram de `metadata` e passaram
