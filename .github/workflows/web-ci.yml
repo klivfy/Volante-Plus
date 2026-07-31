@@ -42,6 +42,14 @@ jobs:
       - name: Build de produção
         run: npm run build
 
+      - name: Instala dependências da extensão
+        working-directory: extension
+        run: npm ci
+
+      - name: Instala dependências do popup da extensão
+        working-directory: extension/popup-app
+        run: npm ci
+
       - name: Empacota extensões (Chrome/Edge/Firefox)
         working-directory: extension
         run: node build.mjs

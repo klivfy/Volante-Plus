@@ -35,3 +35,9 @@ google-services.json
 
 # extension (gerado por extension/build.mjs)
 extension/dist/
+extension/.background-build.js
+extension/node_modules/
+extension/popup-app/node_modules/
+extension/popup-app/.next/
+extension/popup-app/out/
+extension/popup-app/tsconfig.tsbuildinfo

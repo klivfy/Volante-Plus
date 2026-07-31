@@ -3,7 +3,7 @@
   "name": "Volante+",
   "short_name": "Volante+",
   "version": "2.0.0",
-  "description": "Atalho para abrir o Volante+ (análise e geração de jogos de loterias com backtesting) numa aba.",
+  "description": "Gera jogos de loterias (Mega-Sena, +Milionária) direto da barra de ferramentas, com sincronização de novos sorteios em segundo plano.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -11,13 +11,16 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "index.html",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",
       "48": "icons/icon-48.png"
     }
   },
-  "options_page": "options.html",
-  "permissions": ["storage"]
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["https://loteriascaixa-api.herokuapp.com/*"]
 }

@@ -1,0 +1,22 @@
+{
+  "name": "volante-plus-extension-popup",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Popup da extensão: página Volante simplificada, exportada como site estático e embutida na extensão (Manifest V3).",
+  "scripts": {
+    "build": "next build --webpack"
+  },
+  "dependencies": {
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "webextension-polyfill": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/webextension-polyfill": "^0.12.3",
+    "typescript": "^5"
+  }
+}
