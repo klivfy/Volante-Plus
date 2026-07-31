@@ -104,6 +104,8 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
         performanceCount: result.length,
       });
 
+      // Synchronous setState calls in response to external system (worker) is a valid pattern
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPerformances(result);
       setTrevoPerformances(trevos);
       setSource('auto');

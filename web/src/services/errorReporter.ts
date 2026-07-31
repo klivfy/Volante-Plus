@@ -7,11 +7,13 @@ import * as Sentry from '@sentry/nextjs';
 
 export type ErrorSeverity = 'fatal' | 'error' | 'warning' | 'info';
 
+export type ContextValue = string | number | boolean | undefined;
+
 export interface ErrorContext {
   userId?: string;
   sessionId?: string;
   tags?: Record<string, string>;
-  extras?: Record<string, any>;
+  extras?: Record<string, ContextValue>;
 }
 
 /**
@@ -63,7 +65,6 @@ export function reportApiError(
   context?: Omit<ErrorContext, 'extras'> & {
     endpoint?: string;
     method?: string;
-    params?: Record<string, any>;
   },
 ): void {
   const severity = status >= 500 ? 'error' : 'warning';
@@ -77,9 +78,6 @@ export function reportApiError(
       method: context?.method || 'unknown',
       ...context?.tags,
     },
-    extras: {
-      params: context?.params,
-    },
   });
 }
 
@@ -92,7 +90,6 @@ export function reportDbError(
   context?: Omit<ErrorContext, 'extras'> & {
     operation?: string;
     table?: string;
-    query?: string;
   },
 ): void {
   reportError(error, 'error', {
@@ -102,9 +99,6 @@ export function reportDbError(
       operation: context?.operation || 'unknown',
       table: context?.table || 'unknown',
       ...context?.tags,
-    },
-    extras: {
-      query: context?.query,
     },
   });
 }
@@ -118,7 +112,6 @@ export function reportWorkerError(
   context?: Omit<ErrorContext, 'extras'> & {
     workerType?: string;
     messageType?: string;
-    payload?: Record<string, any>;
   },
 ): void {
   reportError(error, 'error', {
@@ -128,9 +121,6 @@ export function reportWorkerError(
       workerType: context?.workerType || 'unknown',
       messageType: context?.messageType || 'unknown',
       ...context?.tags,
-    },
-    extras: {
-      payload: context?.payload,
     },
   });
 }
@@ -174,7 +164,7 @@ export function captureMessage(
  */
 export function addBreadcrumb(
   message: string,
-  data?: Record<string, any>,
+  data?: Record<string, string | number | boolean | undefined>,
   level: 'info' | 'warning' | 'error' = 'info',
 ): void {
   if (!process.env.NEXT_PUBLIC_SENTRY_DSN) {

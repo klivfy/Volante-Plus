@@ -36,7 +36,7 @@ export const sentryConfig = {
   ],
 
   // Dados sensíveis a não capturar
-  beforeSend(event: Sentry.Event, hint: Sentry.EventHint) {
+  beforeSend(event: Sentry.Event) {
     if (!event.request) return event;
 
     // Não capturar credenciais

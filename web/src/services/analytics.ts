@@ -5,7 +5,7 @@
 
 export interface PlausibleEvent {
   name: string;
-  props?: Record<string, string | number | boolean>;
+  props?: Record<string, string | number | boolean | undefined>;
 }
 
 /**
@@ -85,6 +85,6 @@ export function trackLotterySelection(lottery: string): void {
  */
 declare global {
   interface Window {
-    plausible?: (eventName: string, options: { props?: Record<string, any> }) => void;
+    plausible?: (eventName: string, options: { props?: Record<string, string | number | boolean | undefined> }) => void;
   }
 }

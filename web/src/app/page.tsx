@@ -19,7 +19,7 @@ import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
 import NotificationOptIn from '@/components/NotificationOptIn';
 import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } from '@/services/analytics';
-import { reportUserError, reportError, addBreadcrumb } from '@/services/errorReporter';
+import { reportUserError, addBreadcrumb } from '@/services/errorReporter';
 import { generateGames } from '@/engine/gameGenerator';
 import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
