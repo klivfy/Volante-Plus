@@ -1,0 +1,124 @@
+name: Extension Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-extensions:
+    runs-on: ubuntu-latest
+    name: Build browser extensions
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install extension dependencies
+        working-directory: extension
+        run: npm ci
+
+      - name: Install popup-app dependencies
+        working-directory: extension/popup-app
+        run: npm ci
+
+      - name: Build all extensions (Chrome, Edge, Firefox)
+        working-directory: extension
+        run: npm run build
+
+      - name: Verify build artifacts
+        run: |
+          test -f extension/dist/chrome.zip || (echo "Chrome zip not found" && exit 1)
+          test -f extension/dist/edge.zip || (echo "Edge zip not found" && exit 1)
+          test -f extension/dist/firefox.zip || (echo "Firefox zip not found" && exit 1)
+          echo "✓ All extension packages built successfully"
+
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+
+      - name: Create Release Draft
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ steps.version.outputs.version }}
+          draft: true
+          body: |
+            **Version ${{ steps.version.outputs.version }}**
+
+            This is an automated release build for the browser extensions.
+
+            ## Artifacts
+
+            - **Chrome** (`volante-plus-chrome.zip`) — For Chrome Web Store
+            - **Edge** (`volante-plus-edge.zip`) — For Microsoft Edge Add-ons
+            - **Firefox** (`volante-plus-firefox.zip`) — For Firefox Add-ons
+
+            ## Next steps
+
+            1. ✅ **Review** this release and the build artifacts
+            2. 📝 **Update** release notes and changelog (if needed)
+            3. 🚀 **Publish** to each store:
+               - [Chrome Web Store](https://chrome.google.com/webstore/devconsole)
+               - [Microsoft Edge Add-ons](https://partner.microsoft.com/dashboard/microsoftedge/overview)
+               - [Firefox Add-ons](https://addons.mozilla.org/developers/)
+
+            See [`docs/EXTENSION-RELEASES.md`](https://github.com/${{ github.repository }}/blob/main/docs/EXTENSION-RELEASES.md) for detailed publishing instructions.
+
+      - name: Upload Chrome extension
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: extension/dist/chrome.zip
+          asset_name: volante-plus-chrome-${{ steps.version.outputs.version }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload Edge extension
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: extension/dist/edge.zip
+          asset_name: volante-plus-edge-${{ steps.version.outputs.version }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload Firefox extension
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: extension/dist/firefox.zip
+          asset_name: volante-plus-firefox-${{ steps.version.outputs.version }}.zip
+          asset_content_type: application/zip
+
+      - name: Post success summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## ✅ Extension Release Build Successful
+
+          | Component | Status |
+          |-----------|--------|
+          | Chrome | ✅ Built |
+          | Edge | ✅ Built |
+          | Firefox | ✅ Built |
+
+          ### Next steps
+
+          The release draft has been created. [Review and publish here](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}).
+          EOF
