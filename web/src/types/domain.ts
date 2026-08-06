@@ -113,7 +113,7 @@ export const MIN_GAMES = 2;
  * Constante: máximo de jogos por análise.
  * Limite superior por praticidade na UI e computação.
  */
-export const MAX_GAMES = 5;
+export const MAX_GAMES = 4;
 
 /**
  * Estratégia de cobertura dos trevos (exclusivo da +Milionária).

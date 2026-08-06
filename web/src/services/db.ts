@@ -1,4 +1,5 @@
 import Dexie, { Table } from 'dexie';
+import { MIN_CUTOFF_DATES } from '../engine/backtestEngine';
 import { getSeedData } from '../data/seed';
 import { Draw, Lottery, NumberPerformance } from '../types/domain';
 
@@ -96,15 +97,17 @@ export async function getDraws(lottery: Lottery): Promise<Draw[]> {
 }
 
 /**
- * Concursos com `date <= cutoffDate` — janela de treino do backtesting.
+ * Concursos com `date >= minDate && date <= cutoffDate` — janela de treino do backtesting.
  * Datas são strings ISO (`yyyy-MM-dd`), então a comparação lexicográfica do
  * índice composto já reflete a ordem cronológica correta.
+ * `minDate` é o piso histórico absoluto por modalidade (ver `MIN_CUTOFF_DATES`).
  */
 export async function getDrawsUpTo(lottery: Lottery, cutoffDate: string): Promise<Draw[]> {
   await seedIfEmpty();
+  const minDate = MIN_CUTOFF_DATES[lottery];
   return db.draws
     .where('[lottery+date]')
-    .between([lottery, ''], [lottery, cutoffDate], true, true)
+    .between([lottery, minDate], [lottery, cutoffDate], true, true)
     .sortBy('contestNumber');
 }
 

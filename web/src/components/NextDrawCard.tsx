@@ -4,6 +4,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import CloudOffIcon from '@mui/icons-material/CloudOff';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -76,16 +77,28 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
   }
 
   const { date, time } = formatDrawMoment(nextDraw.drawDate);
+  const isAccumulated = nextDraw.estimatedPrize > 0;
 
   return (
     <Card variant="outlined">
       <CardContent>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
           <CalendarMonthIcon color="primary" sx={{ mt: 0.5 }} />
-          <Stack spacing={0.25}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t('nextDraw.contest', { number: nextDraw.contestNumber })}
-            </Typography>
+          <Stack spacing={0.25} sx={{ flex: 1 }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {t('nextDraw.contest', { number: nextDraw.contestNumber })}
+              </Typography>
+              {isAccumulated && (
+                <Chip
+                  label={t('nextDraw.accumulated') || 'ACUMULADA!'}
+                  size="small"
+                  color="error"
+                  variant="filled"
+                  sx={{ fontWeight: 700, fontSize: '0.75rem' }}
+                />
+              )}
+            </Stack>
             <Typography variant="body2" color="text.secondary">
               {time ? t('nextDraw.at', { date, time }) : date}
             </Typography>

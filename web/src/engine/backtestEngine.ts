@@ -29,6 +29,12 @@ import { createSeededRandom, defaultRandom, RandomSource } from './random';
  * Porta direta de `BacktestEngine.kt` + `Statistics.kt` do app Android.
  */
 
+/** Data mínima de corte por modalidade (piso histórico absoluto). */
+export const MIN_CUTOFF_DATES: Record<Lottery, string> = {
+  [Lottery.MEGA_SENA]: '1995-03-11',
+  [Lottery.MAIS_MILIONARIA]: '2022-05-28',
+};
+
 export interface BacktestOptions {
   /** Jogos gerados por concurso da janela de validação; padrão `MIN_GAMES`. */
   gamesPerContest?: number;

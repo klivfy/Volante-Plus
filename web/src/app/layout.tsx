@@ -1,13 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource/open-sans/300.css";
-import "@fontsource/open-sans/400.css";
-import "@fontsource/open-sans/500.css";
-import "@fontsource/open-sans/600.css";
-import "@fontsource/open-sans/700.css";
-import "@fontsource/open-sans/800.css";
 import "./globals.css";
 import ThemeProvider from "./providers";
 import BottomNav from "@/components/BottomNav";
+import SplashScreen from "@/components/SplashScreen";
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation";
 
 export const metadata: Metadata = {
@@ -67,6 +62,7 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
+          <SplashScreen />
           <div
             style={{
               paddingBottom: `calc(${BOTTOM_NAV_HEIGHT}px + env(safe-area-inset-bottom))`,

@@ -119,10 +119,13 @@ export function generateGames(
   const numberTiers = tiersOf(eligible);
   const trevoTiers = buildTrevoTiers(lottery, options.trevoPerformances ?? []);
 
+  // DEDUPLICAÇÃO ABSOLUTA: compartilhamos um Set de dezenas usadas entre todos os jogos
+  const usedNumbersGlobal = new Set<number>();
   const games: GeneratedGame[] = [];
+
   for (let index = 0; index < count; index++) {
     games.push(
-      nextDistinctGame(games, {
+      nextDistinctGameWithGlobalDedup(games, usedNumbersGlobal, {
         gameSize: rules.numbersPerBet,
         numberTiers,
         lottery,
@@ -170,10 +173,69 @@ function nextDistinctGame(
   return candidate;
 }
 
+/**
+ * Deduplicação absoluta: resorteia enquanto o jogo contém dezenas já usadas
+ * em outros jogos do lote. Garante 24 dezenas distintas em 4 jogos.
+ * Compartilha um `usedNumbersGlobal` entre todos os jogos do lote.
+ */
+function nextDistinctGameWithGlobalDedup(
+  existing: GeneratedGame[],
+  usedNumbersGlobal: Set<number>,
+  context: BuildContext,
+): GeneratedGame {
+  const signatures = new Set(existing.map((game) => game.numbers.join('-')));
+
+  let candidate = buildGameAvoidingUsedNumbers(context, usedNumbersGlobal);
+  let attempts = 1;
+  while (
+    attempts < MAX_DEDUP_ATTEMPTS &&
+    (signatures.has(candidate.numbers.join('-')) ||
+      candidate.numbers.some((n) => usedNumbersGlobal.has(n)))
+  ) {
+    candidate = buildGameAvoidingUsedNumbers(context, usedNumbersGlobal);
+    attempts++;
+  }
+
+  // Adiciona as dezenas desse jogo ao set global
+  for (const number of candidate.numbers) {
+    usedNumbersGlobal.add(number);
+  }
+
+  return candidate;
+}
+
 function buildGame(context: BuildContext): GeneratedGame {
   const picked = new Set<number>();
   while (picked.size < context.gameSize) {
     const number = pickFromTiers(context.numberTiers, picked, context.random);
+    if (number === null) {
+      break;
+    }
+    picked.add(number);
+  }
+
+  const numbers = [...picked].sort((a, b) => a - b);
+  const duplas = trevoDuplas(context);
+  return duplas.length === 0 ? { numbers } : { numbers, trevoDuplas: duplas };
+}
+
+/**
+ * Construir jogo evitando dezenas que já foram usadas globalmente no lote.
+ * Estende a estratégia de `pickFromTiers` para rejeitar números já presentes
+ * em `usedNumbersGlobal`.
+ */
+function buildGameAvoidingUsedNumbers(
+  context: BuildContext,
+  usedNumbersGlobal: Set<number>,
+): GeneratedGame {
+  const picked = new Set<number>();
+  while (picked.size < context.gameSize) {
+    const number = pickFromTiersAvoidingUsed(
+      context.numberTiers,
+      picked,
+      usedNumbersGlobal,
+      context.random,
+    );
     if (number === null) {
       break;
     }
@@ -206,6 +268,36 @@ function pickFromTiers(
   for (let offset = 0; offset < tiers.length; offset++) {
     const candidates = tiers[(start + offset) % tiers.length].filter(
       (performance) => !taken.has(performance.number),
+    );
+    if (candidates.length > 0) {
+      return weightedPick(candidates, random);
+    }
+  }
+  return null;
+}
+
+/**
+ * Extensão de `pickFromTiers` que também rejeita dezenas já usadas globalmente
+ * no lote (deduplicação absoluta). Filtra candidatos removendo tanto `taken`
+ * (do jogo atual) quanto `usedGlobally` (de todos os jogos anteriores).
+ */
+function pickFromTiersAvoidingUsed(
+  tiers: NumberPerformance[][],
+  taken: Set<number>,
+  usedGlobally: Set<number>,
+  random: RandomSource,
+): number | null {
+  const roll = random.nextFloat();
+  const start =
+    roll < TOP_TIER_SHARE
+      ? TOP_TIER_INDEX
+      : roll < TOP_TIER_SHARE + MID_TIER_SHARE
+        ? MID_TIER_INDEX
+        : LOW_TIER_INDEX;
+
+  for (let offset = 0; offset < tiers.length; offset++) {
+    const candidates = tiers[(start + offset) % tiers.length].filter(
+      (performance) => !taken.has(performance.number) && !usedGlobally.has(performance.number),
     );
     if (candidates.length > 0) {
       return weightedPick(candidates, random);

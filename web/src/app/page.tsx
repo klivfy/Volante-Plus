@@ -24,6 +24,7 @@ import { generateGames } from '@/engine/gameGenerator';
 import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
 import { usePerformanceCache } from '@/hooks/usePerformanceCache';
+import { useLotteryTheme } from '@/context/LotteryThemeContext';
 import { GameBatch, GeneratedGame, Lottery, MIN_GAMES } from '@/types/domain';
 
 /**
@@ -51,6 +52,7 @@ function gameToText(lottery: Lottery, game: GeneratedGame): string {
 
 export default function VolantePage() {
   const { t } = useTranslation();
+  const { setLottery: setThemeLottery } = useLotteryTheme();
   const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
   const [generating, setGenerating] = useState(false);
   const [batchCount, setBatchCount] = useState<number>(MIN_GAMES);
@@ -60,6 +62,13 @@ export default function VolantePage() {
   const nextDraw = useNextDraw(lottery);
   const { performances, trevoPerformances, loading, error } = usePerformanceCache(lottery);
 
+  // Sincroniza a modalidade com o tema global
+  const handleLotteryChange = (newLottery: Lottery) => {
+    setLottery(newLottery);
+    setThemeLottery(newLottery);
+    trackLotterySelection(newLottery);
+  };
+
   // Loteria trocada: o lote gerado era para a análise anterior, não faz
   // sentido continuar em tela. Ajuste durante a renderização (não em efeito)
   // para refletir isso no mesmo commit, como em `useNextDraw`.
@@ -67,7 +76,6 @@ export default function VolantePage() {
   if (lottery !== trackedLottery) {
     setTrackedLottery(lottery);
     setGeneratedBatch(null);
-    trackLotterySelection(lottery);
   }
 
   const status: PageStatus = error
@@ -155,7 +163,7 @@ export default function VolantePage() {
           <NotificationOptIn />
         </Box>
 
-        <LotterySelector value={lottery} onChange={setLottery} disabled={isBusy} />
+        <LotterySelector value={lottery} onChange={handleLotteryChange} disabled={isBusy} />
 
         <NextDrawCard nextDraw={nextDraw.data} loading={nextDraw.loading} />
 

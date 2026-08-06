@@ -23,6 +23,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import LotterySelector from '@/components/LotterySelector';
 import { useBacktestWorker } from '@/hooks/useBacktestWorker';
+import { useLotteryTheme } from '@/context/LotteryThemeContext';
+import { trackLotterySelection } from '@/services/analytics';
 import { getDrawsAfter, getDrawsUpTo, savePerformances } from '@/services/db';
 import { Lottery, MAX_GAMES, MIN_GAMES } from '@/types/domain';
 
@@ -65,6 +67,7 @@ function formatHitDistribution(distribution: Record<number, number>): string {
 export default function BacktestingPage() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { setLottery: setThemeLottery } = useLotteryTheme();
   const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
   const [cutoffDate, setCutoffDate] = useState('');
   const [gamesPerContest, setGamesPerContest] = useState(MIN_GAMES);
@@ -72,6 +75,13 @@ export default function BacktestingPage() {
   const [localError, setLocalError] = useState<string | null>(null);
 
   const { report, loading: workerLoading, error: workerError, run } = useBacktestWorker();
+
+  // Sincroniza a modalidade com o tema global
+  const handleLotteryChange = (newLottery: Lottery) => {
+    setLottery(newLottery);
+    setThemeLottery(newLottery);
+    trackLotterySelection(newLottery);
+  };
 
   // O relatório vive no worker e não pode ser "resetado" daqui; ao trocar de
   // loteria marcamos o relatório atual como obsoleto (ajuste durante a
@@ -149,7 +159,7 @@ export default function BacktestingPage() {
           </Typography>
         </Box>
 
-        <LotterySelector value={lottery} onChange={setLottery} disabled={running} />
+        <LotterySelector value={lottery} onChange={handleLotteryChange} disabled={running} />
 
         <Card variant="outlined">
           <CardContent>
