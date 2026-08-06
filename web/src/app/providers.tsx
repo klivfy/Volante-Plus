@@ -7,7 +7,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/i18n/config';
-import { darkTheme, lightTheme, createLotteryDarkTheme, createLotteryLightTheme } from '@/theme';
+import { createLotteryDarkTheme, createLotteryLightTheme } from '@/theme';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import PwaLifecycle from '@/components/PwaLifecycle';
 import { LotteryThemeProvider, useLotteryTheme } from '@/context/LotteryThemeContext';

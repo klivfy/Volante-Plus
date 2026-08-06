@@ -62,7 +62,20 @@ export interface GenerateOptions {
 }
 
 /**
+ * Quantos jogos cabem num lote sem repetir nenhuma dezena entre eles.
+ *
+ * A deduplicação absoluta trata as dezenas elegíveis como um bolo que não se
+ * repõe: 4 jogos de Mega-Sena exigem 24 dezenas distintas. Com um fechamento
+ * de 15 dezenas, por exemplo, só há espaço para 2 jogos.
+ */
+export function maxDistinctGames(lottery: Lottery, eligibleCount: number): number {
+  return Math.floor(eligibleCount / lotteryRules(lottery).numbersPerBet);
+}
+
+/**
  * Gera um lote de `count` jogos a partir do desempenho medido das dezenas.
+ *
+ * O lote pode sair menor que `count`: ver `maxDistinctGames`.
  *
  * @param count quantidade de jogos, em `MIN_GAMES`..`MAX_GAMES`.
  * @param performances desempenho das dezenas; obrigatório e não vazio.
@@ -123,7 +136,14 @@ export function generateGames(
   const usedNumbersGlobal = new Set<number>();
   const games: GeneratedGame[] = [];
 
-  for (let index = 0; index < count; index++) {
+  // Cada jogo retira `numbersPerBet` dezenas de um bolo que não se repõe, então
+  // o lote satura em `floor(elegíveis / numbersPerBet)`. Sem esse teto, os
+  // jogos seguintes sairiam incompletos (o sorteio simplesmente fica sem
+  // dezenas disponíveis) — pior que devolver menos jogos. Quem chama compara
+  // `games.length` com o pedido para avisar o usuário; ver `maxDistinctGames`.
+  const effectiveCount = Math.min(count, maxDistinctGames(lottery, eligible.length));
+
+  for (let index = 0; index < effectiveCount; index++) {
     games.push(
       nextDistinctGameWithGlobalDedup(games, usedNumbersGlobal, {
         gameSize: rules.numbersPerBet,
@@ -152,25 +172,6 @@ interface BuildContext {
   trevoStrategy: TrevoStrategy;
   trevoTiers: NumberPerformance[][];
   random: RandomSource;
-}
-
-/** Minimização de repetição: resorteia enquanto o jogo já existir no lote. */
-function nextDistinctGame(
-  existing: GeneratedGame[],
-  context: BuildContext,
-): GeneratedGame {
-  const signatures = new Set(existing.map((game) => game.numbers.join('-')));
-
-  let candidate = buildGame(context);
-  let attempts = 1;
-  while (attempts < MAX_DEDUP_ATTEMPTS && signatures.has(candidate.numbers.join('-'))) {
-    candidate = buildGame(context);
-    attempts++;
-  }
-  // WHY: um jogo repetido escapa quando o pool elegível é pequeno demais para
-  // produzir combinações distintas (fechamento de 6 a 8 dezenas). Falhar seria
-  // pior que entregar o lote com uma repetição.
-  return candidate;
 }
 
 /**
@@ -202,21 +203,6 @@ function nextDistinctGameWithGlobalDedup(
   }
 
   return candidate;
-}
-
-function buildGame(context: BuildContext): GeneratedGame {
-  const picked = new Set<number>();
-  while (picked.size < context.gameSize) {
-    const number = pickFromTiers(context.numberTiers, picked, context.random);
-    if (number === null) {
-      break;
-    }
-    picked.add(number);
-  }
-
-  const numbers = [...picked].sort((a, b) => a - b);
-  const duplas = trevoDuplas(context);
-  return duplas.length === 0 ? { numbers } : { numbers, trevoDuplas: duplas };
 }
 
 /**

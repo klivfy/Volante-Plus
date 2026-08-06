@@ -84,7 +84,7 @@ describe('generateGames — validação de limites', () => {
     // 60 dezenas analisadas, mas a +Milionária só vai até 50.
     const batch = generateGames(
       Lottery.MAIS_MILIONARIA,
-      5,
+      MAX_GAMES,
       megaPerformances(),
       seeded(),
     );
@@ -95,7 +95,7 @@ describe('generateGames — validação de limites', () => {
 
 describe('generateGames — forma do jogo', () => {
   it('produz 6 dezenas distintas e em ordem crescente', () => {
-    const batch = generateGames(Lottery.MEGA_SENA, 5, megaPerformances(), seeded());
+    const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, megaPerformances(), seeded());
 
     for (const game of batch.games) {
       expect(game.numbers).toHaveLength(6);
@@ -103,6 +103,30 @@ describe('generateGames — forma do jogo', () => {
       expect([...game.numbers].sort((a, b) => a - b)).toEqual(game.numbers);
       expect(game.numbers.every((n) => n >= 1 && n <= 60)).toBe(true);
     }
+  });
+
+  it('não repete nenhuma dezena entre os jogos do lote', () => {
+    // A garantia central da v2.1: 4 jogos × 6 dezenas = 24 dezenas distintas.
+    for (let seed = 1; seed <= 30; seed++) {
+      const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, megaPerformances(), seeded(seed));
+      const todas = allNumbers(batch.games);
+
+      expect(todas).toHaveLength(MAX_GAMES * 6);
+      expect(new Set(todas).size).toBe(MAX_GAMES * 6);
+    }
+  });
+
+  it('limita o lote às dezenas disponíveis em vez de devolver jogo incompleto', () => {
+    // 15 dezenas elegíveis sustentam 2 jogos (15 / 6); o 3º sairia com 3
+    // dezenas se o teto não existisse.
+    const source = performances(60).slice(0, 15);
+    const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, source, seeded());
+
+    expect(batch.games).toHaveLength(2);
+    for (const game of batch.games) {
+      expect(game.numbers).toHaveLength(6);
+    }
+    expect(new Set(allNumbers(batch.games)).size).toBe(12);
   });
 
   it('rotula o lote como Backtest-Driven e guarda o snapshot', () => {
@@ -115,9 +139,9 @@ describe('generateGames — forma do jogo', () => {
   });
 
   it('é reprodutível com a mesma semente', () => {
-    const a = generateGames(Lottery.MEGA_SENA, 5, megaPerformances(), seeded(7));
-    const b = generateGames(Lottery.MEGA_SENA, 5, megaPerformances(), seeded(7));
-    const c = generateGames(Lottery.MEGA_SENA, 5, megaPerformances(), seeded(8));
+    const a = generateGames(Lottery.MEGA_SENA, MAX_GAMES, megaPerformances(), seeded(7));
+    const b = generateGames(Lottery.MEGA_SENA, MAX_GAMES, megaPerformances(), seeded(7));
+    const c = generateGames(Lottery.MEGA_SENA, MAX_GAMES, megaPerformances(), seeded(8));
 
     expect(a.games).toEqual(b.games);
     expect(a.games).not.toEqual(c.games);
@@ -132,23 +156,24 @@ describe('generateGames — forma do jogo', () => {
 
   it('não repete jogos num lote com universo cheio', () => {
     for (let seed = 0; seed < 30; seed++) {
-      const batch = generateGames(Lottery.MEGA_SENA, 5, megaPerformances(), seeded(seed));
+      const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, megaPerformances(), seeded(seed));
       const signatures = batch.games.map((game) => game.numbers.join('-'));
-      expect(new Set(signatures).size).toBe(5);
+      expect(new Set(signatures).size).toBe(MAX_GAMES);
     }
   });
 
-  it('entrega o lote mesmo quando o pool não permite jogos distintos', () => {
-    // Exatamente 6 dezenas elegíveis: só existe uma combinação possível.
+  it('entrega um único jogo quando o pool só dá para uma combinação', () => {
+    // Exatamente 6 dezenas elegíveis: só existe uma combinação possível. Antes
+    // da v2.1 o lote repetia essa combinação `count` vezes; com deduplicação
+    // absoluta repetir seria justamente o que a regra proíbe, então o lote sai
+    // com um jogo só.
     const batch = generateGames(Lottery.MEGA_SENA, 3, megaPerformances(), {
       ...seeded(),
       pool: [1, 2, 3, 4, 5, 6],
     });
 
-    expect(batch.games).toHaveLength(3);
-    expect(batch.games.every((game) => game.numbers.join('-') === '1-2-3-4-5-6')).toBe(
-      true,
-    );
+    expect(batch.games).toHaveLength(1);
+    expect(batch.games[0].numbers).toEqual([1, 2, 3, 4, 5, 6]);
   });
 });
 
@@ -159,14 +184,14 @@ describe('generateGames — distribuição por tiers', () => {
     const tally: Record<PerformanceTier, number> = { top: 0, mid: 0, low: 0 };
 
     for (let seed = 0; seed < 300; seed++) {
-      const batch = generateGames(Lottery.MEGA_SENA, 5, source, seeded(seed));
+      const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, source, seeded(seed));
       for (const number of allNumbers(batch.games)) {
         tally[tierOf.get(number)!]++;
       }
     }
 
     const total = tally.top + tally.mid + tally.low;
-    expect(total).toBe(300 * 5 * 6);
+    expect(total).toBe(300 * MAX_GAMES * 6);
     expect(tally.top / total).toBeGreaterThan(0.62);
     expect(tally.top / total).toBeLessThan(0.78);
     expect(tally.mid / total).toBeGreaterThan(0.14);
@@ -179,22 +204,28 @@ describe('generateGames — distribuição por tiers', () => {
     // 1 domina o tier top; 2..24 dividem o resto do peso.
     const source = performances(60, (n) => (n === 1 ? 100 : n <= 24 ? 1 : 0.01));
     const counts = new Map<number, number>();
+    const lotes = 200;
 
-    for (let seed = 0; seed < 200; seed++) {
-      const batch = generateGames(Lottery.MEGA_SENA, 5, source, seeded(seed));
+    for (let seed = 0; seed < lotes; seed++) {
+      const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, source, seeded(seed));
       for (const number of allNumbers(batch.games)) {
         counts.set(number, (counts.get(number) ?? 0) + 1);
       }
     }
 
-    expect(counts.get(1)!).toBeGreaterThan((counts.get(2) ?? 0) * 3);
+    // Sob deduplicação absoluta uma dezena entra no máximo uma vez por lote, de
+    // modo que o peso não se converte em repetição — converte-se em presença.
+    // A dezena dominante comparece em praticamente todo lote; uma dezena comum
+    // do mesmo tier disputa as vagas restantes com as outras 23.
+    expect(counts.get(1)!).toBeGreaterThan(lotes * 0.95);
+    expect(counts.get(1)!).toBeGreaterThan(counts.get(2) ?? 0);
   });
 
   it('degenera em sorteio uniforme quando todos os pesos são zero', () => {
     const source = performances(60, () => 0);
-    const batch = generateGames(Lottery.MEGA_SENA, 5, source, seeded());
+    const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, source, seeded());
 
-    expect(batch.games).toHaveLength(5);
+    expect(batch.games).toHaveLength(MAX_GAMES);
     for (const game of batch.games) {
       expect(new Set(game.numbers).size).toBe(6);
     }
@@ -204,7 +235,7 @@ describe('generateGames — distribuição por tiers', () => {
 describe('generateGames — fechamento', () => {
   it('restringe os jogos às dezenas do volante', () => {
     const pool = [3, 9, 14, 21, 27, 33, 41, 52, 58, 60];
-    const batch = generateGames(Lottery.MEGA_SENA, 5, megaPerformances(), {
+    const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, megaPerformances(), {
       ...seeded(),
       pool,
     });
@@ -245,9 +276,10 @@ describe('generateGames — fechamento', () => {
     // Todas as dezenas do fechamento vêm do tier low do universo cheio.
     const source = performances(60, (n) => (n <= 40 ? 1 : 0.01));
     const pool = [45, 46, 47, 48, 49, 50, 51, 52];
-    const batch = generateGames(Lottery.MEGA_SENA, 5, source, { ...seeded(), pool });
+    const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, source, { ...seeded(), pool });
 
-    expect(batch.games).toHaveLength(5);
+    // 8 dezenas no fechamento só sustentam 1 jogo sem repetição (8 / 6).
+    expect(batch.games).toHaveLength(1);
     expect(allNumbers(batch.games).every((n) => pool.includes(n))).toBe(true);
   });
 });
@@ -259,7 +291,7 @@ describe('generateGames — trevos', () => {
   });
 
   it('gera uma dupla ordenada por jogo no modo econômico', () => {
-    const batch = generateGames(Lottery.MAIS_MILIONARIA, 5, milionariaPerformances(), {
+    const batch = generateGames(Lottery.MAIS_MILIONARIA, MAX_GAMES, milionariaPerformances(), {
       ...seeded(),
       trevoPerformances: trevoPerformances(),
       trevoStrategy: TrevoStrategy.ECONOMICO,
@@ -287,7 +319,7 @@ describe('generateGames — trevos', () => {
   });
 
   it('cai no fallback uniforme com desempenho de trevos incompleto', () => {
-    const batch = generateGames(Lottery.MAIS_MILIONARIA, 5, milionariaPerformances(), {
+    const batch = generateGames(Lottery.MAIS_MILIONARIA, MAX_GAMES, milionariaPerformances(), {
       ...seeded(),
       trevoPerformances: trevoPerformances().slice(0, 3),
     });
@@ -298,7 +330,7 @@ describe('generateGames — trevos', () => {
   it('favorece o trevo de maior peso', () => {
     const counts = new Map<number, number>();
     for (let seed = 0; seed < 200; seed++) {
-      const batch = generateGames(Lottery.MAIS_MILIONARIA, 5, milionariaPerformances(), {
+      const batch = generateGames(Lottery.MAIS_MILIONARIA, MAX_GAMES, milionariaPerformances(), {
         ...seeded(seed),
         trevoPerformances: trevoPerformances((n) => (n === 1 ? 100 : 0.01)),
       });

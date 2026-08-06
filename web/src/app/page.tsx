@@ -20,7 +20,7 @@ import NextDrawCard from '@/components/NextDrawCard';
 import NotificationOptIn from '@/components/NotificationOptIn';
 import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } from '@/services/analytics';
 import { reportUserError, addBreadcrumb } from '@/services/errorReporter';
-import { generateGames } from '@/engine/gameGenerator';
+import { generateGames, maxDistinctGames } from '@/engine/gameGenerator';
 import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
 import { usePerformanceCache } from '@/hooks/usePerformanceCache';
@@ -90,6 +90,14 @@ export default function VolantePage() {
 
   const canGenerate = status === 'idle' || status === 'ready';
   const isBusy = status === 'analyzing' || status === 'generating';
+
+  // A deduplicação absoluta gasta dezenas: um lote de 4 jogos de Mega-Sena
+  // precisa de 24 dezenas analisadas distintas. Quando o desempenho disponível
+  // não cobre o pedido, `generateGames` devolve menos jogos — avisamos antes de
+  // clicar, em vez de deixar o usuário descobrir pelo lote menor.
+  const gamesAvailable =
+    performances.length > 0 ? maxDistinctGames(lottery, performances.length) : batchCount;
+  const batchLimited = !loading && batchCount > gamesAvailable;
 
   async function handleGenerate(): Promise<void> {
     setGenerating(true);
@@ -172,6 +180,14 @@ export default function VolantePage() {
         <Card variant="outlined">
           <CardContent>
             <GameSlider value={batchCount} onChange={setBatchCount} disabled={isBusy} />
+            {batchLimited && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                {t('volante.batchLimited', {
+                  available: performances.length,
+                  max: gamesAvailable,
+                })}
+              </Alert>
+            )}
             <Button
               fullWidth
               variant="contained"

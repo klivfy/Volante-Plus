@@ -27,7 +27,8 @@
     "copiedToClipboard": "Jogo copiado para a área de transferência.",
     "copyError": "Não foi possível copiar o jogo.",
     "generateError": "Não foi possível gerar os jogos.",
-    "performanceError": "Não foi possível calcular o desempenho das dezenas."
+    "performanceError": "Não foi possível calcular o desempenho das dezenas.",
+    "batchLimited": "Com {{available}} dezenas analisadas, é possível gerar até {{max}} jogo(s) sem repetição de dezenas."
   },
   "backtesting": {
     "title": "Backtesting",
@@ -70,7 +71,8 @@
     "unavailable": "Não foi possível carregar os dados do próximo concurso. Verifique sua conexão.",
     "contest": "Concurso {{number}}",
     "at": "{{date}} às {{time}}",
-    "estimatedPrize": "prêmio estimado"
+    "estimatedPrize": "prêmio estimado",
+    "accumulated": "ACUMULADA!"
   },
   "sobre": {
     "title": "Sobre o Volante+",

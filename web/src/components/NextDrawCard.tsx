@@ -91,7 +91,7 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
               </Typography>
               {isAccumulated && (
                 <Chip
-                  label={t('nextDraw.accumulated') || 'ACUMULADA!'}
+                  label={t('nextDraw.accumulated')}
                   size="small"
                   color="error"
                   variant="filled"

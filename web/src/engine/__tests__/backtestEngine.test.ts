@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Draw, Lottery, TrevoStrategy } from '../../types/domain';
+import { Draw, Lottery, MAX_GAMES, TrevoStrategy } from '../../types/domain';
 import { runBacktest } from '../backtestEngine';
 
 function draw(
@@ -71,7 +71,7 @@ describe('runBacktest — contagens', () => {
   it('na Mega-Sena, totalBets == totalGames (sem trevos)', () => {
     const report = runBacktest(Lottery.MEGA_SENA, trainingWindow(10), validationWindow(4), {
       seed: 7,
-      gamesPerContest: 5,
+      gamesPerContest: MAX_GAMES,
     });
 
     expect(report.totalBets).toBe(report.totalGames);
@@ -135,7 +135,7 @@ describe('runBacktest — taxa de eficácia', () => {
   it('mantém prizeRate em [0, 1]', () => {
     const report = runBacktest(Lottery.MEGA_SENA, trainingWindow(15), validationWindow(20), {
       seed: 3,
-      gamesPerContest: 5,
+      gamesPerContest: MAX_GAMES,
     });
 
     expect(report.prizeRate).toBeGreaterThanOrEqual(0);
