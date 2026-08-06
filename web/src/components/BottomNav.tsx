@@ -3,6 +3,7 @@
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import CasinoIcon from '@mui/icons-material/Casino';
 import InfoIcon from '@mui/icons-material/Info';
+import ScienceIcon from '@mui/icons-material/Science';
 import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import Paper from '@mui/material/Paper';
@@ -13,6 +14,7 @@ import { BOTTOM_NAV_HEIGHT } from './navigation';
 const DESTINATIONS = [
   { labelKey: 'nav.volante', href: '/', icon: <CasinoIcon /> },
   { labelKey: 'nav.backtesting', href: '/backtesting', icon: <AnalyticsIcon /> },
+  { labelKey: 'nav.avancado', href: '/analise-avancada', icon: <ScienceIcon /> },
   { labelKey: 'nav.sobre', href: '/sobre', icon: <InfoIcon /> },
 ] as const;
 

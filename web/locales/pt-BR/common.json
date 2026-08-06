@@ -2,7 +2,8 @@
   "nav": {
     "volante": "Volante",
     "backtesting": "Backtesting",
-    "sobre": "Sobre"
+    "sobre": "Sobre",
+    "avancado": "Avançado"
   },
   "lottery": {
     "megaSena": "Mega-Sena",
@@ -80,5 +81,67 @@
     "howBody": "O desempenho de cada dezena combina frequência real no histórico com uma simulação de Monte Carlo, e é classificado em três faixas — top, mid e low. A geração sorteia 70% das vagas do jogo na faixa top, 20% na mid e 10% na low, sempre com seleção proporcional ao peso dentro da faixa escolhida.",
     "backtestTitle": "Backtesting",
     "backtestBody": "A tela de Backtesting mede o desempenho das dezenas apenas na janela de treino (concursos até a data de corte) e valida os jogos gerados contra os concursos reais posteriores. O resultado é comparado ao baseline hipergeométrico — a média de acertos que o acaso puro já entregaria. A expectativa é que o método não o supere de forma consistente: é exatamente essa a hipótese que o app existe para testar."
+  },
+  "advanced": {
+    "title": "Análise Avançada",
+    "subtitle": "Ferramentas de validação estatística mais rigorosa: poder estatístico, testes de aleatoriedade do sorteio, comparação de estratégias e gestão de risco.",
+    "running": "Calculando…",
+    "runError": "Falha ao calcular.",
+    "power": {
+      "title": "Poder estatístico",
+      "subtitle": "Quanto de vantagem sobre o acaso o backtest atual conseguiria detectar.",
+      "explanation": "Acertos esperados ao acaso: {{expected}} por jogo. A tabela mostra a probabilidade de detectar cada vantagem hipotética (linhas) dado o tamanho de amostra (colunas) — amostras pequenas têm pouco poder mesmo quando a vantagem existe de verdade.",
+      "effect": "Vantagem (acertos/jogo)"
+    },
+    "fairness": {
+      "title": "Aleatoriedade do sorteio e estabilidade temporal",
+      "subtitle": "Testa a premissa de sorteio justo e roda o backtest em múltiplos cortes de data.",
+      "run": "Rodar testes",
+      "frequencyResult": "Frequência das dezenas: {{verdict}} (p = {{pValue}})",
+      "serialResult": "Autocorrelação entre concursos: {{verdict}} (r = {{r}}, p = {{pValue}})",
+      "fair": "consistente com sorteio uniforme",
+      "unfair": "desvio da uniformidade detectado",
+      "random": "sem autocorrelação detectável",
+      "notRandom": "autocorrelação detectada",
+      "gapTitle": "Maiores desvios de intervalo entre aparições (top 5)",
+      "number": "Dezena",
+      "meanGap": "Intervalo médio",
+      "expectedGap": "Intervalo esperado",
+      "walkForwardTitle": "Estabilidade no tempo (walk-forward multi-corte)",
+      "walkForwardSummary": "{{cuts}} cortes analisados · {{advantage}} com vantagem significativa · {{disadvantage}} com desvantagem significativa · consistência de sinal {{consistency}}",
+      "footnote": "p > 0,05 nos testes de fairness é o resultado esperado para uma loteria justa. Um sinal isolado não prova enviesamento — vários testes independentes apontando na mesma direção seriam necessários."
+    },
+    "benchmark": {
+      "title": "Comparação de estratégias",
+      "subtitle": "Roda o método atual do app contra alternativas, com correção de múltiplas comparações.",
+      "run": "Rodar benchmark",
+      "notEnoughData": "Histórico local insuficiente para o benchmark (mínimo de 40 concursos).",
+      "strategy": "Estratégia",
+      "meanHits": "Acertos médios (esperado)",
+      "prizeRate": "Taxa de prêmio",
+      "significant": "significativo",
+      "notSignificant": "não significativo",
+      "footnote": "A coluna Bonferroni é a significância corrigida para múltiplas comparações — o critério certo quando 5 estratégias são testadas ao mesmo tempo. Esperado sob a hipótese nula: nenhuma estratégia significativa."
+    },
+    "wheeling": {
+      "title": "Cobertura combinatória (wheeling)",
+      "subtitle": "Reparte um pool de 10 dezenas em jogos com garantia matemática de quadra.",
+      "explanation": "Não aumenta a chance de ganhar — só garante que, se 4 das suas 10 dezenas marcadas saírem, pelo menos um dos jogos abaixo acerta a quadra.",
+      "inputLabel": "Digite 10 dezenas separadas por vírgula ou espaço",
+      "apply": "Gerar jogos do wheel",
+      "invalidInput": "Informe apenas números inteiros separados por vírgula ou espaço.",
+      "gamesCount": "{{count}} jogos gerados"
+    },
+    "ev": {
+      "title": "Valor esperado e Kelly Criterion",
+      "subtitle": "Estima o EV de uma aposta simples e o tamanho de aposta racional pelo critério de Kelly.",
+      "ticketCost": "Custo do bilhete (R$)",
+      "accumulated": "Prêmio acumulado (R$)",
+      "bankroll": "Banca disponível (R$)",
+      "result": "Valor esperado: {{ev}} ({{percent}}% do custo do bilhete)",
+      "breakEven": "EV zeraria com acumulação de {{value}}",
+      "kelly": "Kelly recomenda {{fraction}} da banca ({{bet}}) — 0% quando o EV não é positivo",
+      "footnote": "Kelly assume apostas repetidas independentes; em loteria isso é só uma heurística de limite superior, não uma recomendação de gestão de banca real."
+    }
   }
 }
