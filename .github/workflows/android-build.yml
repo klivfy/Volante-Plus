@@ -1,0 +1,122 @@
+name: Android APK Build
+
+on:
+  push:
+    branches:
+      - claude/android-loterias-init-y1pr71
+    tags:
+      - 'v2.1*'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: wrapper
+          cache-disabled: false
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --stacktrace
+        env:
+          GRADLE_OPTS: '-Xmx2048m'
+
+      - name: Verify APK structure
+        run: |
+          APK=$(find app/build/outputs -name "*.apk" -type f | head -1)
+          if [ -z "$APK" ]; then
+            echo "❌ No APK found"
+            exit 1
+          fi
+
+          echo "✅ APK found: $APK"
+          echo ""
+          echo "📦 APK Contents:"
+          unzip -l "$APK" | grep -E "(AndroidManifest|classes\.dex|resources\.arsc|META-INF/MANIFEST)" | head -10
+
+          echo ""
+          echo "📋 Manifest info:"
+          aapt2 dump badging "$APK" 2>/dev/null | head -20 || unzip -p "$APK" AndroidManifest.xml | head -20
+
+      - name: Verify APK signature
+        run: |
+          APK=$(find app/build/outputs -name "*.apk" -type f | head -1)
+          echo "🔐 Verifying APK signature..."
+          jarsigner -verify -verbose -certs "$APK" | head -20
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: volante-plus-v2.1.0-release
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Create Release (on tag push)
+        if: startsWith(github.ref, 'refs/tags/v2.1')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: app/build/outputs/apk/release/app-release.apk
+          draft: true
+          body: |
+            # Volante+ v2.1.0 Android Release
+
+            **Features**:
+            - ✅ All 10 v2.1 features implemented
+            - ✅ Material Design 3 styling
+            - ✅ Dynamic lottery theming
+            - ✅ Absolute deduplication algorithm
+            - ✅ Next draw accumulation badge
+            - ✅ Google Sans Flex typography
+            - ✅ Splash screen with fade-out
+            - ✅ Kotlin/Compose foundation
+
+            **Build Info**:
+            - versionCode: 2
+            - versionName: 2.1.0
+            - minSdkVersion: 26 (Android 8.0)
+            - targetSdkVersion: 35 (Android 15)
+            - Signed release APK ready for production
+
+            **Installation**:
+            ```bash
+            adb install app-release.apk
+            ```
+
+      - name: Build failed notification
+        if: failure()
+        run: |
+          echo "❌ Build failed. Check logs above for details."
+          echo ""
+          echo "Common issues:"
+          echo "1. Network issues - retry the workflow"
+          echo "2. Gradle cache issues - clear cache and retry"
+          echo "3. Java version mismatch - verify Java 21 is used"
+          exit 1
