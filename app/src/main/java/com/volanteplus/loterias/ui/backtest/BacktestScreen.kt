@@ -17,6 +17,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -37,12 +38,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.volanteplus.loterias.domain.backtest.BacktestReport
+import com.volanteplus.loterias.domain.backtest.Verdict
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
@@ -245,35 +248,143 @@ private fun ConfigSection(
 
 @Composable
 private fun ReportSection(report: BacktestReport) {
-    Card {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        VerdictCard(report)
+
+        Card {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Relatório", style = MaterialTheme.typography.titleMedium)
+
+                ReportRow(
+                    "Concursos",
+                    "treino ${report.trainingDraws} · validação ${report.validationDraws}",
+                )
+                ReportRow("Jogos / apostas", "${report.totalGames} / ${report.totalBets}")
+
+                val test = report.hypothesisTest.meanTest
+                ReportRow(
+                    "Média de acertos",
+                    "${test.observedMean.fmt(3)} (teórica ${test.theoreticalMean.fmt(2)})",
+                )
+                ReportRow(
+                    "IC 95% da média",
+                    "[${test.confidenceInterval.lower.fmt(3)}, " +
+                        "${test.confidenceInterval.upper.fmt(3)}]",
+                )
+                ReportRow("Erro padrão", test.standardError.fmt(4))
+                ReportRow("Valor-p", test.pValue.fmt(4))
+                ReportRow(
+                    "Amostra independente",
+                    "${test.sampleSize} concursos",
+                )
+
+                Text(
+                    text = "Premiação",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                val prize = report.prizeAnalysis
+                ReportRow(
+                    "Premiadas",
+                    "${prize.prizeCount} de ${prize.totalBets} apostas",
+                )
+                ReportRow("Esperadas na teoria", prize.expectedPrizes.fmt(2))
+                ReportRow(
+                    "IC 95% (Wilson)",
+                    "[${(prize.wilsonInterval.lower * 100).fmt(4)}%, " +
+                        "${(prize.wilsonInterval.upper * 100).fmt(4)}%]",
+                )
+                if (prize.underpowered) {
+                    Text(
+                        text = "Eventos raros demais para estimar a taxa: uma taxa " +
+                            "observada de zero aqui indica falta de dados, não " +
+                            "desempenho da estratégia.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+
+                Text(
+                    text = "Distribuição de acertos",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 2.dp),
+                )
+                Text(
+                    text = "observado vs. esperado pela hipergeométrica",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                val maxCount = report.hitDistribution.values.maxOrNull() ?: 1
+                (0..6).forEach { hits ->
+                    val count = report.hitDistribution[hits] ?: 0
+                    val expected =
+                        (report.theoreticalDistribution[hits] ?: 0.0) * report.totalGames
+                    DistributionRow(hits, count, expected, maxCount)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VerdictCard(report: BacktestReport) {
+    val verdict = report.verdict
+    val container = when (verdict) {
+        Verdict.NAO_REFUTA_ALEATORIEDADE -> MaterialTheme.colorScheme.secondaryContainer
+        Verdict.DESVIO_SIGNIFICATIVO -> MaterialTheme.colorScheme.errorContainer
+        Verdict.AMOSTRA_INSUFICIENTE -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val content = when (verdict) {
+        Verdict.NAO_REFUTA_ALEATORIEDADE -> MaterialTheme.colorScheme.onSecondaryContainer
+        Verdict.DESVIO_SIGNIFICATIVO -> MaterialTheme.colorScheme.onErrorContainer
+        Verdict.AMOSTRA_INSUFICIENTE -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Card(colors = CardDefaults.cardColors(containerColor = container)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Relatório", style = MaterialTheme.typography.titleMedium)
-
-            ReportRow(
-                "Concursos",
-                "treino ${report.trainingDraws} · validação ${report.validationDraws}",
-            )
-            ReportRow("Jogos / apostas", "${report.totalGames} / ${report.totalBets}")
-            ReportRow(
-                "Média de acertos",
-                "${report.stats.mean.fmt(3)} (esperado: ${report.expectedMeanHits.fmt(2)})",
-            )
-            ReportRow("Variância", report.stats.variance.fmt(3))
-            ReportRow("Desvio padrão", report.stats.stdDeviation.fmt(3))
-            ReportRow(
-                "Taxa de eficácia",
-                "${(report.prizeRate * 100).fmt(3)}% (${report.prizeCount} apostas premiadas)",
-            )
-
             Text(
-                text = "Distribuição de acertos",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                text = verdict.label,
+                style = MaterialTheme.typography.titleMedium,
+                color = content,
             )
-            val maxCount = report.hitDistribution.values.maxOrNull() ?: 1
-            (0..6).forEach { hits ->
-                val count = report.hitDistribution[hits] ?: 0
-                DistributionRow(hits, count, maxCount)
+            Text(
+                text = verdict.explanation,
+                style = MaterialTheme.typography.bodyMedium,
+                color = content,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+
+            val test = report.hypothesisTest
+            Text(
+                text = "α = ${test.significanceLevel.fmt(4)}" +
+                    if (test.comparisons > 1) {
+                        " (Bonferroni para ${test.comparisons} comparações)"
+                    } else {
+                        ""
+                    },
+                style = MaterialTheme.typography.bodySmall,
+                color = content,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Text(
+                text = "Poder para efeito de ±0,10 acerto: " +
+                    "${(test.meanTest.power * 100).fmt(1)}% · menor efeito " +
+                    "detectável: ${test.meanTest.minimumDetectableEffect.fmt(3)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = content,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            if (test.meanTest.degenerateEstimator) {
+                Text(
+                    text = "O lote cobre todo o universo de dezenas, o que fixa a " +
+                        "soma de acertos por concurso. A média perde poder de " +
+                        "discriminação neste desenho.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = content,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
         }
     }
@@ -295,43 +406,58 @@ private fun ReportRow(label: String, value: String) {
 }
 
 @Composable
-private fun DistributionRow(hits: Int, count: Int, maxCount: Int) {
+private fun DistributionRow(hits: Int, count: Int, expected: Double, maxCount: Int) {
+    val scale = maxOf(maxCount.toFloat(), expected.toFloat(), 1f)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
     ) {
         Text(
             text = "$hits",
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.width(16.dp),
         )
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 8.dp)
-                .weight(1f)
-                .height(14.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(4.dp),
-                ),
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            if (count > 0) {
-                Box(
-                    modifier = Modifier
-                        .height(14.dp)
-                        .fillMaxWidth(count / maxCount.toFloat())
-                        .background(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(4.dp),
-                        ),
-                )
-            }
+            DistributionBar(
+                fraction = count / scale,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            DistributionBar(
+                fraction = (expected / scale).toFloat(),
+                color = MaterialTheme.colorScheme.tertiary,
+            )
         }
         Text(
-            text = "$count",
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.width(48.dp),
+            text = "$count\n${expected.fmt(1)}",
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.width(56.dp),
         )
+    }
+}
+
+@Composable
+private fun DistributionBar(fraction: Float, color: Color) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(3.dp),
+            ),
+    ) {
+        val safe = fraction.coerceIn(0f, 1f)
+        if (safe > 0f) {
+            Box(
+                modifier = Modifier
+                    .height(10.dp)
+                    .fillMaxWidth(safe)
+                    .background(color = color, shape = RoundedCornerShape(3.dp)),
+            )
+        }
     }
 }
 
