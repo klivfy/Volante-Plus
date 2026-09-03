@@ -30,8 +30,18 @@ class CsvDrawParser {
             .map { (lineNumber, line) -> parseLine(lottery, lineNumber, line) }
             .toList()
 
+    /**
+     * Reconhece apenas o cabeçalho real (primeira coluna literal "concurso",
+     * sem diferenciar maiúsculas/minúsculas). Antes, qualquer linha cuja
+     * primeira coluna não fosse um inteiro válido — inclusive dados
+     * corrompidos, como um número de concurso vazio ou não numérico — era
+     * tratada como cabeçalho e descartada em silêncio. Isso violava a
+     * garantia documentada de que seed corrompido nunca deve entrar (ou
+     * sair) silenciosamente do banco: agora esses casos seguem para
+     * [parseLine], que lança erro descritivo com o número da linha.
+     */
     private fun isHeader(line: String): Boolean =
-        line.substringBefore(';').toIntOrNull() == null
+        line.substringBefore(';').trim().equals("concurso", ignoreCase = true)
 
     private fun parseLine(lottery: Lottery, lineNumber: Int, line: String): Draw {
         val columns = line.split(';')
