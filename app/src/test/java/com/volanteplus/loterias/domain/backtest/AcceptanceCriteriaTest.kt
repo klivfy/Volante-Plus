@@ -1,5 +1,6 @@
 package com.volanteplus.loterias.domain.backtest
 
+import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
@@ -93,7 +94,7 @@ class AcceptanceCriteriaTest {
             BacktestConfig(
                 lottery = Lottery.MEGA_SENA,
                 cutoff = cutoff,
-                gamesPerContest = 1,
+                gamesPerContest = GameGenerator.MIN_GAMES,
                 seed = 777L,
                 replications = 20,
             ),
@@ -121,7 +122,7 @@ class AcceptanceCriteriaTest {
             BacktestConfig(
                 lottery = Lottery.MEGA_SENA,
                 cutoff = cutoff,
-                gamesPerContest = 1,
+                gamesPerContest = GameGenerator.MIN_GAMES,
                 seed = 31337L,
                 replications = 20,
             ),

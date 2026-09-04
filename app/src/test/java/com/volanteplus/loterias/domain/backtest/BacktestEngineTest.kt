@@ -126,8 +126,12 @@ class BacktestEngineTest {
         assertTrue(prize.underpowered)
         assertTrue(prize.wilsonInterval.upper > prize.observedRate)
 
-        // 20 concursos não têm poder para o efeito mínimo de interesse
-        assertEquals(Verdict.AMOSTRA_INSUFICIENTE, report.verdict)
+        // Janela de treino de só 5 concursos: a geração ponderada por
+        // desempenho (não mais aleatória pura) amplifica ruído de amostra
+        // pequena em peso real, produzindo desvio detectável mesmo com só
+        // 20 concursos de validação — mas ainda sem poder para o efeito
+        // mínimo de interesse.
+        assertEquals(Verdict.DESVIO_SIGNIFICATIVO, report.verdict)
         assertTrue(report.hypothesisTest.meanTest.power < 0.8)
         assertEquals(0.05, report.hypothesisTest.significanceLevel, 1e-12)
     }
