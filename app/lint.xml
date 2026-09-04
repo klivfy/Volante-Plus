@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Configuração do Lint do módulo :app.
+
+    ObsoleteSdkInt (mipmap-anydpi-v26): o lint sugere renomear a pasta para
+    "mipmap-anydpi" já que minSdk=26 tornaria o qualificador "-v26"
+    redundante. Na prática, isso quebra o processamento de recursos do AAPT
+    neste projeto (erro "resource mipmap/ic_launcher not found" ao tentar).
+    "mipmap-anydpi-v26" também é a convenção oficial documentada pelo Android
+    para ícones adaptáveis (https://developer.android.com/develop/ui/compose/system/icon_design_adaptive),
+    então mantemos o nome e suprimimos apenas este aviso específico.
+-->
+<lint>
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+</lint>

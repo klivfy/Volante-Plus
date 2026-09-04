@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Camada monocromática do ícone adaptável (Android 13+ themed icons): mesmo
+    desenho do primeiro plano (o "V" com a dezena circulada), mas sem cor
+    própria — o sistema aplica o tint da cor de destaque escolhida pelo
+    usuário no tema do dispositivo (Material You).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Traço do "V", espesso e com pontas arredondadas. -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 34,32 L 54,66 L 74,32" />
+
+    <!-- Dezena sorteada: círculo vazado, ancorado no vértice do "V". -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4"
+        android:pathData="M 63,76 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
+</vector>

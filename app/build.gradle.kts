@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
+    // Mantido explicitamente: KSP ainda não suporta o Kotlin embutido do
+    // AGP 9 (ver android.builtInKotlin=false em gradle.properties).
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
@@ -8,12 +10,12 @@ plugins {
 
 android {
     namespace = "com.volanteplus.loterias"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.volanteplus.loterias"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
 
@@ -35,11 +37,17 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         compose = true
+    }
+}
+
+// Plugin kotlin-android explícito (não built-in): a configuração do
+// compilador Kotlin usa a extensão kotlin {} com compilerOptions {},
+// substituindo o antigo bloco kotlinOptions {} (deprecado no KGP 2.2+).
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
