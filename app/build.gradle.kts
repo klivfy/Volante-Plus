@@ -27,12 +27,15 @@ fun signingProp(key: String, envVar: String): String? =
 
 android {
     namespace = "com.volanteplus.loterias"
-    compileSdk = 37
+    // AGP 8.7.3 (ver gradle/libs.versions.toml) só foi testado até compileSdk
+    // 35 — a PR #4 subiu para 37 junto com a migração para AGP 9.4.0, que
+    // não foi adotada aqui (ver histórico do merge). Manter os dois em sync.
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.volanteplus.loterias"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 35
         // versionCode incrementado para 2 para v2.1 (inclui todas as 10 features implementadas
         // na web/src e backend integrado via Kotlin/Compose)
         versionCode = 2
