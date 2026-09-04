@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -27,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
@@ -48,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -429,13 +432,16 @@ private fun AccumulatedCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "ACUMULADO E RETORNO ESPERADO",
+                    text = "Acumulado e retorno esperado",
                     style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
                 )
                 if (loading) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 } else {
-                    TextButton(onClick = onRefresh) { Text("Atualizar") }
+                    TextButton(onClick = onRefresh, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                        Text("Atualizar")
+                    }
                 }
             }
 
@@ -444,23 +450,45 @@ private fun AccumulatedCard(
                     text = "Consultando a Caixa…",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp),
                 )
 
                 error != null && outlook == null -> Text(
                     text = "Não foi possível consultar o próximo concurso ($error).",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.error,
+                    modifier = Modifier.padding(top = 12.dp),
                 )
 
                 outlook == null -> Text(
                     text = "Sem informação do próximo concurso.",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp),
                 )
 
                 else -> AccumulatedBody(outlook, estimate)
             }
         }
+    }
+}
+
+@Composable
+private fun AccumulatedStatRow(label: String, value: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
@@ -471,63 +499,149 @@ private fun AccumulatedBody(outlook: ContestOutlook, estimate: AccumulatedReturn
     val date = outlook.nextDate?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
     val contest = if (outlook.nextContest > 0) "Concurso ${outlook.nextContest}" else "Próximo concurso"
 
-    Text(
-        text = listOfNotNull(contest, date).joinToString(" · "),
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(top = 4.dp),
-    )
-    Text(
-        text = if (outlook.accumulatedForNext > 0.0) {
-            "Acumulado: ${brl.format(outlook.accumulatedForNext)}"
-        } else {
-            "Sem acumulado — o prêmio principal sairá só da arrecadação."
-        },
-        style = MaterialTheme.typography.bodyMedium,
-    )
+    Column(modifier = Modifier.padding(top = 12.dp)) {
+        // Cabeçalho: qual concurso e o valor acumulado, lado a lado.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Column {
+                Text(
+                    text = listOfNotNull(contest, date).joinToString(" · "),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.onSurfaceVariant,
+                )
+                Text(
+                    text = if (outlook.accumulatedForNext > 0.0) {
+                        brl.format(outlook.accumulatedForNext)
+                    } else {
+                        "Sem acumulado"
+                    },
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+        if (outlook.accumulatedForNext <= 0.0) {
+            Text(
+                text = "O prêmio principal sairá só da arrecadação deste concurso.",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
 
-    if (estimate == null) {
+        if (estimate == null) {
+            Text(
+                text = "A Caixa não informou a arrecadação do último concurso; sem ela não dá " +
+                    "para estimar o rateio.",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            return@Column
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = colors.outline.copy(alpha = 0.3f))
+
+        // Destaque: o retorno esperado por aposta, com chip de status.
+        val pct = (estimate.returnRatio * 100).toInt()
+        val statusContainer = if (estimate.isFavorable) colors.primaryContainer else colors.errorContainer
+        val statusOn = if (estimate.isFavorable) colors.onPrimaryContainer else colors.onErrorContainer
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    text = "Retorno esperado por aposta de ${brl.format(estimate.betPrice)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                )
+                Text(
+                    text = brl.format(estimate.totalReturn),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(statusContainer)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = "$pct% do valor apostado",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = statusOn,
+                )
+            }
+        }
+
+        Row(modifier = Modifier.padding(top = 12.dp)) {
+            AccumulatedStatRow(
+                label = "Sem acumulado",
+                value = brl.format(estimate.baseReturn),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(modifier = Modifier.padding(top = 4.dp)) {
+            AccumulatedStatRow(
+                label = "Bônus do acumulado",
+                value = "+ ${brl.format(estimate.accumulatedBonus)}",
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = colors.outline.copy(alpha = 0.3f))
+
+        // Progresso até o ponto de equilíbrio e até cobrir todas as combinações.
+        val coveragePct = (estimate.coverageRatio * 100).toInt()
         Text(
-            text = "A Caixa não informou a arrecadação do último concurso; sem ela não dá " +
-                "para estimar o rateio.",
+            text = "$pct% do caminho até o equilíbrio — chega a 100% com acumulado de " +
+                brl.format(estimate.breakEvenAccumulated),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+        )
+        LinearProgressIndicator(
+            progress = { estimate.returnRatio.toFloat().coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            trackColor = colors.surface,
+            color = if (estimate.isFavorable) colors.primary else colors.error,
+        )
+
+        Text(
+            text = "Cobre $coveragePct% do custo de jogar todas as combinações " +
+                "(${brl.format(estimate.fullCoverageCost)})",
             style = MaterialTheme.typography.bodySmall,
             color = colors.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp),
+            modifier = Modifier.padding(top = 10.dp),
         )
-        return
-    }
+        LinearProgressIndicator(
+            progress = { estimate.coverageRatio.toFloat().coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            trackColor = colors.surface,
+            color = colors.tertiary,
+        )
 
-    val pct = (estimate.returnRatio * 100).toInt()
-    Text(
-        text = "Retorno esperado por aposta de ${brl.format(estimate.betPrice)}: " +
-            "${brl.format(estimate.totalReturn)} ($pct%)",
-        style = MaterialTheme.typography.bodyMedium,
-        color = if (estimate.isFavorable) colors.primary else colors.onSurface,
-        modifier = Modifier.padding(top = 8.dp),
-    )
-    Text(
-        text = "Sem o acumulado seria ${brl.format(estimate.baseReturn)}; o acumulado " +
-            "acrescenta ${brl.format(estimate.accumulatedBonus)}.",
-        style = MaterialTheme.typography.bodySmall,
-        color = colors.onSurfaceVariant,
-    )
-    Text(
-        text = "Para a aposta valer o que custa, o acumulado precisaria chegar a " +
-            "${brl.format(estimate.breakEvenAccumulated)} — hoje ele cobre " +
-            "${(estimate.coverageRatio * 100).toInt()}% do custo de jogar todas as " +
-            "combinações (${brl.format(estimate.fullCoverageCost)}).",
-        style = MaterialTheme.typography.bodySmall,
-        color = colors.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp),
-    )
-    Text(
-        text = "Isto muda quando vale mais apostar, nunca quais dezenas marcar. Estimativa " +
-            "otimista: usa a arrecadação do concurso anterior, e acumulado alto atrai " +
-            "mais apostas.",
-        style = MaterialTheme.typography.bodySmall,
-        color = colors.onSurfaceVariant,
-        modifier = Modifier.padding(top = 6.dp),
-    )
+        Text(
+            text = "Isto muda quando vale mais apostar, nunca quais dezenas marcar. " +
+                "Estimativa otimista: usa a arrecadação do concurso anterior, e " +
+                "acumulado alto atrai mais apostas.",
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+    }
 }
 
 /**
