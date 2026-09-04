@@ -17,6 +17,7 @@ import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,6 +53,13 @@ class BacktestViewModel(
     private val repository: DrawRepository,
     private val syncDrawHistory: SyncDrawHistory,
     private val seeder: AssetDrawSeeder? = null,
+    /**
+     * Dispatcher usado para o cálculo pesado do backtest. É injetável para que
+     * os testes possam passar o dispatcher do `runTest`: com `Dispatchers.Default`
+     * fixo, o trabalho escapa do escalonador virtual e `advanceUntilIdle()`
+     * retorna antes de o relatório ficar pronto.
+     */
+    private val computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BacktestUiState())
@@ -96,7 +104,7 @@ class BacktestViewModel(
                 // O motor faz Monte Carlo pesado (réplicas × concursos ×
                 // candidatos na estratégia "Menos apostadas"). Rodar isso na
                 // coroutine de Main congelaria a UI e arriscaria um ANR.
-                val report = withContext(Dispatchers.Default) {
+                val report = withContext(computeDispatcher) {
                     engine.run(
                         BacktestConfig(
                             lottery = state.lottery,
