@@ -77,6 +77,9 @@ class GameGenerator(private val random: Random = SecureRandom()) {
 
                 GenerationStrategy.FREQUENCY ->
                     pickByFrequency(unused, GAME_SIZE - picked.size, frequencies)
+
+                GenerationStrategy.UNPOPULAR ->
+                    pickUnpopular(lottery, unused, GAME_SIZE - picked.size, picked)
             }
             unused.removeAll(picked.toSet())
             GeneratedGame(
@@ -119,6 +122,36 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         return picked
     }
 
+    /**
+     * Sorteia [CANDIDATE_TRIALS] complementos válidos e devolve o que produz o
+     * jogo menos popular segundo [Unpopularity].
+     *
+     * Amostragem em vez de otimização exata por dois motivos. O exato exigiria
+     * percorrer C(pool, count) combinações — até 50 milhões na Mega-Sena.
+     * E, mais importante, o mínimo exato seria **determinístico**: todo mundo
+     * usando o app apostaria o mesmo jogo, recriando a aglomeração que a
+     * estratégia existe para evitar. A amostragem mantém a dispersão.
+     */
+    private fun pickUnpopular(
+        lottery: Lottery,
+        pool: List<Int>,
+        count: Int,
+        already: List<Int>,
+    ): List<Int> {
+        if (count <= 0 || pool.size <= count) return pool.take(count)
+        var best: List<Int> = emptyList()
+        var bestPenalty = Double.MAX_VALUE
+        repeat(CANDIDATE_TRIALS) {
+            val candidate = pool.shuffled(random).take(count)
+            val penalty = Unpopularity.penalty(lottery, already + candidate)
+            if (penalty < bestPenalty) {
+                bestPenalty = penalty
+                best = candidate
+            }
+        }
+        return best
+    }
+
     private fun trevoDuplas(lottery: Lottery, trevoStrategy: TrevoStrategy): List<Set<Int>> {
         if (!lottery.hasTrevos) return emptyList()
         return when (trevoStrategy) {
@@ -135,6 +168,9 @@ class GameGenerator(private val random: Random = SecureRandom()) {
     companion object {
         const val GAME_SIZE = Draw.NUMBERS_DRAWN
         const val MAX_GAMES = 10
+
+        /** Candidatos avaliados por jogo na estratégia "Menos apostadas". */
+        const val CANDIDATE_TRIALS = 200
 
         /** As C(6,2) = 15 duplas possíveis de trevos (Cobertura total). */
         val allTrevoPairs: List<Set<Int>> = buildList {

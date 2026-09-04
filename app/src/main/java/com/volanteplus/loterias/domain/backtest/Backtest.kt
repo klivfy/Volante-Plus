@@ -19,7 +19,104 @@ data class BacktestConfig(
     val alpha: Double = HypothesisTesting.DEFAULT_ALPHA,
     /** Estratégias comparadas na sessão; corrige o α para comparações múltiplas. */
     val comparisons: Int = 1,
-)
+    /**
+     * Réplicas independentes do backtest inteiro.
+     *
+     * Uma única passada mistura duas fontes de variação: a do sorteio (que é
+     * da loteria) e a do sorteio de jogos feito pelo próprio método (que é
+     * nossa). Repetindo a passada com sementes diferentes, o mesmo histórico
+     * produz médias diferentes — e a dispersão entre elas mede exatamente o
+     * ruído que o método adiciona. Ver [VarianceDecomposition].
+     */
+    val replications: Int = DEFAULT_REPLICATIONS,
+) {
+    init {
+        require(replications >= 1) { "replications deve ser >= 1 (recebido $replications)" }
+        require(gamesPerContest >= 1) { "gamesPerContest deve ser >= 1" }
+    }
+
+    companion object {
+        /**
+         * 200 réplicas reduzem o erro padrão de Monte Carlo por um fator de
+         * √200 ≈ 14,1 em relação a uma única passada, a custo linear.
+         */
+        const val DEFAULT_REPLICATIONS = 200
+    }
+}
+
+/**
+ * Decomposição da variação observada em duas parcelas, pela lei da variância
+ * total: Var(X) = E[Var(X | réplica)] + Var(E[X | réplica]).
+ *
+ * - [intrinsic] — a variação **da loteria**: quanto a média de acertos oscila
+ *   de concurso para concurso. Irredutível. Nenhum método a diminui.
+ * - [monteCarlo] — a variação **do método**: quanto o resultado muda só por
+ *   termos sorteado outros jogos. Redutível, e é o que as réplicas reduzem.
+ *
+ * A distinção é o ponto da entrega: quando alguém vê uma estratégia "indo
+ * bem", precisa saber se está vendo a loteria ou o ruído da medição.
+ */
+data class VarianceDecomposition(
+    val intrinsic: Double,
+    val monteCarlo: Double,
+) {
+    val total: Double get() = intrinsic + monteCarlo
+
+    /** Fatia da variação que é ruído do método, de 0 a 1. */
+    val monteCarloFraction: Double get() = if (total <= 0.0) 0.0 else monteCarlo / total
+}
+
+/**
+ * Agregado das réplicas independentes.
+ *
+ * [standardError] é o erro padrão da média **entre réplicas** — a incerteza
+ * que sobra na estimativa depois de repetir o experimento [replications] vezes.
+ */
+data class MonteCarloSummary(
+    val replications: Int,
+    /** Média das médias globais de cada réplica. */
+    val meanOfMeans: Double,
+    val standardError: Double,
+    val decomposition: VarianceDecomposition,
+    /** Média global de cada réplica, na ordem de execução. */
+    val replicationMeans: List<Double>,
+) {
+    /** Intervalo de confiança de 95% da média estimada, entre réplicas. */
+    val interval: ConfidenceInterval
+        get() {
+            if (replications < 2 || standardError <= 0.0) {
+                return ConfidenceInterval(meanOfMeans, meanOfMeans)
+            }
+            val z = SpecialFunctions.normalQuantile(0.975)
+            return ConfidenceInterval(meanOfMeans - z * standardError, meanOfMeans + z * standardError)
+        }
+
+    companion object {
+        /** Constrói o resumo a partir das séries de médias por concurso de cada réplica. */
+        fun from(perReplication: List<List<Double>>): MonteCarloSummary {
+            require(perReplication.isNotEmpty()) { "Nenhuma réplica executada" }
+            val means = perReplication.map { series ->
+                if (series.isEmpty()) 0.0 else series.average()
+            }
+            // E[Var(X | réplica)]: variação concurso a concurso, média entre réplicas.
+            val intrinsic = perReplication
+                .map { Statistics.ofDoubles(it).sampleVariance }
+                .average()
+            // Var(E[X | réplica]): variação das médias entre réplicas.
+            val between = Statistics.ofDoubles(means)
+            return MonteCarloSummary(
+                replications = perReplication.size,
+                meanOfMeans = between.mean,
+                standardError = if (perReplication.size < 2) 0.0 else between.standardError,
+                decomposition = VarianceDecomposition(
+                    intrinsic = intrinsic,
+                    monteCarlo = if (perReplication.size < 2) 0.0 else between.sampleVariance,
+                ),
+                replicationMeans = means,
+            )
+        }
+    }
+}
 
 /**
  * Resultado de um concurso da janela de validação — a **unidade de observação
@@ -99,6 +196,10 @@ data class BacktestReport(
     val prizeAnalysis: PrizeAnalysis,
     /** Veredito estatístico formal com valor-p, IC, poder e correção múltipla. */
     val hypothesisTest: HypothesisTest,
+    /** Agregado das réplicas de Monte Carlo e separação das fontes de variação. */
+    val monteCarlo: MonteCarloSummary,
+    /** Retorno esperado em reais — igual para toda estratégia, sempre negativo. */
+    val expectedReturn: ExpectedReturn,
 ) {
     val verdict: Verdict get() = hypothesisTest.verdict
 
@@ -106,4 +207,7 @@ data class BacktestReport(
     val prizeRate: Double get() = prizeAnalysis.observedRate
 
     val prizeCount: Int get() = prizeAnalysis.prizeCount
+
+    /** Perda esperada, em reais, de todas as apostas simuladas neste backtest. */
+    val expectedLoss: Double get() = expectedReturn.expectedLossFor(totalBets)
 }

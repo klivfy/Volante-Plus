@@ -191,6 +191,14 @@ private fun ConfigSection(
                     modifier = Modifier.padding(start = 4.dp),
                 )
             }
+            if (option == state.strategy) {
+                Text(
+                    text = option.honestNote,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 36.dp, bottom = 8.dp),
+                )
+            }
         }
 
         if (state.lottery.hasTrevos) {
@@ -304,6 +312,67 @@ private fun ReportSection(report: BacktestReport) {
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 }
+
+                Text(
+                    text = "Estabilidade do resultado",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                val mc = report.monteCarlo
+                ReportRow("Réplicas", "${mc.replications}")
+                ReportRow(
+                    "Média entre réplicas",
+                    "${mc.meanOfMeans.fmt(3)} ± ${mc.standardError.fmt(4)}",
+                )
+                ReportRow(
+                    "Variação do sorteio",
+                    mc.decomposition.intrinsic.fmt(4),
+                )
+                ReportRow(
+                    "Ruído do método",
+                    "${mc.decomposition.monteCarlo.fmt(4)} " +
+                        "(${(mc.decomposition.monteCarloFraction * 100).fmt(1)}%)",
+                )
+                Text(
+                    text = "Quanto do resultado vem do acaso do próprio sorteio e " +
+                        "quanto vem da simulação. Se o ruído do método fosse " +
+                        "grande, bastaria repetir o teste para o veredito mudar.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+
+                Text(
+                    text = "Retorno esperado",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                val ret = report.expectedReturn
+                ReportRow("Preço da aposta", "R$ ${ret.betPrice.fmt(2)}")
+                ReportRow(
+                    "Retorno esperado",
+                    "R$ ${ret.longRunReturn.fmt(2)} por aposta",
+                )
+                ReportRow(
+                    "Perda esperada",
+                    "R$ ${ret.expectedLoss.fmt(2)} por aposta",
+                )
+                ReportRow(
+                    "Perda nas ${report.totalBets} apostas simuladas",
+                    "R$ ${report.expectedLoss.fmt(2)}",
+                )
+                ReportRow(
+                    "Margem da casa",
+                    "${(ret.houseEdge * 100).fmt(2)}%",
+                )
+                Text(
+                    text = "Esse valor é fixado em norma antes do sorteio e vale " +
+                        "para qualquer estratégia, inclusive esta. Nenhuma escolha " +
+                        "de dezenas o torna positivo.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
 
                 Text(
                     text = "Distribuição de acertos",

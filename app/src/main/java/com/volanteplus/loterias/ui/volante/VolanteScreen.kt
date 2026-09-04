@@ -52,6 +52,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.volanteplus.loterias.R
 import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.GameBatch
+import com.volanteplus.loterias.domain.generator.ClosureDesigner
+import com.volanteplus.loterias.domain.generator.ClosureGuarantee
 import com.volanteplus.loterias.domain.model.GameMode
 import com.volanteplus.loterias.domain.model.GeneratedGame
 import com.volanteplus.loterias.domain.model.GenerationStrategy
@@ -99,6 +101,7 @@ fun VolanteScreen(viewModel: VolanteViewModel = viewModel()) {
                 onIncrementBatchCount = viewModel::incrementBatchCount,
                 onSetBatchCount = viewModel::setBatchCount,
                 onSelectStrategy = viewModel::selectGenerationStrategy,
+                onSelectGuarantee = viewModel::selectClosureGuarantee,
                 onGenerate = viewModel::generateBatch,
             )
         }
@@ -143,6 +146,7 @@ private fun VolanteContent(
     onIncrementBatchCount: () -> Unit,
     onSetBatchCount: (Int) -> Unit,
     onSelectStrategy: (GenerationStrategy) -> Unit,
+    onSelectGuarantee: (ClosureGuarantee) -> Unit,
     onGenerate: () -> Unit,
 ) {
     val lottery = state.lottery
@@ -203,18 +207,11 @@ private fun VolanteContent(
 
         item(span = { GridItemSpan(maxLineSpan) }) {
             GeneratorControls(
-                batchCount = state.batchCount,
-                strategy = state.generationStrategy,
-                fechamentoHint = if (state.gameMode == GameMode.FECHAMENTO) {
-                    "Fechamento: os jogos usam apenas as dezenas marcadas no volante " +
-                        "(mín. ${lottery.minSelection}). Cada dezena marcada entra em jogo " +
-                        "antes de qualquer repetição."
-                } else {
-                    null
-                },
+                state = state,
                 onIncrement = onIncrementBatchCount,
                 onSetCount = onSetBatchCount,
                 onSelectStrategy = onSelectStrategy,
+                onSelectGuarantee = onSelectGuarantee,
                 onGenerate = onGenerate,
             )
         }
@@ -229,48 +226,51 @@ private fun VolanteContent(
 
 @Composable
 private fun GeneratorControls(
-    batchCount: Int,
-    strategy: GenerationStrategy,
-    fechamentoHint: String?,
+    state: VolanteUiState,
     onIncrement: () -> Unit,
     onSetCount: (Int) -> Unit,
     onSelectStrategy: (GenerationStrategy) -> Unit,
+    onSelectGuarantee: (ClosureGuarantee) -> Unit,
     onGenerate: () -> Unit,
 ) {
+    val batchCount = state.batchCount
+    val strategy = state.generationStrategy
+    val fechamento = state.gameMode == GameMode.FECHAMENTO
+
     Column(modifier = Modifier.padding(top = 16.dp)) {
         HorizontalDivider()
-        fechamentoHint?.let { hint ->
+
+        if (fechamento) {
+            ClosurePanel(state = state, onSelectGuarantee = onSelectGuarantee)
+        } else {
             Text(
-                text = hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.padding(top = 12.dp),
+                text = "QUANTOS JOGOS",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
             )
-        }
-        Text(
-            text = "QUANTOS JOGOS",
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedButton(onClick = onIncrement) { Text("+1") }
-            listOf(3, 5, 10).forEach { count ->
-                FilterChip(
-                    selected = batchCount == count,
-                    onClick = { onSetCount(count) },
-                    label = { Text("$count") },
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(onClick = onIncrement) { Text("+1") }
+                listOf(3, 5, 10).forEach { count ->
+                    FilterChip(
+                        selected = batchCount == count,
+                        onClick = { onSetCount(count) },
+                        label = { Text("$count") },
+                    )
+                }
+                Text(
+                    text = "Lote: $batchCount",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
-            Text(
-                text = "Lote: $batchCount",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(start = 8.dp),
-            )
         }
 
+        // No fechamento os jogos vêm do desdobramento, não de um sorteio de
+        // dezenas — escolher estratégia ali não teria efeito nenhum.
+        if (!fechamento) {
         Text(
             text = "Estratégia",
             style = MaterialTheme.typography.titleSmall,
@@ -297,17 +297,95 @@ private fun GeneratorControls(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (option == strategy) {
+                        Text(
+                            text = option.honestNote,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
+        }
         }
 
         Button(
             onClick = onGenerate,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         ) {
-            Text("Gerar lote")
+            Text(if (fechamento) "Gerar fechamento" else "Gerar lote")
         }
     }
+}
+
+/**
+ * Painel do modo Fechamento. Mostra o contrato do desdobramento antes de
+ * gerar: quantos jogos, qual garantia e quanto custa — e deixa claro que a
+ * garantia é sobre a cobertura das dezenas marcadas, não sobre ganhar.
+ */
+@Composable
+private fun ClosurePanel(
+    state: VolanteUiState,
+    onSelectGuarantee: (ClosureGuarantee) -> Unit,
+) {
+    val marcadas = state.current.numbers.size
+    val design = state.closureDesign
+
+    Text(
+        text = "GARANTIA DO FECHAMENTO",
+        style = MaterialTheme.typography.titleSmall,
+        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ClosureGuarantee.entries.forEach { option ->
+            FilterChip(
+                selected = option == state.closureGuarantee,
+                onClick = { onSelectGuarantee(option) },
+                label = { Text(option.label) },
+            )
+        }
+    }
+
+    if (state.lottery.hasTrevos) {
+        Text(
+            text = "Fechamento com garantia só vale para a Mega-Sena: na " +
+                "${state.lottery.displayName} as faixas também dependem dos " +
+                "trevos, então cobrir dezenas não garante prêmio.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        return
+    }
+
+    if (design == null) {
+        Text(
+            text = "Marque de ${ClosureDesigner.SUPPORTED_POOL_SIZES.first} a " +
+                "${ClosureDesigner.SUPPORTED_POOL_SIZES.last} dezenas no volante " +
+                "para montar um fechamento (marcadas: $marcadas).",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        return
+    }
+
+    Text(
+        text = design.contract,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.tertiary,
+        modifier = Modifier.padding(top = 12.dp),
+    )
+    Text(
+        text = "A garantia é no pior caso: qualquer combinação de " +
+            "${state.closureGuarantee.hits} das suas $marcadas dezenas aparece " +
+            "inteira em pelo menos um jogo. Ela não aumenta a chance por real " +
+            "apostado — troca muitos resultados zerados por prêmios menores e " +
+            "mais frequentes, apostando mais.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 6.dp),
+    )
 }
 
 @Composable

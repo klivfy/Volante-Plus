@@ -60,6 +60,38 @@ como laboratório de refutação; o refinamento deve tornar essa refutação
 
 ## 2. Diagnóstico: quatro falhas de precisão no motor atual
 
+### 2.0 Achado não previsto: a tabela de prêmios da +Milionária estava errada
+
+Durante a implementação, ao conferir `PrizeRules` contra o regulamento, veio à
+tona um defeito que não constava do diagnóstico original — e que é mais grave
+que qualquer um dos quatro itens abaixo.
+
+`PrizeRules` reconhecia **7 das 10 faixas** da +Milionária. Faltavam `4+0`,
+`3+1` e `2+1`. A causa: o código assumia que toda faixa exige pelo menos um
+trevo, enquanto o regulamento paga as faixas de 2, 4 e 6 dezenas com "1 ou
+nenhum trevo".
+
+O efeito sobre o número que o app mostra:
+
+| | Probabilidade de a aposta ser premiada | Uma em |
+|---|---|---|
+| Implementação anterior | 0,0102065149 | 98,0 |
+| Correta | **0,0877961323** | **11,39** |
+
+O app subestimava a chance de prêmio em **88%** — sozinha, a faixa `2+1`
+responde por 0,0683. O erro depunha contra o próprio usuário: dizia que a
++Milionária premia oito vezes menos do que realmente premia.
+
+Corrigido, com teste de regressão que percorre as 10 faixas exaustivamente.
+Conferido em três fontes independentes: [Ache Concursos](https://www.acheconcursos.com.br/loterias/milionaria-tem-10-faixas-de-premiacao-veja-quanto-paga-cada-uma-53719),
+[Valor Final](https://valorfinal.com.br/guia/como-funciona-a-mais-milionaria) e
+[G1](https://g1.globo.com/loterias/milionaria/noticia/2024/09/10/mais-milionaria-tudo-sobre-como-funciona-o-jogo-das-loterias-caixa.ghtml).
+
+Vale a lição: o erro não estava na estatística sofisticada, estava na leitura
+do regulamento. As quatro seções seguintes tratam do motor de inferência; esta
+trata de ter lido a regra do jogo errado.
+
+
 ### 2.1 Jogos do mesmo lote não são independentes — a variância reportada é inválida
 
 `BacktestEngine` acumula todos os acertos em `hitsPerGame` e chama
@@ -285,21 +317,36 @@ dezenas do pool que nenhum jogo captura. Ou seja: o usuário pode acertar 4 das
 10 dezenas que marcou e **não ganhar nada**.
 
 Um fechamento correto é um **covering design** \(C(v,k,t)\). Para o mesmo pool
-de 10 dezenas, uma cobertura \(C(10,6,4)\) com **23 jogos** garante
+de 10 dezenas, uma cobertura \(C(10,6,4)\) com **20 jogos** garante
 matematicamente a quadra sempre que 4 das 10 dezenas marcadas saírem
-(verificado por busca exaustiva: pior caso = 4 acertos).
+(verificado por busca exaustiva: todas as 210 quadras possíveis foram testadas
+uma a uma).
+
+> **Correção sobre a primeira versão deste documento.** Aqui estava escrito
+> "23 jogos", número herdado de estimativa e não de construção. Ao montar de
+> fato a cobertura para a implementação, chegou-se a **20 jogos** — 13% mais
+> barato, R$ 120,00 em vez de R$ 138,00. O valor publicado agora é o da
+> tabela realmente embarcada em `ClosureDesigner`, e cada desdobramento do
+> catálogo é reverificado exaustivamente pelos testes.
 
 | Abordagem | Jogos | Garantia se 4 das 10 saírem |
 |---|---|---|
 | Repetição mínima (atual) | 5 | **nenhuma** |
-| Cobertura \(C(10,6,4)\) | 23 | **quadra garantida** |
+| Cobertura \(C(10,6,4)\) | 20 | **quadra garantida** |
+
+Tamanhos efetivamente embarcados, por dezenas marcadas:
+
+| Dezenas no pool | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+|---|---|---|---|---|---|---|---|---|---|
+| Quadra garantida \(t=4\) | 5 | 7 | 12 | 20 | 33 | 50 | 78 | 107 | 145 |
+| Terno garantido \(t=3\) | 4 | 4 | 7 | 10 | 11 | 15 | 23 | 28 | 37 |
 
 Este é um ganho de precisão **determinístico e demonstrável** — não estatístico.
 Não aumenta a chance de acertar as dezenas, mas garante a conversão de acertos
 em prêmio, que é exatamente o que o usuário de fechamento espera comprar.
 
 Proposta: `ClosureDesigner` com coberturas pré-computadas para os pools mais
-usados, exibindo ao usuário o contrato explícito — "23 jogos, quadra garantida
+usados, exibindo ao usuário o contrato explícito — "20 jogos, quadra garantida
 se 4 das suas 10 dezenas saírem" — e o custo correspondente.
 
 ### 4.2 Valor esperado do prêmio: evitar combinações populares
@@ -321,18 +368,20 @@ o retorno.
 
 ## 5. Plano de implementação
 
-| # | Entrega | Arquivos | Impacto na precisão |
-|---|---|---|---|
-| 1 | `Hypergeometric` com pmf/média/variância exatas | novo em `domain/backtest/` | Baseline com erro zero |
-| 2 | Unidade de análise por concurso | `BacktestEngine`, `Statistics` | Corrige variância inválida (§2.1) |
-| 3 | Replicações + decomposição de variância | `BacktestConfig`, `BacktestEngine` | Reduz ruído em ~14× (200 reps) |
-| 4 | Teste z + qui-quadrado + IC + poder | novo `HypothesisTest` | Veredito conclusivo |
-| 5 | Wilson + prêmios esperados + retorno esperado | `BacktestReport`, `PrizeRules` | Métrica estável em eventos raros |
-| 6 | `ClosureDesigner` (covering designs) | `domain/generator/` | Garantia determinística (§4.1) |
-| 7 | Estratégia `UNPOPULAR` | `Generation.kt`, `GameGenerator` | Ganho real em valor esperado |
+| # | Entrega | Arquivos | Impacto na precisão | Situação |
+|---|---|---|---|---|
+| 1 | `Hypergeometric` com pmf/média/variância exatas | `domain/backtest/Hypergeometric.kt` | Baseline com erro zero | entregue |
+| 2 | Unidade de análise por concurso | `BacktestEngine`, `Statistics` | Corrige variância inválida (§2.1) | entregue |
+| 3 | Replicações + decomposição de variância | `Backtest.kt`, `BacktestEngine` | Separa ruído do método do acaso do sorteio | entregue |
+| 4 | Teste z + qui-quadrado + IC + poder | `HypothesisTesting.kt` | Veredito conclusivo | entregue |
+| 5 | Wilson + prêmios esperados + retorno esperado | `PrizeTable.kt`, `Backtest.kt` | Métrica estável em eventos raros | entregue |
+| 6 | `ClosureDesigner` (covering designs) | `domain/generator/ClosureDesigner.kt` | Garantia determinística (§4.1) | entregue |
+| 7 | Estratégia `UNPOPULAR` | `Generation.kt`, `Unpopularity.kt`, `GameGenerator` | Ganho real em valor esperado | entregue |
+| — | Correção da tabela de prêmios da +Milionária | `PrizeRules.kt` | Erro de 88% na chance de prêmio (§2.0) | entregue |
 
-Ordem sugerida: **1 → 2 → 4** entregam o maior ganho de rigor com o menor
-esforço; **6** é o maior ganho percebido pelo usuário final.
+As sete entregas estão implementadas e cobertas por 124 testes. A correção da
++Milionária não constava do plano: apareceu durante a execução da entrega 5 e
+está registrada na §2.0.
 
 ### Critérios de aceite
 
@@ -342,6 +391,11 @@ esforço; **6** é o maior ganho percebido pelo usuário final.
 - Backtest de `FREQUENCY` sobre o histórico completo **não** apresenta desvio
   significativo — a refutação empírica que é a missão declarada do app.
 - Fechamento por cobertura passa em verificação exaustiva do pior caso.
+
+Os quatro critérios estão implementados como testes executáveis em
+`AcceptanceCriteriaTest`, que roda o laboratório inteiro sobre históricos
+sorteados de verdade e verifica que nenhuma estratégia — inclusive as novas —
+se destaca do acaso.
 
 ---
 

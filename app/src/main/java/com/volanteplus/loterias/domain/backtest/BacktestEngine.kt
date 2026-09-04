@@ -36,37 +36,15 @@ class BacktestEngine(private val repository: DrawRepository) {
             "Sem concursos após a data de corte ${config.cutoff} — nada a validar"
         }
 
-        val generator = GameGenerator(config.seed?.let { Random(it) } ?: SecureRandom())
-        val outcomes = validation.map { draw ->
-            val batch = generator.generate(
-                lottery = config.lottery,
-                strategy = config.strategy,
-                gameCount = config.gamesPerContest,
-                trevoStrategy = config.trevoStrategy,
-                history = training,
-            )
-            var bets = 0
-            var prized = 0
-            val hits = batch.games.map { game ->
-                val numberHits = game.numbers.count(draw.numbers::contains)
-                if (config.lottery.hasTrevos) {
-                    for (dupla in game.trevoDuplas) {
-                        bets++
-                        val trevoHits = dupla.count(draw.trevos::contains)
-                        if (PrizeRules.isPrize(config.lottery, numberHits, trevoHits)) prized++
-                    }
-                } else {
-                    bets++
-                    if (PrizeRules.isPrize(config.lottery, numberHits, trevoHits = 0)) prized++
-                }
-                numberHits
-            }
-            ContestOutcome(
-                contestNumber = draw.contestNumber,
-                hitsPerGame = hits,
-                bets = bets,
-                prizedBets = prized,
-            )
+        // Réplica 1 vira o relatório detalhado; as demais alimentam a
+        // decomposição de variância. Com `seed` definida todas as réplicas são
+        // determinísticas, cada uma derivando sua própria semente.
+        val replicationSeries = ArrayList<List<Double>>(config.replications)
+        var outcomes: List<ContestOutcome> = emptyList()
+        for (replication in 0 until config.replications) {
+            val current = simulate(config, training, validation, replication)
+            if (replication == 0) outcomes = current
+            replicationSeries += current.map { it.meanHits }
         }
 
         val totalGames = outcomes.sumOf { it.hitsPerGame.size }
@@ -106,7 +84,52 @@ class BacktestEngine(private val repository: DrawRepository) {
                 alpha = config.alpha,
                 comparisons = config.comparisons,
             ),
+            monteCarlo = MonteCarloSummary.from(replicationSeries),
+            expectedReturn = PrizeTable.expectedReturn(config.lottery),
         )
+    }
+
+    /** Uma passada completa sobre a janela de validação. */
+    private fun simulate(
+        config: BacktestConfig,
+        training: List<com.volanteplus.loterias.domain.model.Draw>,
+        validation: List<com.volanteplus.loterias.domain.model.Draw>,
+        replication: Int,
+    ): List<ContestOutcome> {
+        val generator = GameGenerator(
+            config.seed?.let { Random(replicationSeed(it, replication)) } ?: SecureRandom(),
+        )
+        return validation.map { draw ->
+            val batch = generator.generate(
+                lottery = config.lottery,
+                strategy = config.strategy,
+                gameCount = config.gamesPerContest,
+                trevoStrategy = config.trevoStrategy,
+                history = training,
+            )
+            var bets = 0
+            var prized = 0
+            val hits = batch.games.map { game ->
+                val numberHits = game.numbers.count(draw.numbers::contains)
+                if (config.lottery.hasTrevos) {
+                    for (dupla in game.trevoDuplas) {
+                        bets++
+                        val trevoHits = dupla.count(draw.trevos::contains)
+                        if (PrizeRules.isPrize(config.lottery, numberHits, trevoHits)) prized++
+                    }
+                } else {
+                    bets++
+                    if (PrizeRules.isPrize(config.lottery, numberHits, trevoHits = 0)) prized++
+                }
+                numberHits
+            }
+            ContestOutcome(
+                contestNumber = draw.contestNumber,
+                hitsPerGame = hits,
+                bets = bets,
+                prizedBets = prized,
+            )
+        }
     }
 
     private fun prizeAnalysis(lottery: Lottery, prizeCount: Int, totalBets: Int): PrizeAnalysis {
@@ -122,6 +145,19 @@ class BacktestEngine(private val repository: DrawRepository) {
     }
 
     companion object {
+        /**
+         * Semente da réplica: mistura a semente do usuário com o índice por
+         * uma constante ímpar grande (variante de SplitMix64), para que
+         * réplicas vizinhas não produzam fluxos correlacionados como
+         * aconteceria com `seed + replication`.
+         */
+        fun replicationSeed(seed: Long, replication: Int): Long {
+            var z = seed + replication.toLong() * -0x61c8864680b583ebL
+            z = (z xor (z ushr 30)) * -0x40a7b892e31b1a47L
+            z = (z xor (z ushr 27)) * -0x6b2fb644ecceee15L
+            return z xor (z ushr 31)
+        }
+
         /**
          * E[acertos] da distribuição hipergeométrica: sorteadas × jogo / N.
          * É o baseline contra o qual qualquer "vantagem" precisa provar-se —

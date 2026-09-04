@@ -51,9 +51,14 @@ class HypergeometricTest {
         assertEquals(0.0004352441, mega, 1e-10)
         assertEquals(2297.6, 1.0 / mega, 0.5)
 
-        // +Milionária: faixa mínima premiada -> 1 em 98
+        // +Milionária: soma das 10 faixas oficiais -> 1 em 11,39.
+        // Valor de referência calculado em fração exata:
+        //   Σ P(dezenas) × P(trevos) sobre as 10 faixas = 0,0877961323...
+        // A versão anterior deste teste esperava 0,0102065149 porque o
+        // PrizeRules omitia as faixas 4+0, 3+1 e 2+1 — só 2+1 vale 0,068.
         val milionaria = Hypergeometric.prizeProbabilityFor(Lottery.MAIS_MILIONARIA)
-        assertEquals(0.0102065149, milionaria, 1e-10)
+        assertEquals(0.0877961323, milionaria, 1e-10)
+        assertEquals(11.39, 1.0 / milionaria, 0.01)
     }
 
     @Test

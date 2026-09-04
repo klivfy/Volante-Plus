@@ -1,6 +1,9 @@
 package com.volanteplus.loterias.ui.volante
 
 import androidx.lifecycle.ViewModel
+import com.volanteplus.loterias.domain.generator.ClosureDesign
+import com.volanteplus.loterias.domain.generator.ClosureDesigner
+import com.volanteplus.loterias.domain.generator.ClosureGuarantee
 import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
@@ -30,12 +33,25 @@ data class VolanteUiState(
     /** Controle de lote do gerador ("QUANTOS JOGOS"). */
     val batchCount: Int = 1,
     val generationStrategy: GenerationStrategy = GenerationStrategy.RANDOM,
+    /** Garantia pedida no modo Fechamento. */
+    val closureGuarantee: ClosureGuarantee = ClosureGuarantee.QUADRA,
     val generatedBatch: GameBatch? = null,
     /** Mensagem transitória (ex.: limite de dezenas atingido). */
     val message: String? = null,
 ) {
     val current: VolanteSelection
         get() = selections.getValue(lottery)
+
+    /**
+     * Desdobramento aplicável às dezenas já marcadas, ou null quando a
+     * quantidade marcada está fora da faixa com garantia conhecida.
+     */
+    val closureDesign: ClosureDesign?
+        get() = if (gameMode == GameMode.FECHAMENTO) {
+            ClosureDesigner.design(current.numbers.size, closureGuarantee)
+        } else {
+            null
+        }
 
     /** Volante válido: dezenas dentro dos limites e, se exigido, 2 trevos. */
     val isSelectionValid: Boolean
@@ -136,6 +152,10 @@ class VolanteViewModel(
         _uiState.update { it.copy(generationStrategy = strategy) }
     }
 
+    fun selectClosureGuarantee(guarantee: ClosureGuarantee) {
+        _uiState.update { it.copy(closureGuarantee = guarantee, generatedBatch = null) }
+    }
+
     fun generateBatch() {
         _uiState.update { state ->
             if (state.generationStrategy.requiresHistory) {
@@ -144,7 +164,19 @@ class VolanteViewModel(
                         "só roda na tela de Backtesting."
                 )
             }
-            val pool = if (state.gameMode == GameMode.FECHAMENTO) {
+            if (state.gameMode == GameMode.FECHAMENTO) {
+                // A garantia é sobre as 6 dezenas. Na +Milionária as faixas
+                // também exigem trevos, então "quadra garantida" não se
+                // traduz em prêmio garantido e o fechamento seria uma
+                // promessa falsa. Melhor recusar do que prometer errado.
+                if (state.lottery.hasTrevos) {
+                    return@update state.copy(
+                        message = "Fechamento com garantia só vale para a " +
+                            "Mega-Sena. Na ${state.lottery.displayName} as faixas " +
+                            "também dependem dos trevos, e acertar dezenas não " +
+                            "garante prêmio."
+                    )
+                }
                 val marked = state.current.numbers
                 if (marked.size < state.lottery.minSelection) {
                     return@update state.copy(
@@ -152,9 +184,25 @@ class VolanteViewModel(
                             "dezenas no volante (marcadas: ${marked.size})."
                     )
                 }
-                marked
-            } else {
-                null
+                // Desdobramento por covering design: a garantia vale no pior
+                // caso. A antiga regra de repetição mínima não garantia
+                // coisa alguma.
+                val design = ClosureDesigner.design(marked.size, state.closureGuarantee)
+                    ?: return@update state.copy(
+                        message = "Não há fechamento com garantia de " +
+                            "${state.closureGuarantee.label} para ${marked.size} dezenas. " +
+                            "Marque de ${ClosureDesigner.SUPPORTED_POOL_SIZES.first} a " +
+                            "${ClosureDesigner.SUPPORTED_POOL_SIZES.last} dezenas."
+                    )
+                return@update state.copy(
+                    generatedBatch = GameBatch(
+                        lottery = state.lottery,
+                        strategy = state.generationStrategy,
+                        games = design.apply(marked.toList()),
+                        sourcePool = marked.sorted(),
+                    ),
+                    message = null,
+                )
             }
             state.copy(
                 generatedBatch = generator.generate(
@@ -162,7 +210,7 @@ class VolanteViewModel(
                     strategy = state.generationStrategy,
                     gameCount = state.batchCount,
                     trevoStrategy = state.current.trevoStrategy,
-                    pool = pool,
+                    pool = null,
                 ),
                 message = null,
             )
