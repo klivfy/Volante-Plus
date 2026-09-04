@@ -30,8 +30,10 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -71,6 +73,19 @@ fun VolanteScreen(viewModel: VolanteViewModel = viewModel()) {
         state.message?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.consumeMessage()
+        }
+    }
+
+    LaunchedEffect(state.undoableClear) {
+        val snapshot = state.undoableClear ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = "Volante limpo",
+            actionLabel = "Desfazer",
+            duration = SnackbarDuration.Short,
+        )
+        when (result) {
+            SnackbarResult.ActionPerformed -> viewModel.undoClear()
+            SnackbarResult.Dismissed -> viewModel.dismissUndo()
         }
     }
 
@@ -309,6 +324,19 @@ private fun GeneratorControls(
         }
         }
 
+        if (!fechamento) {
+            val hidden = GenerationStrategy.entries.filter { it.requiresHistory }
+            if (hidden.isNotEmpty()) {
+                Text(
+                    text = "Estratégias que dependem de histórico " +
+                        "(${hidden.joinToString { it.displayName }}) ficam na aba Backtesting.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+
         Button(
             onClick = onGenerate,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
@@ -359,10 +387,16 @@ private fun ClosurePanel(
     }
 
     if (design == null) {
+        val min = ClosureDesigner.SUPPORTED_POOL_SIZES.first
+        val max = ClosureDesigner.SUPPORTED_POOL_SIZES.last
+        val guidance = if (marcadas < min) {
+            "faltam ${min - marcadas} para a garantia mínima"
+        } else {
+            "o máximo suportado é $max dezenas"
+        }
         Text(
-            text = "Marque de ${ClosureDesigner.SUPPORTED_POOL_SIZES.first} a " +
-                "${ClosureDesigner.SUPPORTED_POOL_SIZES.last} dezenas no volante " +
-                "para montar um fechamento (marcadas: $marcadas).",
+            text = "Marque de $min a $max dezenas no volante para montar um " +
+                "fechamento. Marcadas: $marcadas — $guidance.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 12.dp),

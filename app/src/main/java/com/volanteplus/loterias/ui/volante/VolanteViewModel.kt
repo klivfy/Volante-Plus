@@ -38,6 +38,8 @@ data class VolanteUiState(
     val generatedBatch: GameBatch? = null,
     /** Mensagem transitória (ex.: limite de dezenas atingido). */
     val message: String? = null,
+    /** Seleção preservada para a ação "Desfazer" após limpar o volante. */
+    val undoableClear: VolanteSelection? = null,
 ) {
     val current: VolanteSelection
         get() = selections.getValue(lottery)
@@ -71,11 +73,15 @@ class VolanteViewModel(
     val uiState: StateFlow<VolanteUiState> = _uiState.asStateFlow()
 
     fun selectLottery(lottery: Lottery) {
-        _uiState.update { it.copy(lottery = lottery, generatedBatch = null, message = null) }
+        _uiState.update {
+            it.copy(lottery = lottery, generatedBatch = null, message = null, undoableClear = null)
+        }
     }
 
     fun selectGameMode(mode: GameMode) {
-        _uiState.update { it.copy(gameMode = mode, generatedBatch = null, message = null) }
+        _uiState.update {
+            it.copy(gameMode = mode, generatedBatch = null, message = null, undoableClear = null)
+        }
     }
 
     /** Toque para marcar/desmarcar respeitando o máximo da loteria ativa. */
@@ -130,8 +136,26 @@ class VolanteViewModel(
 
     fun clearSelection() {
         _uiState.update { state ->
-            state.withSelection(VolanteSelection(trevoStrategy = state.current.trevoStrategy))
+            state.copy(undoableClear = state.current)
+                .withSelection(VolanteSelection(trevoStrategy = state.current.trevoStrategy))
         }
+    }
+
+    /** Restaura a seleção descartada pelo "Limpar" (ação "Desfazer" da snackbar). */
+    fun undoClear() {
+        _uiState.update { state ->
+            val previous = state.undoableClear
+            if (previous != null) {
+                state.copy(undoableClear = null).withSelection(previous)
+            } else {
+                state
+            }
+        }
+    }
+
+    /** Descarta a seleção preservada quando a snackbar expira sem ação. */
+    fun dismissUndo() {
+        _uiState.update { it.copy(undoableClear = null) }
     }
 
     /** Botão "+1" do controle de lote. */

@@ -11,35 +11,48 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +62,8 @@ import com.volanteplus.loterias.domain.backtest.Verdict
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,9 +130,9 @@ fun BacktestScreen(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
                         )
-                    } else {
-                        Text("Executar backtest")
+                        Spacer(modifier = Modifier.width(8.dp))
                     }
+                    Text(if (state.running) "Executando…" else "Executar backtest")
                 }
             }
 
@@ -162,6 +177,7 @@ private fun HistoryCard(state: BacktestUiState, onSync: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConfigSection(
     state: BacktestUiState,
@@ -233,6 +249,36 @@ private fun ConfigSection(
             }
         }
 
+        var showDatePicker by remember { mutableStateOf(false) }
+        val datePickerState = rememberDatePickerState()
+        if (showDatePicker) {
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                val date = Instant.ofEpochMilli(millis)
+                                    .atZone(ZoneOffset.UTC)
+                                    .toLocalDate()
+                                onSetCutoff(date.toString())
+                            }
+                            showDatePicker = false
+                        },
+                    ) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancelar")
+                    }
+                },
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
+
         OutlinedTextField(
             value = state.cutoffInput,
             onValueChange = onSetCutoff,
@@ -249,6 +295,11 @@ private fun ConfigSection(
                 )
             },
             singleLine = true,
+            trailingIcon = {
+                IconButton(onClick = { showDatePicker = true }) {
+                    Icon(Icons.Filled.DateRange, contentDescription = "Abrir calendário")
+                }
+            },
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         )
     }
@@ -385,6 +436,7 @@ private fun ReportSection(report: BacktestReport) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
+                DistributionLegend()
                 val maxCount = report.hitDistribution.values.maxOrNull() ?: 1
                 (0..6).forEach { hits ->
                     val count = report.hitDistribution[hits] ?: 0
@@ -475,11 +527,46 @@ private fun ReportRow(label: String, value: String) {
 }
 
 @Composable
+private fun DistributionLegend() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.padding(bottom = 4.dp),
+    ) {
+        LegendItem("Observado", MaterialTheme.colorScheme.primary)
+        LegendItem("Esperado", MaterialTheme.colorScheme.tertiary)
+    }
+}
+
+@Composable
+private fun LegendItem(label: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(color = color, shape = RoundedCornerShape(2.dp)),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 6.dp),
+        )
+    }
+}
+
+@Composable
 private fun DistributionRow(hits: Int, count: Int, expected: Double, maxCount: Int) {
     val scale = maxOf(maxCount.toFloat(), expected.toFloat(), 1f)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription =
+                    "$hits acertos — $count apostas observadas, ${expected.fmt(1)} esperadas"
+            },
     ) {
         Text(
             text = "$hits",
