@@ -59,9 +59,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.volanteplus.loterias.domain.backtest.BacktestReport
 import com.volanteplus.loterias.domain.backtest.Verdict
+import com.volanteplus.loterias.domain.model.EvidenceLevel
 import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import com.volanteplus.loterias.ui.volante.EvidenceGroupLabel
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Locale
@@ -188,32 +190,40 @@ private fun ConfigSection(
 ) {
     Column {
         Text("Estratégia sob teste", style = MaterialTheme.typography.titleSmall)
-        GenerationStrategy.entries.forEach { option ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .selectable(
-                        selected = option == state.strategy,
-                        role = Role.RadioButton,
-                        onClick = { onSelectStrategy(option) },
-                    ),
-            ) {
-                RadioButton(selected = option == state.strategy, onClick = null)
-                Text(
-                    text = option.displayName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
-            }
-            if (option == state.strategy) {
-                Text(
-                    text = option.honestNote,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 36.dp, bottom = 8.dp),
-                )
+        // Mesmo agrupamento do Volante: o backtesting existe justamente para
+        // que as hipóteses sejam confrontadas com dados, então todas aparecem,
+        // inclusive a que depende de histórico.
+        EvidenceLevel.entries.forEach { level ->
+            val options = GenerationStrategy.entries.filter { it.evidence == level }
+            if (options.isEmpty()) return@forEach
+            EvidenceGroupLabel(level, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+            options.forEach { option ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .selectable(
+                            selected = option == state.strategy,
+                            role = Role.RadioButton,
+                            onClick = { onSelectStrategy(option) },
+                        ),
+                ) {
+                    RadioButton(selected = option == state.strategy, onClick = null)
+                    Text(
+                        text = option.displayName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+                if (option == state.strategy) {
+                    Text(
+                        text = option.honestNote,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 36.dp, bottom = 8.dp),
+                    )
+                }
             }
         }
 

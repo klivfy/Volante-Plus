@@ -1,10 +1,18 @@
 package com.volanteplus.loterias.ui.volante
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.volanteplus.loterias.VolanteApplication
+import com.volanteplus.loterias.domain.backtest.AccumulatedReturn
 import com.volanteplus.loterias.domain.generator.ClosureDesign
 import com.volanteplus.loterias.domain.generator.ClosureDesigner
 import com.volanteplus.loterias.domain.generator.ClosureGuarantee
 import com.volanteplus.loterias.domain.generator.GameGenerator
+import com.volanteplus.loterias.domain.model.ContestOutlook
 import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
 import com.volanteplus.loterias.domain.model.GenerationStrategy
@@ -14,6 +22,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+/**
+ * Fonte do retrato financeiro do próximo concurso. Abstraída como função
+ * para que o ViewModel possa ser testado sem rede e construído sem
+ * dependências quando a informação não for necessária.
+ */
+typealias OutlookSource = suspend (Lottery) -> ContestOutlook
 
 /**
  * Seleção de um volante individual. Mantida por loteria para que a troca
@@ -40,7 +56,16 @@ data class VolanteUiState(
     val message: String? = null,
     /** Seleção preservada para a ação "Desfazer" após limpar o volante. */
     val undoableClear: VolanteSelection? = null,
+    /** Retrato do próximo concurso da loteria ativa; null enquanto não carregado. */
+    val outlook: ContestOutlook? = null,
+    val outlookLoading: Boolean = false,
+    /** Motivo pelo qual o retrato não está disponível (rede, API sem o campo). */
+    val outlookError: String? = null,
 ) {
+    /** Retorno esperado do próximo concurso; null sem retrato ou sem arrecadação. */
+    val accumulatedEstimate: AccumulatedReturn.Estimate?
+        get() = outlook?.takeIf { it.lottery == lottery }?.let(AccumulatedReturn::estimate)
+
     val current: VolanteSelection
         get() = selections.getValue(lottery)
 
@@ -67,14 +92,59 @@ data class VolanteUiState(
 
 class VolanteViewModel(
     private val generator: GameGenerator = GameGenerator(),
+    private val outlookSource: OutlookSource? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(VolanteUiState())
     val uiState: StateFlow<VolanteUiState> = _uiState.asStateFlow()
 
+    init {
+        refreshOutlook()
+    }
+
     fun selectLottery(lottery: Lottery) {
         _uiState.update {
-            it.copy(lottery = lottery, generatedBatch = null, message = null, undoableClear = null)
+            it.copy(
+                lottery = lottery,
+                generatedBatch = null,
+                message = null,
+                undoableClear = null,
+                outlook = null,
+                outlookError = null,
+            )
+        }
+        refreshOutlook()
+    }
+
+    /** Busca (ou rebusca) o acumulado do próximo concurso da loteria ativa. */
+    fun refreshOutlook() {
+        val source = outlookSource ?: return
+        val lottery = _uiState.value.lottery
+        viewModelScope.launch {
+            _uiState.update { it.copy(outlookLoading = true, outlookError = null) }
+            try {
+                val outlook = source(lottery)
+                _uiState.update { state ->
+                    // A loteria pode ter mudado durante a requisição; nesse
+                    // caso o resultado pertence a outra aba e é descartado.
+                    if (state.lottery == lottery) {
+                        state.copy(outlook = outlook, outlookLoading = false)
+                    } else {
+                        state
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { state ->
+                    if (state.lottery == lottery) {
+                        state.copy(
+                            outlookLoading = false,
+                            outlookError = e.message ?: "sem conexão com a Caixa",
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
         }
     }
 
@@ -247,4 +317,13 @@ class VolanteViewModel(
 
     private fun VolanteUiState.withSelection(selection: VolanteSelection): VolanteUiState =
         copy(selections = selections + (lottery to selection), message = null)
+
+    companion object {
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val app = this[APPLICATION_KEY] as VolanteApplication
+                VolanteViewModel(outlookSource = { lottery -> app.fetchContestOutlook(lottery) })
+            }
+        }
+    }
 }

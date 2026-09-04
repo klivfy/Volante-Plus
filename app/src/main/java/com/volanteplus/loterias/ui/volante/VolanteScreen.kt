@@ -21,6 +21,9 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -36,6 +39,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -52,7 +56,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.volanteplus.loterias.R
+import com.volanteplus.loterias.domain.backtest.AccumulatedReturn
 import com.volanteplus.loterias.domain.generator.GameGenerator
+import com.volanteplus.loterias.domain.model.ContestOutlook
+import com.volanteplus.loterias.domain.model.EvidenceLevel
 import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.generator.ClosureDesigner
 import com.volanteplus.loterias.domain.generator.ClosureGuarantee
@@ -62,10 +69,13 @@ import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.ui.theme.VolantePlusTheme
+import java.text.NumberFormat
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VolanteScreen(viewModel: VolanteViewModel = viewModel()) {
+fun VolanteScreen(viewModel: VolanteViewModel = viewModel(factory = VolanteViewModel.Factory)) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -118,6 +128,7 @@ fun VolanteScreen(viewModel: VolanteViewModel = viewModel()) {
                 onSelectStrategy = viewModel::selectGenerationStrategy,
                 onSelectGuarantee = viewModel::selectClosureGuarantee,
                 onGenerate = viewModel::generateBatch,
+                onRefreshOutlook = viewModel::refreshOutlook,
             )
         }
     }
@@ -163,6 +174,7 @@ private fun VolanteContent(
     onSelectStrategy: (GenerationStrategy) -> Unit,
     onSelectGuarantee: (ClosureGuarantee) -> Unit,
     onGenerate: () -> Unit,
+    onRefreshOutlook: () -> Unit,
 ) {
     val lottery = state.lottery
     val selection = state.current
@@ -174,6 +186,16 @@ private fun VolanteContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            AccumulatedCard(
+                outlook = state.outlook,
+                estimate = state.accumulatedEstimate,
+                loading = state.outlookLoading,
+                error = state.outlookError,
+                onRefresh = onRefreshOutlook,
+            )
+        }
+
         item(span = { GridItemSpan(maxLineSpan) }) {
             SelectionCounter(
                 count = selection.numbers.size,
@@ -286,42 +308,50 @@ private fun GeneratorControls(
         // No fechamento os jogos vêm do desdobramento, não de um sorteio de
         // dezenas — escolher estratégia ali não teria efeito nenhum.
         if (!fechamento) {
-        Text(
-            text = "Estratégia",
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(top = 16.dp),
-        )
-        // Estratégias com histórico só rodam sob o protocolo de backtesting
-        GenerationStrategy.entries.filterNot { it.requiresHistory }.forEach { option ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .selectable(
-                        selected = option == strategy,
-                        role = Role.RadioButton,
-                        onClick = { onSelectStrategy(option) },
-                    ),
-            ) {
-                RadioButton(selected = option == strategy, onClick = null)
-                Column(modifier = Modifier.padding(start = 4.dp)) {
-                    Text(option.displayName, style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        text = option.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (option == strategy) {
-                        Text(
-                            text = option.honestNote,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+            Text(
+                text = "Estratégia",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            // Agrupadas por grau de sustentação matemática, comprovadas primeiro.
+            // Estratégias com histórico só rodam sob o protocolo de backtesting.
+            EvidenceLevel.entries.forEach { level ->
+                val options = GenerationStrategy.entries.filter {
+                    it.evidence == level && !it.requiresHistory
+                }
+                if (options.isEmpty()) return@forEach
+                EvidenceGroupHeader(level)
+                options.forEach { option ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .selectable(
+                                selected = option == strategy,
+                                role = Role.RadioButton,
+                                onClick = { onSelectStrategy(option) },
+                            ),
+                    ) {
+                        RadioButton(selected = option == strategy, onClick = null)
+                        Column(modifier = Modifier.padding(start = 4.dp)) {
+                            Text(option.displayName, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                text = option.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (option == strategy) {
+                                Text(
+                                    text = option.honestNote,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }
-        }
         }
 
         if (!fechamento) {
@@ -344,6 +374,160 @@ private fun GeneratorControls(
             Text(if (fechamento) "Gerar fechamento" else "Gerar lote")
         }
     }
+}
+
+/**
+ * Cabeçalho de um grupo de estratégias. Reutilizado pelo Backtesting via
+ * [EvidenceGroupLabel] para que os dois lugares nunca divirjam no texto.
+ */
+@Composable
+private fun EvidenceGroupHeader(level: EvidenceLevel) {
+    EvidenceGroupLabel(level, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+}
+
+@Composable
+internal fun EvidenceGroupLabel(level: EvidenceLevel, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Column(modifier = modifier) {
+        Text(
+            text = level.displayName.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (level == EvidenceLevel.PROVEN) colors.primary else colors.onSurfaceVariant,
+        )
+        Text(
+            text = level.explanation,
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Cartão "Acumulado e retorno esperado". Mostra o único número deste app que
+ * muda de concurso para concurso e é matematicamente legítimo: quanto o
+ * acumulado eleva o retorno esperado de uma aposta simples. Ver
+ * [AccumulatedReturn] para o modelo e suas limitações.
+ */
+@Composable
+private fun AccumulatedCard(
+    outlook: ContestOutlook?,
+    estimate: AccumulatedReturn.Estimate?,
+    loading: Boolean,
+    error: String?,
+    onRefresh: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Card(
+        colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "ACUMULADO E RETORNO ESPERADO",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                if (loading) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    TextButton(onClick = onRefresh) { Text("Atualizar") }
+                }
+            }
+
+            when {
+                loading && outlook == null -> Text(
+                    text = "Consultando a Caixa…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                )
+
+                error != null && outlook == null -> Text(
+                    text = "Não foi possível consultar o próximo concurso ($error).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.error,
+                )
+
+                outlook == null -> Text(
+                    text = "Sem informação do próximo concurso.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                )
+
+                else -> AccumulatedBody(outlook, estimate)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccumulatedBody(outlook: ContestOutlook, estimate: AccumulatedReturn.Estimate?) {
+    val colors = MaterialTheme.colorScheme
+    val brl = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val date = outlook.nextDate?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+    val contest = if (outlook.nextContest > 0) "Concurso ${outlook.nextContest}" else "Próximo concurso"
+
+    Text(
+        text = listOfNotNull(contest, date).joinToString(" · "),
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(top = 4.dp),
+    )
+    Text(
+        text = if (outlook.accumulatedForNext > 0.0) {
+            "Acumulado: ${brl.format(outlook.accumulatedForNext)}"
+        } else {
+            "Sem acumulado — o prêmio principal sairá só da arrecadação."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+    )
+
+    if (estimate == null) {
+        Text(
+            text = "A Caixa não informou a arrecadação do último concurso; sem ela não dá " +
+                "para estimar o rateio.",
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        return
+    }
+
+    val pct = (estimate.returnRatio * 100).toInt()
+    Text(
+        text = "Retorno esperado por aposta de ${brl.format(estimate.betPrice)}: " +
+            "${brl.format(estimate.totalReturn)} ($pct%)",
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (estimate.isFavorable) colors.primary else colors.onSurface,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+    Text(
+        text = "Sem o acumulado seria ${brl.format(estimate.baseReturn)}; o acumulado " +
+            "acrescenta ${brl.format(estimate.accumulatedBonus)}.",
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.onSurfaceVariant,
+    )
+    Text(
+        text = "Para a aposta valer o que custa, o acumulado precisaria chegar a " +
+            "${brl.format(estimate.breakEvenAccumulated)} — hoje ele cobre " +
+            "${(estimate.coverageRatio * 100).toInt()}% do custo de jogar todas as " +
+            "combinações (${brl.format(estimate.fullCoverageCost)}).",
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp),
+    )
+    Text(
+        text = "Isto muda quando vale mais apostar, nunca quais dezenas marcar. Estimativa " +
+            "otimista: usa a arrecadação do concurso anterior, e acumulado alto atrai " +
+            "mais apostas.",
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.onSurfaceVariant,
+        modifier = Modifier.padding(top = 6.dp),
+    )
 }
 
 /**
