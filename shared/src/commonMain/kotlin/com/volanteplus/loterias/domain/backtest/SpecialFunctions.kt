@@ -11,7 +11,7 @@ import kotlin.math.sqrt
  *
  * Precisão alvo: ~1e-12 relativo, suficiente para valores-p de relatório.
  */
-internal object SpecialFunctions {
+object SpecialFunctions {
 
     /** Constantes de Lanczos (g = 7, n = 9) para ln Γ(x). */
     private val LANCZOS = doubleArrayOf(
