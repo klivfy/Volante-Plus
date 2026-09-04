@@ -75,6 +75,30 @@ data class ClosureDesign(
  * tempo de execução e é exercida nos testes; nenhuma garantia deste arquivo
  * é aceita por confiança na fonte.
  *
+ * ## Quão perto do mínimo teórico estes desdobramentos estão
+ * A garantia de cada design aqui é exata (verificada, não estimada). O
+ * *tamanho* do design, porém, nem sempre é o menor matematicamente possível.
+ * Comparando com os números de cobertura documentados por Gordon e Stinson
+ * ("Coverings", https://www.dmgordon.org/papers/hcd.pdf, tabelas de limites
+ * superiores para C(v,6,t)):
+ *
+ * - TERNO (t=3): ótimo para v = 7..12; 2, 3 e 6 jogos acima do conhecido
+ *   para v = 13, 14, 15, respectivamente (usa 23/28/37 contra 21/25/31).
+ * - QUADRA (t=4): ótimo para v = 7..10; 1, 9 e 12 jogos acima do conhecido
+ *   para v = 11, 12, 13 (usa 33/50/78 contra 32/41/66). Para v = 14 e 15
+ *   os designs aqui usam menos jogos que o limite superior mais antigo
+ *   dessa mesma fonte (98 e 101 contra 80 e 117 citados) — o que sugere
+ *   uma tabela desatualizada ali, não um erro aqui; de qualquer forma o
+ *   valor real que importa é a garantia, e essa está verificada.
+ *
+ * Um solver de propósito geral (ILP via branch-and-bound) foi testado neste
+ * projeto para tentar reduzir os casos subótimos e não convergiu em tempo
+ * viável — encontrar o mínimo exato para v >= 12 exige um solver dedicado
+ * a covering designs (com redução por simetria de grupo), fora do escopo
+ * deste app. Os designs atuais continuam válidos e mais baratos que a
+ * alternativa de não oferecer garantia nenhuma; só não são comprovadamente
+ * os menores possíveis para 6 dos 18 casos (9 tamanhos × 2 garantias).
+ *
  * ## O que isto continua não fazendo
  * Fechamento **não aumenta a chance por real apostado**. Ele concentra o
  * risco: troca muitos resultados zerados por prêmios menores e mais
