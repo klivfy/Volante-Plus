@@ -8,10 +8,15 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.volanteplus.loterias.VolanteApplication
 import com.volanteplus.loterias.data.repository.DrawRepository
+import com.volanteplus.loterias.domain.backtest.AccumulatedReturn
 import com.volanteplus.loterias.domain.backtest.BacktestAnalyzer
 import com.volanteplus.loterias.domain.backtest.BacktestConfig
 import com.volanteplus.loterias.domain.backtest.NumberPerformance
+import com.volanteplus.loterias.domain.generator.ClosureDesign
+import com.volanteplus.loterias.domain.generator.ClosureDesigner
+import com.volanteplus.loterias.domain.generator.ClosureGuarantee
 import com.volanteplus.loterias.domain.generator.GameGenerator
+import com.volanteplus.loterias.domain.model.ContestOutlook
 import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
 import com.volanteplus.loterias.domain.model.Lottery
@@ -36,6 +41,13 @@ import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
+ * Fonte do retrato financeiro do próximo concurso. Abstraída como função
+ * para que o ViewModel possa ser testado sem rede e construído sem
+ * dependências quando a informação não for necessária.
+ */
+typealias OutlookSource = suspend (Lottery) -> ContestOutlook
+
+/**
  * Seleção de um volante individual. Mantida por loteria para que a troca
  * de abas não descarte o que o usuário já marcou.
  */
@@ -52,12 +64,36 @@ data class VolanteUiState(
         Lottery.entries.associateWith { VolanteSelection() },
     /** Controle de lote do gerador ("QUANTOS JOGOS"). */
     val batchCount: Int = GameGenerator.MIN_GAMES,
+    /** Garantia pedida no modo Fechamento. */
+    val closureGuarantee: ClosureGuarantee = ClosureGuarantee.QUADRA,
     val generatedBatch: GameBatch? = null,
     /** Mensagem transitória (ex.: limite de dezenas atingido). */
     val message: String? = null,
+    /** Seleção preservada para a ação "Desfazer" após limpar o volante. */
+    val undoableClear: VolanteSelection? = null,
+    /** Retrato do próximo concurso da loteria ativa; null enquanto não carregado. */
+    val outlook: ContestOutlook? = null,
+    val outlookLoading: Boolean = false,
+    /** Motivo pelo qual o retrato não está disponível (rede, API sem o campo). */
+    val outlookError: String? = null,
 ) {
+    /** Retorno esperado do próximo concurso; null sem retrato ou sem arrecadação. */
+    val accumulatedEstimate: AccumulatedReturn.Estimate?
+        get() = outlook?.takeIf { it.lottery == lottery }?.let(AccumulatedReturn::estimate)
+
     val current: VolanteSelection
         get() = selections.getValue(lottery)
+
+    /**
+     * Desdobramento aplicável às dezenas já marcadas, ou null quando a
+     * quantidade marcada está fora da faixa com garantia conhecida.
+     */
+    val closureDesign: ClosureDesign?
+        get() = if (gameMode == GameMode.FECHAMENTO) {
+            ClosureDesigner.design(current.numbers.size, closureGuarantee)
+        } else {
+            null
+        }
 
     /** Volante válido: dezenas dentro dos limites e, se exigido, 2 trevos. */
     val isSelectionValid: Boolean
@@ -70,13 +106,18 @@ data class VolanteUiState(
 }
 
 /**
- * Não há mais escolha de estratégia: todo lote nasce do desempenho medido
- * pelo [BacktestAnalyzer] sobre o histórico local. O ViewModel mantém esse
- * desempenho em [performances], recalculando-o a cada troca de loteria.
+ * Não há mais escolha de estratégia no modo Jogos avulsos: todo lote nasce
+ * do desempenho medido pelo [BacktestAnalyzer] sobre o histórico local. O
+ * ViewModel mantém esse desempenho em [performances], recalculando-o a cada
+ * troca de loteria. O modo Fechamento é a exceção: desdobra as dezenas
+ * marcadas por [ClosureDesigner] (covering design com garantia matemática
+ * verificada), não pelo desempenho.
  *
  * @param repository null nas instâncias sem app (testes, @Preview): a análise
  *   roda sobre histórico vazio e devolve pesos iguais — sorteio uniforme.
  * @param getNextDrawInfo null nas mesmas condições — [nextDrawInfo] fica nulo.
+ * @param outlookSource null nas mesmas condições — [VolanteUiState.outlook]
+ *   fica nulo e [refreshOutlook] não faz nada.
  * @param workDispatcher onde rodam análise e geração (CPU); os testes injetam
  *   um dispatcher de teste para tornar o resultado determinístico.
  */
@@ -85,6 +126,7 @@ class VolanteViewModel(
     private val analyzer: BacktestAnalyzer = BacktestAnalyzer(),
     private val repository: DrawRepository? = null,
     private val getNextDrawInfo: GetNextDrawInfoUseCase? = null,
+    private val outlookSource: OutlookSource? = null,
     private val workDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
@@ -118,16 +160,61 @@ class VolanteViewModel(
 
     init {
         refreshPerformances()
+        refreshOutlook()
     }
 
     fun selectLottery(lottery: Lottery) {
         if (lottery == _uiState.value.lottery) return
-        _uiState.update { it.copy(lottery = lottery, generatedBatch = null, message = null) }
+        _uiState.update {
+            it.copy(
+                lottery = lottery,
+                generatedBatch = null,
+                message = null,
+                undoableClear = null,
+                outlook = null,
+                outlookError = null,
+            )
+        }
         refreshPerformances()
+        refreshOutlook()
+    }
+
+    /** Busca (ou rebusca) o acumulado do próximo concurso da loteria ativa. */
+    fun refreshOutlook() {
+        val source = outlookSource ?: return
+        val lottery = _uiState.value.lottery
+        viewModelScope.launch {
+            _uiState.update { it.copy(outlookLoading = true, outlookError = null) }
+            try {
+                val outlook = source(lottery)
+                _uiState.update { state ->
+                    // A loteria pode ter mudado durante a requisição; nesse
+                    // caso o resultado pertence a outra aba e é descartado.
+                    if (state.lottery == lottery) {
+                        state.copy(outlook = outlook, outlookLoading = false)
+                    } else {
+                        state
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { state ->
+                    if (state.lottery == lottery) {
+                        state.copy(
+                            outlookLoading = false,
+                            outlookError = e.message ?: "sem conexão com a Caixa",
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
     }
 
     fun selectGameMode(mode: GameMode) {
-        _uiState.update { it.copy(gameMode = mode, generatedBatch = null, message = null) }
+        _uiState.update {
+            it.copy(gameMode = mode, generatedBatch = null, message = null, undoableClear = null)
+        }
     }
 
     /** Toque para marcar/desmarcar respeitando o máximo da loteria ativa. */
@@ -182,8 +269,26 @@ class VolanteViewModel(
 
     fun clearSelection() {
         _uiState.update { state ->
-            state.withSelection(VolanteSelection(trevoStrategy = state.current.trevoStrategy))
+            state.copy(undoableClear = state.current)
+                .withSelection(VolanteSelection(trevoStrategy = state.current.trevoStrategy))
         }
+    }
+
+    /** Restaura a seleção descartada pelo "Limpar" (ação "Desfazer" da snackbar). */
+    fun undoClear() {
+        _uiState.update { state ->
+            val previous = state.undoableClear
+            if (previous != null) {
+                state.copy(undoableClear = null).withSelection(previous)
+            } else {
+                state
+            }
+        }
+    }
+
+    /** Descarta a seleção preservada quando a snackbar expira sem ação. */
+    fun dismissUndo() {
+        _uiState.update { it.copy(undoableClear = null) }
     }
 
     /** Incremento de 1 jogo, travado no máximo suportado. */
@@ -200,23 +305,21 @@ class VolanteViewModel(
         }
     }
 
-    /** Gera [count] jogos a partir do desempenho corrente das dezenas. */
+    fun selectClosureGuarantee(guarantee: ClosureGuarantee) {
+        _uiState.update { it.copy(closureGuarantee = guarantee, generatedBatch = null) }
+    }
+
+    /**
+     * Gera [count] jogos. No modo Fechamento, [count] é ignorado: o número de
+     * jogos vem do desdobramento por covering design ([ClosureDesigner]), que
+     * sozinho garante a cobertura — a geração ponderada por desempenho não
+     * garante nada sobre as dezenas marcadas.
+     */
     fun generateGames(count: Int) {
         val state = _uiState.value
-        val pool = if (state.gameMode == GameMode.FECHAMENTO) {
-            val marked = state.current.numbers
-            if (marked.size < state.lottery.minSelection) {
-                _uiState.update {
-                    it.copy(
-                        message = "Fechamento: marque ao menos ${state.lottery.minSelection} " +
-                            "dezenas no volante (marcadas: ${marked.size})."
-                    )
-                }
-                return
-            }
-            marked
-        } else {
-            null
+        if (state.gameMode == GameMode.FECHAMENTO) {
+            generateClosure(state)
+            return
         }
 
         val performances = _performances.value
@@ -235,12 +338,66 @@ class VolanteViewModel(
                     performances = performances,
                     trevoPerformances = _trevoPerformances.value,
                     trevoStrategy = state.current.trevoStrategy,
-                    pool = pool,
+                    pool = null,
                 )
                 _uiState.update { it.copy(generatedBatch = batch, message = null) }
             } catch (e: IllegalArgumentException) {
                 _uiState.update { it.copy(message = e.message) }
             }
+        }
+    }
+
+    /**
+     * Desdobra as dezenas marcadas por covering design, com garantia
+     * matemática verificada (ver [ClosureDesigner]) — não pela geração
+     * ponderada por desempenho, que não garante cobertura alguma.
+     */
+    private fun generateClosure(state: VolanteUiState) {
+        // A garantia é sobre as 6 dezenas. Na +Milionária as faixas também
+        // exigem trevos, então "quadra garantida" não se traduz em prêmio
+        // garantido e o fechamento seria uma promessa falsa. Melhor recusar
+        // do que prometer errado.
+        if (state.lottery.hasTrevos) {
+            _uiState.update {
+                it.copy(
+                    message = "Fechamento com garantia só vale para a Mega-Sena. Na " +
+                        "${state.lottery.displayName} as faixas também dependem dos " +
+                        "trevos, e acertar dezenas não garante prêmio."
+                )
+            }
+            return
+        }
+        val marked = state.current.numbers
+        if (marked.size < state.lottery.minSelection) {
+            _uiState.update {
+                it.copy(
+                    message = "Fechamento: marque ao menos ${state.lottery.minSelection} " +
+                        "dezenas no volante (marcadas: ${marked.size})."
+                )
+            }
+            return
+        }
+        val design = ClosureDesigner.design(marked.size, state.closureGuarantee)
+        if (design == null) {
+            _uiState.update {
+                it.copy(
+                    message = "Não há fechamento com garantia de " +
+                        "${state.closureGuarantee.label} para ${marked.size} dezenas. " +
+                        "Marque de ${ClosureDesigner.SUPPORTED_POOL_SIZES.first} a " +
+                        "${ClosureDesigner.SUPPORTED_POOL_SIZES.last} dezenas."
+                )
+            }
+            return
+        }
+        _uiState.update {
+            it.copy(
+                generatedBatch = GameBatch(
+                    lottery = state.lottery,
+                    games = design.apply(marked.toList()),
+                    sourcePool = marked.sorted(),
+                ),
+                message = null,
+            )
         }
     }
 
@@ -295,6 +452,7 @@ class VolanteViewModel(
                 VolanteViewModel(
                     repository = app.drawRepository,
                     getNextDrawInfo = app.getNextDrawInfo,
+                    outlookSource = { lottery -> app.fetchContestOutlook(lottery) },
                 )
             }
         }

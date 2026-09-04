@@ -2,6 +2,9 @@
 .gradle/
 build/
 
+# Cache do compilador Kotlin
+.kotlin/
+
 # Local configuration file (sdk path, etc)
 local.properties
 
@@ -46,3 +49,6 @@ extension/popup-app/tsconfig.tsbuildinfo
 release/web/.next/
 release/web/workbox-*.js
 release/web/workbox-*.js.map
+
+# Keystore credentials (arquivo local; ver keystore.properties.example)
+keystore.properties

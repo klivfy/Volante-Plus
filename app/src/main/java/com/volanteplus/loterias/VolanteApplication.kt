@@ -8,6 +8,7 @@ import com.volanteplus.loterias.data.remote.HttpCaixaLotteryApi
 import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.data.repository.RoomDrawRepository
 import com.volanteplus.loterias.data.seed.AssetDrawSeeder
+import com.volanteplus.loterias.domain.usecase.FetchContestOutlook
 import com.volanteplus.loterias.domain.usecase.GetNextDrawInfoUseCase
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
 
@@ -26,6 +27,8 @@ class VolanteApplication : Application() {
     val drawSeeder: AssetDrawSeeder by lazy { AssetDrawSeeder(this, drawRepository) }
 
     val syncDrawHistory: SyncDrawHistory by lazy { SyncDrawHistory(drawRepository, caixaApi) }
+
+    val fetchContestOutlook: FetchContestOutlook by lazy { FetchContestOutlook(caixaApi) }
 
     val backtestEngine: BacktestEngine by lazy { BacktestEngine(drawRepository) }
 

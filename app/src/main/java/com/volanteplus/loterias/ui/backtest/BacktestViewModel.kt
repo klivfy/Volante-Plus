@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
@@ -52,8 +53,13 @@ class BacktestViewModel(
     private val repository: DrawRepository,
     private val syncDrawHistory: SyncDrawHistory,
     private val seeder: AssetDrawSeeder? = null,
-    /** Onde roda o backtest (CPU); testes injetam um dispatcher de teste. */
-    private val workDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    /**
+     * Dispatcher usado para o cálculo pesado do backtest. É injetável para que
+     * os testes possam passar o dispatcher do `runTest`: com `Dispatchers.Default`
+     * fixo, o trabalho escapa do escalonador virtual e `advanceUntilIdle()`
+     * retorna antes de o relatório ficar pronto.
+     */
+    private val computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BacktestUiState())
@@ -88,17 +94,21 @@ class BacktestViewModel(
             _uiState.update { it.copy(cutoffError = true) }
             return
         }
-        viewModelScope.launch(workDispatcher) {
+        viewModelScope.launch {
             _uiState.update { it.copy(running = true, report = null, message = null) }
             try {
-                val report = engine.run(
-                    BacktestConfig(
-                        lottery = state.lottery,
-                        cutoff = cutoff,
-                        gamesPerContest = state.gamesPerContest,
-                        trevoStrategy = state.trevoStrategy,
+                // O motor faz Monte Carlo pesado (réplicas × concursos). Rodar
+                // isso na coroutine de Main congelaria a UI e arriscaria um ANR.
+                val report = withContext(computeDispatcher) {
+                    engine.run(
+                        BacktestConfig(
+                            lottery = state.lottery,
+                            cutoff = cutoff,
+                            gamesPerContest = state.gamesPerContest,
+                            trevoStrategy = state.trevoStrategy,
+                        )
                     )
-                )
+                }
                 _uiState.update { it.copy(running = false, report = report) }
             } catch (e: IllegalArgumentException) {
                 _uiState.update { it.copy(running = false, message = e.message) }
