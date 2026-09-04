@@ -102,7 +102,7 @@ class BacktestEngine(private val repository: DrawRepository) {
     }
 
     /** Uma passada completa sobre a janela de validação. */
-    private fun simulate(
+    private suspend fun simulate(
         config: BacktestConfig,
         performances: List<NumberPerformance>,
         trevoPerformances: List<NumberPerformance>,
