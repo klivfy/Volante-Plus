@@ -3,7 +3,6 @@ package com.volanteplus.loterias.ui.volante
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -463,7 +463,7 @@ private fun NumberCell(number: Int, selected: Boolean, onClick: () -> Unit) {
                 color = if (selected) colors.primary else colors.surface,
                 shape = CircleShape,
             )
-            .clickable(role = Role.Checkbox, onClick = onClick),
+            .toggleable(value = selected, role = Role.Checkbox, onValueChange = { onClick() }),
     ) {
         Text(
             text = "%02d".format(number),
@@ -508,7 +508,11 @@ private fun TrevoSection(
                             color = if (selected) colors.secondary else colors.surface,
                             shape = CircleShape,
                         )
-                        .clickable(role = Role.Checkbox) { onToggleTrevo(trevo) },
+                        .toggleable(
+                            value = selected,
+                            role = Role.Checkbox,
+                            onValueChange = { onToggleTrevo(trevo) },
+                        ),
                 ) {
                     Text(
                         text = "$trevo",

@@ -17,11 +17,13 @@ import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
@@ -91,15 +93,20 @@ class BacktestViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(running = true, report = null, message = null) }
             try {
-                val report = engine.run(
-                    BacktestConfig(
-                        lottery = state.lottery,
-                        strategy = state.strategy,
-                        cutoff = cutoff,
-                        gamesPerContest = state.gamesPerContest,
-                        trevoStrategy = state.trevoStrategy,
+                // O motor faz Monte Carlo pesado (réplicas × concursos ×
+                // candidatos na estratégia "Menos apostadas"). Rodar isso na
+                // coroutine de Main congelaria a UI e arriscaria um ANR.
+                val report = withContext(Dispatchers.Default) {
+                    engine.run(
+                        BacktestConfig(
+                            lottery = state.lottery,
+                            strategy = state.strategy,
+                            cutoff = cutoff,
+                            gamesPerContest = state.gamesPerContest,
+                            trevoStrategy = state.trevoStrategy,
+                        )
                     )
-                )
+                }
                 _uiState.update { it.copy(running = false, report = report) }
             } catch (e: IllegalArgumentException) {
                 _uiState.update { it.copy(running = false, message = e.message) }
