@@ -82,8 +82,18 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           color: 'primary.contrastText',
         }}
       >
+        {/*
+          `component="p"` mantém a escala tipográfica h3 e remove a semântica
+          de cabeçalho. Este texto é a marca dentro de uma sobreposição de
+          carregamento, não um título do documento: como <h3> ele duplicava o
+          nome acessível do <h1> da página (que fica montada por baixo durante
+          os 2,5 s do splash) e ainda punha um h3 antes do h1 na ordem de
+          cabeçalhos, que é justamente o que leitores de tela usam para
+          navegar.
+        */}
         <Typography
           variant="h3"
+          component="p"
           sx={{
             fontWeight: 700,
             letterSpacing: '0.5px',
