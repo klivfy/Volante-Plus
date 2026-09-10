@@ -12,6 +12,7 @@ import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 import NumberBall from './NumberBall';
 import { hasTrevos } from '../engine/prizeRules';
+import { PayoutAssessment, isBetterThanAverage, payoutSummary } from '../engine/payoutShare';
 import { GeneratedGame, Lottery } from '../types/domain';
 
 export interface GameCardProps {
@@ -21,10 +22,12 @@ export interface GameCardProps {
   index: number;
   onCopy: (game: GeneratedGame) => void;
   onShare: (game: GeneratedGame) => void;
+  /** Medida de rateio deste jogo — ver `payoutShare.ts`. Ausente sem apostas informadas. */
+  payout?: PayoutAssessment;
 }
 
 /** Card de um jogo gerado: dezenas, trevos (se houver) e ações de copiar/compartilhar. */
-export default function GameCard({ lottery, game, index, onCopy, onShare }: GameCardProps) {
+export default function GameCard({ lottery, game, index, onCopy, onShare, payout }: GameCardProps) {
   const { t } = useTranslation();
   const showsTrevos = hasTrevos(lottery) && (game.trevoDuplas?.length ?? 0) > 0;
 
@@ -50,6 +53,15 @@ export default function GameCard({ lottery, game, index, onCopy, onShare }: Game
               />
             ))}
           </Stack>
+        )}
+        {payout && (
+          <Typography
+            variant="caption"
+            color={isBetterThanAverage(payout) ? 'primary.main' : 'text.secondary'}
+            sx={{ display: 'block', mt: 1.5 }}
+          >
+            {payoutSummary(payout)}
+          </Typography>
         )}
       </CardContent>
       <CardActions>

@@ -7,6 +7,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
+import TextField from '@mui/material/TextField';
 import Grid from '@mui/material/Grid';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
@@ -18,9 +19,11 @@ import GameSlider from '@/components/GameSlider';
 import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
 import NotificationOptIn from '@/components/NotificationOptIn';
+import PayoutSharePanel from '@/components/PayoutSharePanel';
 import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } from '@/services/analytics';
 import { reportUserError, addBreadcrumb } from '@/services/errorReporter';
 import { generateGames, maxDistinctGames } from '@/engine/gameGenerator';
+import { evaluatePayoutBatch } from '@/engine/payoutShare';
 import { hasTrevos } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
 import { usePerformanceCache } from '@/hooks/usePerformanceCache';
@@ -58,6 +61,11 @@ export default function VolantePage() {
   const [batchCount, setBatchCount] = useState<number>(MIN_GAMES);
   const [generatedBatch, setGeneratedBatch] = useState<GameBatch | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Apostas no concurso, informadas manualmente: sem elas o efeito do
+  // rateio não é calculável — a API pública não expõe a arrecadação do
+  // concurso, só o prêmio estimado — e exibir um ganho sem esse número
+  // seria inventá-lo. Ver `payoutShare.ts`.
+  const [ticketsInput, setTicketsInput] = useState('');
 
   const nextDraw = useNextDraw(lottery);
   const { performances, trevoPerformances, loading, error } = usePerformanceCache(lottery);
@@ -98,6 +106,10 @@ export default function VolantePage() {
   const gamesAvailable =
     performances.length > 0 ? maxDistinctGames(lottery, performances.length) : batchCount;
   const batchLimited = !loading && batchCount > gamesAvailable;
+
+  const tickets = Number(ticketsInput) >= 1 ? Number(ticketsInput) : undefined;
+  const payoutAssessment =
+    generatedBatch && tickets !== undefined ? evaluatePayoutBatch(generatedBatch, tickets) : null;
 
   async function handleGenerate(): Promise<void> {
     setGenerating(true);
@@ -188,6 +200,17 @@ export default function VolantePage() {
                 })}
               </Alert>
             )}
+            <TextField
+              label={t('payoutShare.ticketsInput')}
+              helperText={t('payoutShare.ticketsInputHelp')}
+              type="number"
+              size="small"
+              fullWidth
+              value={ticketsInput}
+              onChange={(event) => setTicketsInput(event.target.value)}
+              disabled={isBusy}
+              sx={{ mt: 2 }}
+            />
             <Button
               fullWidth
               variant="contained"
@@ -217,11 +240,14 @@ export default function VolantePage() {
                   index={index + 1}
                   onCopy={handleCopy}
                   onShare={handleShare}
+                  payout={payoutAssessment?.games[index]}
                 />
               </Grid>
             ))}
           </Grid>
         )}
+
+        {payoutAssessment && <PayoutSharePanel assessment={payoutAssessment} />}
       </Stack>
 
       <Snackbar

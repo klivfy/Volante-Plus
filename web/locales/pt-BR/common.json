@@ -148,5 +148,16 @@
       "ticketsHelp": "Necessário para ratear o acumulado entre os acertadores",
       "upperBound": "Sem o número de apostas, o acumulado entra como se fosse pago por inteiro a um único acertador. O valor esperado acima é um teto, não uma estimativa: a faixa máxima é rateada entre todos os que acertarem."
     }
+  },
+  "payoutShare": {
+    "title": "Rateio do prêmio",
+    "moreOnWin": "a mais de prêmio se ganhar, pela mesma chance de ganhar.",
+    "lessOnWin": "a menos de prêmio se ganhar, pela mesma chance de ganhar.",
+    "betterThanAverage": "Jogos menos disputados que a média",
+    "betterThanAverageValue": "{{count}} de {{total}}",
+    "relativePopularity": "Popularidade relativa média",
+    "tickets": "Apostas estimadas no concurso",
+    "ticketsInput": "Apostas no concurso (opcional)",
+    "ticketsInputHelp": "Necessário para medir o rateio do prêmio entre os jogos gerados"
   }
 }
