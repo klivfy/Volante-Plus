@@ -146,3 +146,24 @@ describe('coveredPeriod', () => {
     expect(period.end).toBe('2020-02-29');
   });
 });
+
+describe("provenance 'third_party_mirror'", () => {
+  it('é auditável, ao contrário de synthetic/unknown', () => {
+    const data = dataset(officialLikeDraws(60), { provenance: 'third_party_mirror' });
+    expect(() => assertAuditable(data)).not.toThrow();
+    expect(isAuditable(data)).toBe(true);
+  });
+
+  it('ainda passa pelas mesmas checagens de integridade estrutural', () => {
+    const draws = officialLikeDraws(60);
+    draws[3] = { ...draws[3], numbers: [1, 2, 3, 4, 5, 61] };
+    const data = dataset(draws, { provenance: 'third_party_mirror' });
+    expect(() => assertAuditable(data)).toThrow(/fora do universo/);
+  });
+
+  it('ainda é recusado se coincidir com o seed empacotado', () => {
+    const seed = getSeedData(Lottery.MEGA_SENA);
+    const data = dataset(seed, { provenance: 'third_party_mirror' });
+    expect(() => assertAuditable(data)).toThrow(/seed sintético empacotado/);
+  });
+});

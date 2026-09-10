@@ -19,8 +19,9 @@ import { lotteryRules } from '../prizeRules';
  * automaticamente quando não há sincronização — e o custo dela é um
  * relatório que parece uma prova e não é. Por isso a barreira é código,
  * não convenção: `assertAuditable` recusa qualquer coisa que não seja
- * declaradamente oficial, e recusa de novo, por conteúdo, se o seed for
- * rotulado de oficial (por engano ou não).
+ * declaradamente oficial ou uma agregação de terceiros identificada, e
+ * recusa de novo, por conteúdo, se o seed for rotulado de oficial (por
+ * engano ou não).
  *
  * ## O que esta guarda NÃO faz
  *
@@ -38,12 +39,27 @@ import { lotteryRules } from '../prizeRules';
 
 /** De onde vieram os concursos. Sem isso declarado, nada é auditável. */
 export type DrawProvenance =
-  /** Exportação oficial da Caixa (portal ou API). Único valor auditável. */
+  /** Exportação oficial da Caixa (portal ou API). */
   | 'official'
+  /**
+   * Agregação de terceiros, não afiliada à Caixa, dos resultados oficiais —
+   * ex.: um repositório open-source que raspa o portal periodicamente.
+   *
+   * Auditável, mas não com a mesma confiança de `'official'`: a garantia de
+   * fidelidade aos sorteios reais depende inteiramente da fonte terceira, não
+   * de nenhuma verificação que este código possa fazer. `sourceLabel` deve
+   * identificar a fonte com precisão suficiente para que alguém a confira
+   * (repositório, commit, data de captura) e o relatório carrega essa
+   * ressalva em destaque, antes de qualquer resultado.
+   */
+  | 'third_party_mirror'
   /** Gerado por PRNG — `data/seed/`, fixtures de teste, simulações. */
   | 'synthetic'
   /** Origem não estabelecida. Tratado como não auditável. */
   | 'unknown';
+
+/** Procedências que passam pela guarda — todas as outras são recusadas. */
+const AUDITABLE_PROVENANCES: readonly DrawProvenance[] = ['official', 'third_party_mirror'];
 
 export interface DrawDataset {
   readonly lottery: Lottery;
@@ -51,6 +67,13 @@ export interface DrawDataset {
   readonly provenance: DrawProvenance;
   /** Origem legível, reproduzida no cabeçalho do relatório. */
   readonly sourceLabel: string;
+  /**
+   * `true` quando `draws[].date` é um placeholder sintético (não fornecido
+   * pela fonte), presente só para satisfazer a validação estrutural de
+   * `Draw` — nunca uma data real de sorteio. O relatório precisa saber disto
+   * para não imprimir essas datas como se fossem fato.
+   */
+  readonly datesAreApproximate?: boolean;
 }
 
 /** Recusa de auditoria. O `reason` é exibido ao usuário sem tradução. */
@@ -182,11 +205,12 @@ function rejectBundledSeed(dataset: DrawDataset): void {
  * com o motivo em qualquer outro caso.
  */
 export function assertAuditable(dataset: DrawDataset): void {
-  if (dataset.provenance !== 'official') {
+  if (!AUDITABLE_PROVENANCES.includes(dataset.provenance)) {
     throw new NonAuditableDataError(
       `Procedência "${dataset.provenance}": a auditoria exige histórico ` +
-        `oficial da Caixa. Dados sintéticos ou de origem não estabelecida ` +
-        `produziriam um relatório sobre o gerador, não sobre o sorteio.`,
+        `oficial da Caixa ou uma agregação de terceiros identificada. Dados ` +
+        `sintéticos ou de origem não estabelecida produziriam um relatório ` +
+        `sobre o gerador, não sobre o sorteio.`,
     );
   }
 

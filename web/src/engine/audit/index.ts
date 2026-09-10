@@ -16,7 +16,13 @@ import {
   BASELINE_SEED,
   PREREGISTRATION_VERSION,
 } from './preregistration';
-import { DrawDataset, assertAuditable, coveredPeriod, minimumContestsFor } from './provenance';
+import {
+  DrawDataset,
+  DrawProvenance,
+  assertAuditable,
+  coveredPeriod,
+  minimumContestsFor,
+} from './provenance';
 
 /**
  * O orquestrador da auditoria: roda o Módulo A completo e monta o relatório.
@@ -64,9 +70,13 @@ export interface AuditReport {
   readonly preregistrationVersion: string;
   readonly lottery: Lottery;
   readonly sourceLabel: string;
+  readonly provenance: DrawProvenance;
   readonly contests: number;
   readonly periodStart: string;
   readonly periodEnd: string;
+  /** `true` quando `periodStart`/`periodEnd` são datas fabricadas para
+   * validação estrutural, não fornecidas pela fonte — ver `provenance.ts`. */
+  readonly datesAreApproximate: boolean;
   readonly baselineHistories: number;
   readonly alpha: number;
   readonly correctedAlpha: number;
@@ -211,9 +221,11 @@ export function runAudit(dataset: DrawDataset, options: AuditOptions = {}): Audi
     preregistrationVersion: PREREGISTRATION_VERSION,
     lottery,
     sourceLabel: dataset.sourceLabel,
+    provenance: dataset.provenance,
     contests: ordered.length,
     periodStart: period.start,
     periodEnd: period.end,
+    datesAreApproximate: dataset.datesAreApproximate ?? false,
     baselineHistories: histories,
     alpha: ALPHA,
     correctedAlpha,
@@ -303,9 +315,24 @@ export function formatAuditReport(report: AuditReport): string {
   lines.push(`AUDITORIA DE ANOMALIAS — ${report.lottery}`);
   lines.push(`Protocolo pré-registrado v${report.preregistrationVersion}`);
   lines.push('');
+
+  if (report.provenance !== 'official') {
+    lines.push(
+      '⚠⚠⚠ FONTE NÃO OFICIAL ⚠⚠⚠ — agregação de terceiros, não a exportação ' +
+        'direta da Caixa. A fidelidade destes números aos sorteios reais ' +
+        'depende inteiramente da fonte citada abaixo, não de nenhuma ' +
+        'verificação que este relatório possa fazer.',
+    );
+    lines.push('');
+  }
+
   lines.push(`Fonte: ${report.sourceLabel}`);
   lines.push(
-    `Concursos: ${report.contests} (${report.periodStart} a ${report.periodEnd})`,
+    report.datesAreApproximate
+      ? `Concursos: ${report.contests} (período ${report.periodStart} a ` +
+          `${report.periodEnd} é APROXIMADO — a fonte não fornece data por ` +
+          `concurso; ver README da fonte)`
+      : `Concursos: ${report.contests} (${report.periodStart} a ${report.periodEnd})`,
   );
   lines.push(`Linha de base: ${report.baselineHistories} históricos honestos simulados`);
   lines.push(
