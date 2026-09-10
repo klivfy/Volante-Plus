@@ -417,6 +417,10 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
   const [ticketCost, setTicketCost] = useState('5');
   const [accumulated, setAccumulated] = useState('0');
   const [bankroll, setBankroll] = useState('1000');
+  // Apostas do concurso. Sem esse número o acumulado entra como se fosse pago
+  // por inteiro a quem acertar, o que é um teto, não uma estimativa — a faixa
+  // máxima é rateada entre todos os acertadores.
+  const [tickets, setTickets] = useState('');
 
   const topTierKey = lottery === Lottery.MEGA_SENA ? '6' : '6+2';
   const midTierKey = lottery === Lottery.MEGA_SENA ? '5' : '5+0';
@@ -433,9 +437,10 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
   const cost = Number(ticketCost) || 0;
   const acc = Number(accumulated) || 0;
   const bank = Number(bankroll) || 0;
+  const bets = Number(tickets) >= 1 ? Number(tickets) : undefined;
 
-  const ev = calculateEV(lottery, prizeAverages, cost, acc);
-  const kelly = kellySimulation(bank, lottery, prizeAverages, cost, acc);
+  const ev = calculateEV(lottery, prizeAverages, cost, acc, bets);
+  const kelly = kellySimulation(bank, lottery, prizeAverages, cost, acc, bets);
 
   return (
     <SectionAccordion title={t('advanced.ev.title')} subtitle={t('advanced.ev.subtitle')}>
@@ -456,12 +461,23 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
             fullWidth
           />
         </Stack>
-        <TextField
-          label={t('advanced.ev.bankroll')}
-          type="number"
-          value={bankroll}
-          onChange={(event) => setBankroll(event.target.value)}
-        />
+        <Stack direction="row" spacing={2}>
+          <TextField
+            label={t('advanced.ev.bankroll')}
+            type="number"
+            value={bankroll}
+            onChange={(event) => setBankroll(event.target.value)}
+            fullWidth
+          />
+          <TextField
+            label={t('advanced.ev.tickets')}
+            type="number"
+            value={tickets}
+            onChange={(event) => setTickets(event.target.value)}
+            helperText={t('advanced.ev.ticketsHelp')}
+            fullWidth
+          />
+        </Stack>
 
         <Alert severity={ev.ev > 0 ? 'success' : 'info'}>
           {t('advanced.ev.result', {
@@ -469,6 +485,10 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
             percent: decimal.format(ev.evPercent),
           })}
         </Alert>
+
+        {acc > 0 && !ev.sharedPool && (
+          <Alert severity="warning">{t('advanced.ev.upperBound')}</Alert>
+        )}
 
         {Number.isFinite(ev.breakEvenAccumulated) && (
           <Typography variant="body2" color="text.secondary">

@@ -12,6 +12,7 @@ import com.volanteplus.loterias.domain.backtest.AccumulatedReturn
 import com.volanteplus.loterias.domain.backtest.BacktestAnalyzer
 import com.volanteplus.loterias.domain.backtest.BacktestConfig
 import com.volanteplus.loterias.domain.backtest.NumberPerformance
+import com.volanteplus.loterias.domain.backtest.PayoutShare
 import com.volanteplus.loterias.domain.generator.ClosureDesign
 import com.volanteplus.loterias.domain.generator.ClosureDesigner
 import com.volanteplus.loterias.domain.generator.ClosureGuarantee
@@ -34,9 +35,11 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -156,6 +159,35 @@ class VolanteViewModel(
         .map { it.lottery }
         .distinctUntilChanged()
         .flatMapLatest { lottery -> getNextDrawInfo?.invoke(lottery) ?: flowOf(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Medida de rateio do lote exibido — a única grandeza deste app que a
+     * escolha de dezenas realmente move (ver [PayoutShare]).
+     *
+     * WHY (derivado, não armazenado): é função pura do lote e da arrecadação.
+     * Guardá-lo no [uiState] criaria um estado a invalidar em cada ponto que
+     * zera `generatedBatch`, e bastaria esquecer um para a tela exibir a
+     * medida de um lote que não existe mais. Derivando, isso é impossível — e
+     * de brinde o painel aparece sozinho quando a arrecadação chega depois da
+     * geração.
+     *
+     * Null sem lote ou sem arrecadação informada pela API: o efeito do rateio
+     * depende de quantas apostas concorrem, e sem esse número exibir um ganho
+     * seria inventá-lo.
+     */
+    val payoutAssessment: StateFlow<PayoutShare.BatchAssessment?> = uiState
+        .map { it.generatedBatch to it.accumulatedEstimate?.tickets }
+        .distinctUntilChanged()
+        .mapLatest { (batch, tickets) ->
+            if (batch == null || tickets == null) {
+                null
+            } else {
+                // A régua de popularidade é uma varredura de Monte Carlo na
+                // primeira consulta de cada loteria: nunca na thread principal.
+                withContext(workDispatcher) { PayoutShare.evaluateBatch(batch, tickets) }
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {

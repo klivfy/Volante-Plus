@@ -143,7 +143,10 @@
       "result": "Valor esperado: {{ev}} ({{percent}}% do custo do bilhete)",
       "breakEven": "EV zeraria com acumulação de {{value}}",
       "kelly": "Kelly recomenda {{fraction}} da banca ({{bet}}) — 0% quando o EV não é positivo",
-      "footnote": "Kelly assume apostas repetidas independentes; em loteria isso é só uma heurística de limite superior, não uma recomendação de gestão de banca real."
+      "footnote": "Kelly assume apostas repetidas independentes; em loteria isso é só uma heurística de limite superior, não uma recomendação de gestão de banca real.",
+      "tickets": "Apostas no concurso (opcional)",
+      "ticketsHelp": "Necessário para ratear o acumulado entre os acertadores",
+      "upperBound": "Sem o número de apostas, o acumulado entra como se fosse pago por inteiro a um único acertador. O valor esperado acima é um teto, não uma estimativa: a faixa máxima é rateada entre todos os que acertarem."
     }
   }
 }

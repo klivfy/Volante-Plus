@@ -27,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.FilterChip
@@ -65,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.volanteplus.loterias.R
 import com.volanteplus.loterias.domain.backtest.AccumulatedReturn
+import com.volanteplus.loterias.domain.backtest.PayoutShare
 import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.ContestOutlook
 import com.volanteplus.loterias.domain.model.GameBatch
@@ -87,6 +89,7 @@ fun VolanteScreen(viewModel: VolanteViewModel = viewModel(factory = VolanteViewM
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val nextDrawInfo by viewModel.nextDrawInfo.collectAsStateWithLifecycle()
     val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
+    val payoutAssessment by viewModel.payoutAssessment.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.message) {
@@ -134,6 +137,7 @@ fun VolanteScreen(viewModel: VolanteViewModel = viewModel(factory = VolanteViewM
             VolanteContent(
                 state = state,
                 isAnalyzing = isAnalyzing,
+                payoutAssessment = payoutAssessment,
                 onToggleNumber = viewModel::toggleNumber,
                 onToggleTrevo = viewModel::toggleTrevo,
                 onSelectTrevoStrategy = viewModel::selectTrevoStrategy,
@@ -179,6 +183,7 @@ private fun GameModeTabs(selected: GameMode, onSelect: (GameMode) -> Unit) {
 private fun VolanteContent(
     state: VolanteUiState,
     isAnalyzing: Boolean,
+    payoutAssessment: PayoutShare.BatchAssessment?,
     onToggleNumber: (Int) -> Unit,
     onToggleTrevo: (Int) -> Unit,
     onSelectTrevoStrategy: (TrevoStrategy) -> Unit,
@@ -266,7 +271,7 @@ private fun VolanteContent(
 
         state.generatedBatch?.let { batch ->
             item(span = { GridItemSpan(maxLineSpan) }) {
-                GeneratedBatchList(batch)
+                GeneratedBatchList(batch, payoutAssessment)
             }
         }
     }
@@ -689,7 +694,7 @@ private fun ClosurePanel(
 }
 
 @Composable
-private fun GeneratedBatchList(batch: GameBatch) {
+private fun GeneratedBatchList(batch: GameBatch, payout: PayoutShare.BatchAssessment?) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
         val origin = batch.sourcePool?.let { " · Fechamento de ${it.size} dezenas" } ?: ""
         Text(
@@ -698,13 +703,99 @@ private fun GeneratedBatchList(batch: GameBatch) {
             modifier = Modifier.padding(bottom = 8.dp),
         )
         batch.games.forEachIndexed { index, game ->
-            GeneratedGameRow(index + 1, game)
+            GeneratedGameRow(index + 1, game, payout?.games?.getOrNull(index))
+        }
+        payout?.let { PayoutSharePanel(it) }
+    }
+}
+
+/**
+ * O único número desta tela que a escolha de dezenas realmente move.
+ *
+ * A chance de ganhar é idêntica para qualquer combinação e nenhum algoritmo a
+ * altera — o app inteiro parte disso. O que varia é com quantas pessoas o
+ * prêmio seria dividido, porque as pessoas não escolhem ao acaso. Por isso o
+ * painel exibe a ressalva junto do número, nunca depois nem em outra tela: o
+ * valor é real, mede outra coisa que não a chance, e as duas são fáceis de
+ * confundir. Ver [PayoutShare] para a derivação.
+ */
+@Composable
+private fun PayoutSharePanel(payout: PayoutShare.BatchAssessment) {
+    val colors = MaterialTheme.colorScheme
+    val gainPercent = payout.averageConditionalGain * 100
+    val positive = gainPercent >= 0
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant),
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.Groups,
+                    contentDescription = null,
+                    tint = colors.primary,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    text = "Rateio do prêmio",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+            }
+
+            Text(
+                text = "%+.1f%%".format(gainPercent),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (positive) colors.primary else colors.error,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Text(
+                text = if (positive) {
+                    "a mais de prêmio se ganhar, pela mesma chance de ganhar."
+                } else {
+                    "a menos de prêmio se ganhar, pela mesma chance de ganhar."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+            )
+
+            AccumulatedStatRow(
+                label = "Jogos menos disputados que a média",
+                value = "${payout.betterThanAverageCount} de ${payout.games.size}",
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            AccumulatedStatRow(
+                label = "Popularidade relativa média",
+                value = "%.2f×".format(payout.averageRelativePopularity),
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            val integers = remember { NumberFormat.getIntegerInstance(Locale("pt", "BR")) }
+            AccumulatedStatRow(
+                label = "Apostas estimadas no concurso",
+                value = integers.format(payout.tickets),
+                modifier = Modifier.padding(top = 4.dp),
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+            Text(
+                text = payout.disclaimer,
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
         }
     }
 }
 
 @Composable
-private fun GeneratedGameRow(position: Int, game: GeneratedGame) {
+private fun GeneratedGameRow(
+    position: Int,
+    game: GeneratedGame,
+    payout: PayoutShare.Assessment?,
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -733,6 +824,17 @@ private fun GeneratedGameRow(position: Int, game: GeneratedGame) {
                     text = trevosLabel,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary,
+                )
+            }
+            payout?.let {
+                Text(
+                    text = it.summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (it.betterThanAverage) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 )
             }
         }
