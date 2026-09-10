@@ -104,6 +104,13 @@ class GameGeneratorTest {
         assertTrue(error is IllegalArgumentException)
     }
 
+    /**
+     * Contrato do passo 2 (distribuição por tiers), isolado com
+     * `payoutCandidates = 1`. Com o desempate por rateio ligado — o padrão —
+     * esta proporção fica deliberadamente abaixo da meta, e o teste
+     * `desempate por rateio prevalece sobre a meta do tier TOP` abaixo
+     * documenta essa troca.
+     */
     @Test
     fun `dezenas de maior peso dominam o lote na proporcao do tier TOP`() = runTest {
         // 24 de 60 dezenas (40%) formam o tier TOP; a meta é 70% das vagas.
@@ -114,7 +121,12 @@ class GameGeneratorTest {
         var slots = 0
         var fromTop = 0
         repeat(200) {
-            val batch = generator.generate(Lottery.MEGA_SENA, GameGenerator.MAX_GAMES, performances)
+            val batch = generator.generate(
+                Lottery.MEGA_SENA,
+                GameGenerator.MAX_GAMES,
+                performances,
+                payoutCandidates = 1,
+            )
             batch.games.forEach { game ->
                 slots += game.numbers.size
                 fromTop += game.numbers.count { it in topNumbers }
@@ -134,7 +146,12 @@ class GameGeneratorTest {
         var slots = 0
         var pesadas = 0
         repeat(100) {
-            val batch = generator.generate(Lottery.MEGA_SENA, GameGenerator.MAX_GAMES, performances)
+            val batch = generator.generate(
+                Lottery.MEGA_SENA,
+                GameGenerator.MAX_GAMES,
+                performances,
+                payoutCandidates = 1,
+            )
             batch.games.forEach { game ->
                 slots += game.numbers.size
                 pesadas += game.numbers.count { it <= 6 }
@@ -268,4 +285,129 @@ class GameGeneratorTest {
         val distinct = batch.games.map { it.numbers }.toSet()
         assertEquals(batch.games.size, distinct.size)
     }
+    /**
+     * Regressão do viés de tier. Com todos os pesos iguais — o caso de
+     * histórico vazio, em que o analisador declara devolver "sorteio puro" —
+     * o ranking era decidido só pelo desempate por número, e o sorteio de
+     * tier dava 70% das vagas às 24 primeiras dezenas. Sem informação, o
+     * sorteio de base precisa ser uniforme.
+     */
+    @Test
+    fun `pesos iguais nao criam tiers e a base do sorteio volta a ser uniforme`() = runTest {
+        val lottery = Lottery.MEGA_SENA
+        val iguais = performances(lottery) { 1.0 }
+        val contagem = IntArray(61)
+        // Sem gradiente de popularidade não há nada que desloque o sorteio:
+        // usa o próprio gerador e mede o primeiro tier construído.
+        repeat(3_000) { seed ->
+            generator(seed.toLong()).generate(lottery, GameGenerator.MIN_GAMES, iguais)
+                .games.forEach { game -> game.numbers.forEach { contagem[it]++ } }
+        }
+        val universo = lottery.numberRange.toList()
+        val primeiras24 = universo.take(24).sumOf { contagem[it] }
+        val total = universo.sumOf { contagem[it] }
+        val fracao = primeiras24.toDouble() / total
+
+        // Sob o viés antigo esta fração ficava em ~0,70. Uniforme daria 0,40;
+        // a otimização de rateio a empurra para baixo, nunca para cima.
+        assertTrue(
+            "As 24 primeiras dezenas levaram ${"%.1f".format(fracao * 100)}% dos picks — " +
+                "o viés de tier por empate voltou",
+            fracao < 0.45,
+        )
+    }
+
+    /**
+     * O desempate por rateio precisa produzir jogos mensuravelmente menos
+     * populares que o sorteio uniforme — é a única melhoria que o gerador
+     * promete, então tem que ser verificável.
+     */
+    @Test
+    fun `desempate por rateio entrega jogos menos populares que o sorteio uniforme`() = runTest {
+        val lottery = Lottery.MEGA_SENA
+        val iguais = performances(lottery) { 1.0 }
+
+        val doGerador = (1..200).flatMap { seed ->
+            generator(seed.toLong()).generate(lottery, GameGenerator.MIN_GAMES, iguais)
+                .games.map { it.numbers }
+        }
+        val uniformes = run {
+            val random = Random(987L)
+            val universo = lottery.numberRange.toList()
+            List(doGerador.size) {
+                val g = LinkedHashSet<Int>(GameGenerator.GAME_SIZE)
+                while (g.size < GameGenerator.GAME_SIZE) g += universo[random.nextInt(universo.size)]
+                g.toList()
+            }
+        }
+
+        val penalidadeGerador = doGerador.map { Unpopularity.penalty(lottery, it) }.average()
+        val penalidadeUniforme = uniformes.map { Unpopularity.penalty(lottery, it) }.average()
+        assertTrue(
+            "Gerador ($penalidadeGerador) não ficou abaixo do uniforme ($penalidadeUniforme)",
+            penalidadeGerador < penalidadeUniforme,
+        )
+    }
+
+    /**
+     * A contrapartida do teste acima: otimizar o rateio não pode concentrar
+     * os lotes num punhado de combinações, ou os usuários do app passariam a
+     * dividir prêmio entre si — exatamente o problema que a otimização evita.
+     */
+    @Test
+    fun `desempate por rateio preserva a diversidade das combinacoes`() = runTest {
+        val lottery = Lottery.MEGA_SENA
+        val iguais = performances(lottery) { 1.0 }
+        val jogos = (1..500).flatMap { seed ->
+            generator(seed.toLong()).generate(lottery, GameGenerator.MAX_GAMES, iguais)
+                .games.map { it.numbers.sorted() }
+        }
+        val distintos = jogos.toSet().size
+        assertTrue(
+            "Só $distintos combinações distintas em ${jogos.size} jogos",
+            distintos >= jogos.size * 99 / 100,
+        )
+    }
+
+    /**
+     * A troca declarada na documentação do gerador, fixada em teste: quando
+     * as dezenas de melhor desempenho são também as mais apostadas — aqui o
+     * tier TOP é 1..24, a faixa de aniversário — o desempate por rateio
+     * prevalece e a meta do tier TOP deixa de ser cumprida. É intencional: o
+     * peso por desempenho não altera a chance de acertar, o rateio altera
+     * quanto se recebe.
+     */
+    @Test
+    fun `desempate por rateio prevalece sobre a meta do tier TOP`() = runTest {
+        val topNumbers = (1..24).toSet()
+        val performances = performances { if (it in topNumbers) 1.0 else 0.1 }
+        val generator = generator()
+
+        suspend fun fracaoDoTop(payoutCandidates: Int): Double {
+            var slots = 0
+            var fromTop = 0
+            repeat(200) {
+                generator.generate(
+                    Lottery.MEGA_SENA,
+                    GameGenerator.MAX_GAMES,
+                    performances,
+                    payoutCandidates = payoutCandidates,
+                ).games.forEach { game ->
+                    slots += game.numbers.size
+                    fromTop += game.numbers.count { it in topNumbers }
+                }
+            }
+            return fromTop.toDouble() / slots
+        }
+
+        val semOtimizacao = fracaoDoTop(1)
+        val comOtimizacao = fracaoDoTop(GameGenerator.PAYOUT_CANDIDATES)
+
+        assertTrue("Sem otimização o tier TOP deveria dominar: $semOtimizacao", semOtimizacao > 0.65)
+        assertTrue(
+            "Com otimização o tier TOP deveria ceder espaço: $comOtimizacao",
+            comOtimizacao < semOtimizacao,
+        )
+    }
+
 }

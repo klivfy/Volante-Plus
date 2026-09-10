@@ -2,6 +2,7 @@ package com.volanteplus.loterias.domain.generator
 
 import com.volanteplus.loterias.domain.backtest.NumberPerformance
 import com.volanteplus.loterias.domain.backtest.PerformanceTier
+import com.volanteplus.loterias.domain.backtest.PayoutShare
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GeneratedGame
@@ -27,6 +28,37 @@ import kotlin.math.ceil
  *    *dentro* do tier, com probabilidade proporcional ao peso.
  * 3. Jogo repetido dentro do lote é resorteado até [MAX_DEDUP_ATTEMPTS]
  *    vezes; passando disso, o jogo é aceito com um aviso no log.
+ * 4. **Desempate por rateio**: cada vaga do lote sorteia
+ *    [PAYOUT_CANDIDATES] jogos pelo processo acima e fica com o menos
+ *    popular segundo [PayoutShare]. Ver WHY abaixo.
+ *
+ * WHY (passo 4 — a única otimização que existe): pelo teorema da invariância,
+ * todos os candidatos sorteados no passo 3 têm **exatamente** a mesma
+ * probabilidade de ganhar. Escolher entre eles não pode, nem em princípio,
+ * alterar essa probabilidade. Mas a loteria é pari-mutuel: o prêmio das
+ * faixas de rateio é dividido entre os acertadores, e as pessoas não escolhem
+ * dezenas ao acaso. Entre candidatos equiprováveis, o menos popular entrega
+ * mais prêmio se ganhar — de graça, sem trocar nada em troca. É a única
+ * melhoria que a matemática autoriza, e o app faria mal em deixá-la na mesa.
+ *
+ * ## Quem manda quando os passos 2 e 4 discordam
+ * Eles discordam sempre que as dezenas de melhor desempenho medido também
+ * são as mais apostadas — o que acontece com frequência, porque a percepção
+ * de "dezena quente" é ela própria um dos vieses que tornam uma dezena
+ * popular. Nessa disputa **o passo 4 prevalece**, e a proporção real de vagas
+ * vindas do tier TOP fica abaixo de [TOP_TIER_SHARE].
+ *
+ * A escolha não é estética. O passo 2 ordena as dezenas por desempenho
+ * histórico, e o próprio laboratório deste app demonstra que isso **não tem
+ * efeito nenhum** sobre a chance de acertar: `E[acertos] = K·n/N` não olha
+ * para quais dezenas foram marcadas. Já o passo 4 tem efeito medido e
+ * verificável sobre quanto se recebe ao ganhar. Entre um mecanismo com
+ * efeito comprovadamente nulo e outro com efeito comprovado, prevalecer o
+ * segundo é a única decisão que a matemática do projeto sustenta.
+ *
+ * Quem quiser o lote sem a otimização passa `payoutCandidates = 1` — os dois
+ * mecanismos ficam isolados e testáveis um sem o outro, em vez de se
+ * anularem em silêncio.
  *
  * WHY (tiers recalculados aqui): o tier gravado em cada [NumberPerformance]
  * é relativo ao universo inteiro da loteria. No modo Fechamento o universo
@@ -49,6 +81,10 @@ class GameGenerator(private val random: Random = SecureRandom()) {
      * @param trevoPerformances desempenho dos trevos 1..6; vazio ou incompleto
      *   cai no fallback de pesos iguais.
      * @param pool modo Fechamento: restringe o sorteio às dezenas marcadas.
+     * @param payoutCandidates candidatos avaliados por vaga no desempate por
+     *   rateio (passo 4). `1` desliga o desempate e deixa o lote inteiramente
+     *   a cargo da distribuição por tiers — útil para isolar um mecanismo do
+     *   outro em teste, e para quem quiser o sorteio sem a otimização.
      */
     suspend fun generate(
         lottery: Lottery,
@@ -57,10 +93,12 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         trevoPerformances: List<NumberPerformance> = emptyList(),
         trevoStrategy: TrevoStrategy = TrevoStrategy.ECONOMICO,
         pool: Collection<Int>? = null,
+        payoutCandidates: Int = PAYOUT_CANDIDATES,
     ): GameBatch {
         require(count in MIN_GAMES..MAX_GAMES) {
             "Quantidade de jogos deve estar em $MIN_GAMES..$MAX_GAMES"
         }
+        require(payoutCandidates >= 1) { "payoutCandidates deve ser >= 1" }
         require(performances.isNotEmpty()) {
             "Geração exige o desempenho das dezenas (lista vazia)"
         }
@@ -85,7 +123,9 @@ class GameGenerator(private val random: Random = SecureRandom()) {
 
         val games = mutableListOf<GeneratedGame>()
         repeat(count) {
-            games += nextDistinctGame(games, numberTiers, lottery, trevoStrategy, trevoTiers)
+            games += nextDistinctGame(
+                games, numberTiers, lottery, trevoStrategy, trevoTiers, payoutCandidates,
+            )
         }
 
         return GameBatch(
@@ -96,6 +136,36 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         )
     }
 
+    /**
+     * Sorteia [PAYOUT_CANDIDATES] jogos e devolve o menos popular entre os
+     * que ainda não estão no lote.
+     *
+     * A probabilidade de ganhar é idêntica para todos os candidatos — é o
+     * teorema da invariância —, então este desempate não a altera. O que ele
+     * altera é com quanta gente o prêmio seria dividido.
+     */
+    private fun leastPopularCandidate(
+        existing: List<GeneratedGame>,
+        numberTiers: List<List<NumberPerformance>>,
+        lottery: Lottery,
+        trevoStrategy: TrevoStrategy,
+        trevoTiers: List<List<NumberPerformance>>,
+        candidates: Int,
+    ): GeneratedGame {
+        var best: GeneratedGame? = null
+        var bestPenalty = Double.MAX_VALUE
+        repeat(candidates) {
+            val candidate = buildGame(numberTiers, lottery, trevoStrategy, trevoTiers)
+            if (existing.any { it.numbers == candidate.numbers }) return@repeat
+            val penalty = Unpopularity.penalty(lottery, candidate.numbers)
+            if (penalty < bestPenalty) {
+                bestPenalty = penalty
+                best = candidate
+            }
+        }
+        return best ?: buildGame(numberTiers, lottery, trevoStrategy, trevoTiers)
+    }
+
     /** Minimização de repetição: resorteia enquanto o jogo já existir no lote. */
     private fun nextDistinctGame(
         existing: List<GeneratedGame>,
@@ -103,11 +173,14 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         lottery: Lottery,
         trevoStrategy: TrevoStrategy,
         trevoTiers: List<List<NumberPerformance>>,
+        payoutCandidates: Int,
     ): GeneratedGame {
-        var candidate = buildGame(numberTiers, lottery, trevoStrategy, trevoTiers)
+        var candidate =
+            leastPopularCandidate(existing, numberTiers, lottery, trevoStrategy, trevoTiers, payoutCandidates)
         var attempts = 1
         while (attempts < MAX_DEDUP_ATTEMPTS && existing.any { it.numbers == candidate.numbers }) {
-            candidate = buildGame(numberTiers, lottery, trevoStrategy, trevoTiers)
+            candidate =
+                leastPopularCandidate(existing, numberTiers, lottery, trevoStrategy, trevoTiers, payoutCandidates)
             attempts++
         }
         if (existing.any { it.numbers == candidate.numbers }) {
@@ -169,8 +242,24 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         return candidates.last().number
     }
 
-    /** Fatia o ranking em TOP/MID/LOW pelos percentis 40/30/30. */
+    /**
+     * Fatia o ranking em TOP/MID/LOW pelos percentis 40/30/30.
+     *
+     * WHY (empate total vira tier único): quando todas as dezenas têm o mesmo
+     * peso — o caso documentado de histórico vazio, em que o analisador
+     * declara devolver "sorteio puro" — o ranking é decidido inteiramente
+     * pelo desempate por número. Fatiar esse ranking criava três tiers
+     * arbitrários (1..24, 25..42, 43..60) e o sorteio de tier dava 70% das
+     * vagas às 24 primeiras dezenas: um viés forte, inventado a partir de
+     * zero informação, e ainda por cima concentrado na faixa de aniversário,
+     * a mais disputada de todas. Sem informação que ordene as dezenas, o
+     * único sorteio defensável é o uniforme, e é o que um tier único produz.
+     */
     private fun tiersOf(performances: List<NumberPerformance>): List<List<NumberPerformance>> {
+        val weights = performances.map { it.weight }
+        val spread = (weights.maxOrNull() ?: 0.0) - (weights.minOrNull() ?: 0.0)
+        if (spread <= UNINFORMATIVE_WEIGHT_SPREAD) return listOf(performances.toList())
+
         val ranked = performances.sortedWith(
             compareByDescending<NumberPerformance> { it.weight }.thenBy { it.number }
         )
@@ -253,6 +342,34 @@ class GameGenerator(private val random: Random = SecureRandom()) {
 
         /** Resorteios antes de aceitar um jogo repetido no lote. */
         const val MAX_DEDUP_ATTEMPTS = 10
+
+        /**
+         * Candidatos sorteados por vaga, dos quais fica o menos popular.
+         *
+         * WHY deste número (medido, não arbitrado): 4.000 lotes por
+         * configuração, Mega-Sena, 20 milhões de apostas no concurso.
+         *
+         * | candidatos | ganho médio | dezenas ≤ 31 | combinações repetidas |
+         * |-----------:|------------:|-------------:|----------------------:|
+         * | 1          | −1,00%      | 52,5%        | 0 em 4.000            |
+         * | 4          | +5,42%      | 33,5%        | 0 em 4.000            |
+         * | 12         | **+7,84%**  | 22,6%        | **0 em 4.000**        |
+         * | 24         | +8,84%      | 17,1%        | 2 em 4.000            |
+         * | 50         | +9,63%      | 12,3%        | 2 em 4.000            |
+         *
+         * 12 captura 81% do ganho disponível sem nenhuma repetição medida.
+         * Acima disso o retorno é decrescente e a concentração começa a
+         * aparecer — e concentrar os lotes de todos os usuários nas mesmas
+         * combinações "ótimas" recriaria a aglomeração que a otimização
+         * existe para evitar, desta vez causada pelo próprio app.
+         */
+        const val PAYOUT_CANDIDATES = 12
+
+        /**
+         * Abaixo desta diferença entre o maior e o menor peso, o ranking não
+         * carrega informação e a divisão em tiers seria arbitrária.
+         */
+        const val UNINFORMATIVE_WEIGHT_SPREAD = 1e-9
 
         private const val TIER_COUNT = 3
         private const val TOP_TIER_INDEX = 0

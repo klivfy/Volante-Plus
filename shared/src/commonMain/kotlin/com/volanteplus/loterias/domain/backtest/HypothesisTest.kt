@@ -162,8 +162,12 @@ object HypothesisTesting {
         val se = if (n < 2) 0.0 else sd / sqrt(n.toDouble())
         val degenerate = n >= 2 && sd < DEGENERATE_TOLERANCE
 
-        val zCritical = if (alpha in 0.0..1.0 && alpha > 0.0) {
-            SpecialFunctions.normalQuantile(1.0 - alpha / 2.0)
+        // WHY (cauda direta): `normalQuantile(1 - alpha/2)` perdia o α inteiro
+        // por cancelamento quando o Bonferroni o levava abaixo de ~1e-16 —
+        // `1 - alpha/2` arredonda para 1,0 e o quantil lançava exceção. A
+        // forma por cauda superior recebe α/2 sem nenhuma subtração.
+        val zCritical = if (alpha > 0.0 && alpha < 1.0) {
+            SpecialFunctions.normalQuantileUpperTail(alpha / 2.0)
         } else {
             0.0
         }
@@ -179,7 +183,12 @@ object HypothesisTesting {
             p = if (abs(mean - theoreticalMean) < DEGENERATE_TOLERANCE) 1.0 else 0.0
         } else {
             z = (mean - theoreticalMean) / se
-            p = 2.0 * (1.0 - SpecialFunctions.normalCdf(abs(z)))
+            // WHY (erfc direto): `2 · (1 − Φ(|z|))` zera para |z| ≳ 8,3 —
+            // `1 − 0,9999…` colapsa no épsilon do double e o relatório
+            // imprimia "p = 0", que não existe. `erfc(|z|/√2)` é a mesma
+            // quantidade calculada sem subtrair de 1, e mantém a resolução
+            // até ~1e-300.
+            p = SpecialFunctions.erfc(abs(z) / sqrt(2.0))
         }
 
         val zBeta = SpecialFunctions.normalQuantile(TARGET_POWER)
@@ -272,9 +281,22 @@ object HypothesisTesting {
         alpha: Double,
     ): Verdict = when {
         meanTest.sampleSize < 2 -> Verdict.AMOSTRA_INSUFICIENTE
-        meanTest.pValue < alpha -> Verdict.DESVIO_SIGNIFICATIVO
+
+        // O qui-quadrado é avaliado antes do teste da média e independe dela:
+        // ele mede a **forma** da distribuição de acertos. Um desenho de lote
+        // que fixa a média não diz nada sobre a forma, então esta evidência
+        // continua válida mesmo com o estimador da média degenerado.
         gof.applicable && gof.pValue < alpha -> Verdict.DESVIO_SIGNIFICATIVO
-        // o desenho fixou a média: a ausência de desvio não é informativa
+
+        // WHY (a média só condena quando se aplica): com estimador degenerado
+        // o desenho do lote fixou a média e o teste z não vale — nem para
+        // absolver, nem para condenar. Antes, o ramo `p < alpha` rodava
+        // primeiro e, se a média fixada não coincidisse com a teórica, o p
+        // forçado a 0,0 produzia DESVIO_SIGNIFICATIVO a partir de uma
+        // estatística que a própria função declara inaplicável.
+        !meanTest.degenerateEstimator && meanTest.pValue < alpha ->
+            Verdict.DESVIO_SIGNIFICATIVO
+
         meanTest.degenerateEstimator -> Verdict.AMOSTRA_INSUFICIENTE
         meanTest.power < TARGET_POWER -> Verdict.AMOSTRA_INSUFICIENTE
         else -> Verdict.NAO_REFUTA_ALEATORIEDADE

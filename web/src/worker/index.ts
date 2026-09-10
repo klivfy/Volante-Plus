@@ -85,10 +85,32 @@ sw.addEventListener('push', (event) => {
   );
 });
 
+/**
+ * Resolve o destino do clique **dentro da origem do app**.
+ *
+ * WHY: `openWindow` abre o que receber, e o valor vem do payload do push —
+ * ou seja, de quem conseguir disparar uma notificação. Uma notificação com o
+ * nome e o ícone do Volante+ que abre um site de terceiros é phishing com a
+ * credibilidade do app emprestada. O servidor já normaliza este campo, mas o
+ * service worker é a última fronteira antes da navegação e valida de novo:
+ * as duas pontas erradas ao mesmo tempo é o que seria preciso para escapar.
+ */
+function resolveSameOriginUrl(raw: string | undefined): string {
+  const scope = sw.registration.scope;
+  if (!raw) return scope;
+  try {
+    const target = new URL(raw, scope);
+    const origin = new URL(scope).origin;
+    return target.origin === origin ? target.href : scope;
+  } catch {
+    return scope;
+  }
+}
+
 // Clique na notificação: foca uma aba já aberta do app ou abre uma nova.
 sw.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url ?? '/';
+  const targetUrl = resolveSameOriginUrl(event.notification.data?.url);
   event.waitUntil(
     sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {

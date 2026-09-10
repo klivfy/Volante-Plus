@@ -46,8 +46,8 @@ import kotlin.math.ln1p
  * - N é estimado pela arrecadação do concurso **anterior**. Acumulado alto
  *   atrai mais apostas, então N real tende a ser maior e o bônus real, menor.
  *   O número exibido é, portanto, um teto otimista, não uma promessa.
- * - Na +Milionária os prêmios fixos são pagos antes da divisão percentual; a
- *   estimativa ignora essa dedução e superestima levemente as faixas de rateio.
+ * - Na +Milionária os prêmios fixos são pagos antes da divisão percentual, e
+ *   a estimativa já respeita essa ordem (ver [PrizeTable.shareablePoolPerBet]).
  * - Concursos especiais (final 0/5, Mega da Virada) somam reservas adicionais
  *   ao bolo que a API não expõe neste campo; para eles o bônus real é maior.
  * - O acumulado muda **quando** apostar, nunca **o que** apostar. Nenhuma
@@ -107,14 +107,18 @@ object AccumulatedReturn {
             (tier.payout as? Payout.Share)?.fraction ?: 0.0
         }
 
-        val grossPrizePerBet = price * base.prizeShareOfCollection
-        val topPoolFromCollection = tickets * grossPrizePerBet * topFraction
+        // WHY (base compartilhada): as frações das faixas incidem sobre o bolo
+        // de rateio, que na +Milionária é o bruto **menos** os prêmios fixos e
+        // a reserva. Usar o bruto aqui reintroduziria, no número que a tela
+        // mostra, a mesma violação de conservação que [PrizeTable] corrigiu.
+        val shareablePerBet = PrizeTable.shareablePoolPerBet(lottery)
+        val topPoolFromCollection = tickets * shareablePerBet * topFraction
         val anyWinner = probabilityOfAnyWinner(topTier.probability, tickets)
 
         val topReturnWithoutAccumulated = topPoolFromCollection * anyWinner / tickets
         val accumulatedBonus =
             expectedShareOfPool(outlook.accumulatedForNext, topTier.probability, tickets)
-        val lowerReturn = grossPrizePerBet * lowerShareFraction + base.fixedTierReturn
+        val lowerReturn = shareablePerBet * lowerShareFraction + base.fixedTierReturn
 
         val baseReturn = topReturnWithoutAccumulated + lowerReturn
         val breakEven = if (anyWinner > 0.0) {

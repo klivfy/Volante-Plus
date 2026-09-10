@@ -77,8 +77,25 @@ object SpecialFunctions {
         return if (x < a + 1.0) gammaSeries(a, x) else 1.0 - gammaContinuedFraction(a, x)
     }
 
-    /** Q(a, x): função gama incompleta superior regularizada. */
-    fun regularizedGammaQ(a: Double, x: Double): Double = 1.0 - regularizedGammaP(a, x)
+    /**
+     * Q(a, x): função gama incompleta superior regularizada.
+     *
+     * WHY (precisão na cauda): a forma ingênua `1 − P(a,x)` perde toda a
+     * resolução quando Q é minúsculo — para Q ~ 1e-20, `1 − P` calcula
+     * `1 − 0,99999...` e o resultado colapsa em 0,0 assim que Q cai abaixo
+     * do épsilon do double (~1e-16). Como esta função sustenta os valores-p
+     * do laboratório, esse colapso transformava "p = 2,3e-19" em "p = 0",
+     * que é numericamente falso: um valor-p nunca é exatamente zero.
+     *
+     * A fração contínua já calcula Q **diretamente**; para x ≥ a+1 ela é
+     * devolvida sem passar por nenhuma subtração, o que preserva a precisão
+     * relativa até o limite do double (~1e-300).
+     */
+    fun regularizedGammaQ(a: Double, x: Double): Double {
+        require(a > 0.0 && x >= 0.0) { "gamaQ inválida: a=$a x=$x" }
+        if (x == 0.0) return 1.0
+        return if (x < a + 1.0) 1.0 - gammaSeries(a, x) else gammaContinuedFraction(a, x)
+    }
 
     /** Representação em série de P(a,x), convergente para x < a+1. */
     private fun gammaSeries(a: Double, x: Double): Double {
@@ -167,14 +184,40 @@ object SpecialFunctions {
                     ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0)
             }
         }
-        // um passo de Halley para levar o erro a ~1e-15
-        val e = normalCdf(x) - p
-        val u = e * sqrt(2.0 * Math.PI) * exp(x * x / 2.0)
-        x -= u / (1.0 + x * u / 2.0)
+        // Um passo de Halley leva o erro a ~1e-15. WHY (guarda): o refino
+        // multiplica por exp(x²/2), que estoura o double para |x| > 37,6
+        // (p abaixo de ~1e-308). Sem a guarda o passo devolvia Infinity e,
+        // na divisão seguinte, NaN — trocando um chute com 1e-9 de erro por
+        // nenhum resultado. Nessa faixa a aproximação de Acklam já entrega
+        // mais precisão do que qualquer uso a jusante consome.
+        val exponent = x * x / 2.0
+        if (exponent <= MAX_SAFE_EXPONENT) {
+            val e = normalCdf(x) - p
+            val u = e * sqrt(2.0 * Math.PI) * exp(exponent)
+            val refined = x - u / (1.0 + x * u / 2.0)
+            if (refined.isFinite()) x = refined
+        }
         return x
+    }
+
+    /**
+     * z tal que P(Z > z) = [tail], com Z normal padrão.
+     *
+     * WHY (por que não `normalQuantile(1 - tail)`): para tail abaixo de
+     * ~1e-16 a soma `1 - tail` arredonda para exatamente 1,0 e o quantil
+     * lançava exceção — o α corrigido por Bonferroni com muitas comparações
+     * cai justamente nessa faixa. Aqui o valor é obtido por simetria
+     * (z = −Φ⁻¹(tail)), sem nenhuma subtração que perca a informação.
+     */
+    fun normalQuantileUpperTail(tail: Double): Double {
+        require(tail > 0.0 && tail < 1.0) { "Cauda exige 0 < tail < 1 (recebido $tail)" }
+        return -normalQuantile(tail)
     }
 
     private const val EPSILON = 1e-15
     private const val TINY = 1e-300
     private const val MAX_ITERATIONS = 1000
+
+    /** Maior expoente cujo exp() não estoura o double (ln(Double.MAX_VALUE) ≈ 709,78). */
+    private const val MAX_SAFE_EXPONENT = 700.0
 }

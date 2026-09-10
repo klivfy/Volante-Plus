@@ -103,4 +103,63 @@ class SpecialFunctionsTest {
             }
         }
     }
+    /**
+     * Regressão do colapso na cauda: `erfc` era calculada como `1 − P`, o que
+     * zerava o resultado assim que ele caía abaixo do épsilon do double.
+     * Valores de referência conferidos contra a `erfc` da biblioteca padrão
+     * do Python (mesma precisão de double).
+     */
+    @Test
+    fun `erfc mantem precisao relativa na cauda profunda`() {
+        val referencia = mapOf(
+            3.0 to 2.699796063260191e-03,
+            5.0 to 5.733031437583892e-07,
+            6.5 to 8.032001167718250e-11,
+            8.3 to 1.041113948978057e-16,
+            9.0 to 2.257176811907684e-19,
+            12.0 to 3.552964224155404e-33,
+            20.0 to 5.507248237212663e-89,
+        )
+        referencia.forEach { (z, esperado) ->
+            val obtido = SpecialFunctions.erfc(z / Math.sqrt(2.0))
+            assertTrue(
+                "erfc para z=$z zerou — a cauda voltou a colapsar",
+                obtido > 0.0,
+            )
+            val erroRelativo = Math.abs(obtido - esperado) / esperado
+            assertTrue(
+                "erfc para z=$z: esperado $esperado, obtido $obtido (erro $erroRelativo)",
+                erroRelativo < 1e-12,
+            )
+        }
+    }
+
+    @Test
+    fun `cauda superior da normal aceita alfas que o complemento perderia`() {
+        // 1 - alpha/2 arredonda para 1,0 nesta faixa e o quantil clássico
+        // lançava exceção; a forma por cauda precisa atravessá-la.
+        listOf(1e-16, 1e-30, 1e-100, 1e-300).forEach { alpha ->
+            val z = SpecialFunctions.normalQuantileUpperTail(alpha / 2.0)
+            assertTrue("z para alpha=$alpha não é finito: $z", z.isFinite())
+            assertTrue("z para alpha=$alpha deveria crescer com o rigor", z > 8.0)
+        }
+    }
+
+    @Test
+    fun `cauda superior e inversa consistente da normalCdf`() {
+        listOf(0.025, 1e-4, 1e-8, 1e-15).forEach { cauda ->
+            val z = SpecialFunctions.normalQuantileUpperTail(cauda)
+            val recalculada = SpecialFunctions.erfc(z / Math.sqrt(2.0)) / 2.0
+            assertEquals(cauda, recalculada, cauda * 1e-6)
+        }
+    }
+
+    @Test
+    fun `quantil em extremos nao devolve NaN`() {
+        listOf(1e-300, 1e-320, Double.MIN_VALUE).forEach { p ->
+            val z = SpecialFunctions.normalQuantile(p)
+            assertTrue("Quantil de p=$p devolveu $z", z.isFinite() && z < 0.0)
+        }
+    }
+
 }

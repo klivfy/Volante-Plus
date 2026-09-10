@@ -145,4 +145,49 @@ class PrizeTableTest {
         val semA9 = faixas.filter { it.index != 9 }.map { it.probability }
         assertEquals(semA9.sorted(), semA9)
     }
+    /**
+     * A invariante que o modelo anterior violava: a +Milionária distribuía
+     * R$ 3,3825 por aposta de um bolo de R$ 2,6010 — 30% a mais do que
+     * existe. Vale para toda loteria e não pode regredir.
+     */
+    @Test
+    fun `nenhuma loteria distribui mais premio do que o bolo disponivel`() {
+        Lottery.entries.forEach { lottery ->
+            val er = PrizeTable.expectedReturn(lottery)
+            assertTrue(
+                "${lottery.displayName} paga R$ ${er.immediateReturn} de um bolo de R$ ${er.longRunReturn}",
+                er.immediateReturn <= er.longRunReturn + 1e-9,
+            )
+            assertTrue("Parcela diferida negativa em $lottery", er.deferredReturn >= -1e-9)
+            assertEquals(
+                er.immediateReturn,
+                er.fixedTierReturn + er.shareTierReturn,
+                1e-12,
+            )
+        }
+    }
+
+    @Test
+    fun `mega-sena paga as tres faixas e acumula o restante`() {
+        val er = PrizeTable.expectedReturn(Lottery.MEGA_SENA)
+        assertEquals(ShareBase.GROSS_PRIZE, er.shareBase)
+        assertEquals(0.0, er.fixedTierReturn, 1e-12)
+        // 40% + 13% + 15% do bolo bruto
+        assertEquals(er.longRunReturn * 0.68, er.shareTierReturn, 1e-9)
+        assertEquals(0.68, er.immediateShareOfPrize, 1e-9)
+    }
+
+    @Test
+    fun `milionaria deduz os premios fixos antes de ratear`() {
+        val er = PrizeTable.expectedReturn(Lottery.MAIS_MILIONARIA)
+        assertEquals(ShareBase.NET_OF_FIXED_AND_RESERVE, er.shareBase)
+        assertTrue("Deveria haver retorno de faixas fixas", er.fixedTierReturn > 0.0)
+
+        val rateavel = (er.longRunReturn - er.fixedTierReturn) * (1.0 - er.reserveShare)
+        assertEquals(rateavel, PrizeTable.shareablePoolPerBet(Lottery.MAIS_MILIONARIA), 1e-12)
+        // as frações das faixas de rateio somam 1,0 sobre essa base
+        assertEquals(rateavel, er.shareTierReturn, 1e-9)
+        assertTrue("Sobrou menos que a reserva", er.deferredReturn > 0.0)
+    }
+
 }

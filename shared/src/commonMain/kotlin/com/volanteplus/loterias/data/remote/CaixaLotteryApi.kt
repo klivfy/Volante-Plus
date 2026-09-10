@@ -48,6 +48,17 @@ class HttpCaixaLotteryApi(
             Result.failure(e)
         }
 
+    init {
+        // WHY: a URL base é injetável (testes, espelhos, variável de ambiente).
+        // Em http:// o histórico de concursos — que alimenta todo o
+        // laboratório — viajaria em claro e seria adulterável por qualquer
+        // intermediário da rede. Um app que se propõe a provar afirmações
+        // com dados não pode aceitar dados de origem não autenticada.
+        require(baseUrl.startsWith("https://")) {
+            "A URL base precisa usar https:// (recebida: $baseUrl)"
+        }
+    }
+
     private suspend fun <T> get(url: String, serializer: KSerializer<T>): T =
         withContext(Dispatchers.IO) {
             val connection = URL(url).openConnection() as HttpURLConnection
@@ -59,16 +70,52 @@ class HttpCaixaLotteryApi(
                 if (code != HttpURLConnection.HTTP_OK) {
                     throw IOException("HTTP $code em $url")
                 }
-                val body = connection.inputStream.bufferedReader().use { it.readText() }
-                json.decodeFromString(serializer, body)
+                json.decodeFromString(serializer, connection.inputStream.readBoundedText(url))
             } finally {
                 connection.disconnect()
             }
         }
 
+    /**
+     * Lê o corpo da resposta com teto de [MAX_RESPONSE_BYTES].
+     *
+     * WHY: `readText()` lê até o fim, sem limite. Um endpoint comprometido,
+     * um espelho hostil ou um intermediário podem responder um fluxo
+     * indefinido e derrubar o app por falta de memória — a leitura acontece
+     * no aparelho do usuário, com o heap de um processo Android. O teto
+     * transforma esse cenário num erro tratável.
+     */
+    private fun java.io.InputStream.readBoundedText(url: String): String {
+        val reader = bufferedReader()
+        val builder = StringBuilder()
+        val chunk = CharArray(DEFAULT_CHUNK_CHARS)
+        reader.use {
+            while (true) {
+                val read = it.read(chunk)
+                if (read < 0) break
+                if (builder.length + read > MAX_RESPONSE_BYTES) {
+                    throw IOException(
+                        "Resposta de $url excede o limite de $MAX_RESPONSE_BYTES caracteres"
+                    )
+                }
+                builder.appendRange(chunk, 0, read)
+            }
+        }
+        return builder.toString()
+    }
+
     companion object {
         const val DEFAULT_BASE_URL = "https://servicebus2.caixa.gov.br/portaldeloterias/api"
         private const val TIMEOUT_MS = 15_000
+
+        /**
+         * Teto do corpo aceito. O maior payload real da API (um concurso com
+         * a lista completa de rateios) fica na casa de dezenas de KB; 4 MB dá
+         * três ordens de grandeza de folga sem deixar o limite inócuo.
+         */
+        const val MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+
+        private const val DEFAULT_CHUNK_CHARS = 8 * 1024
     }
 }
 

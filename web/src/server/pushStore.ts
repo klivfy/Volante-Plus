@@ -32,8 +32,24 @@ export function configureWebPush(): boolean {
   return true;
 }
 
-export function addSubscription(subscription: PushSubscription): void {
+/**
+ * Teto de inscrições mantidas em memória.
+ *
+ * WHY: o store é um `Map` no processo e a rota de inscrição é anônima por
+ * necessidade. Sem teto, um laço de requisições forjadas cresce o mapa até
+ * derrubar a função. O limite escolhido cabe folgadamente numa função
+ * serverless e é ordens de grandeza maior que a base real esperada.
+ */
+export const MAX_SUBSCRIPTIONS = 50_000;
+
+/**
+ * Registra a inscrição. Devolve `false` quando o teto foi atingido — o
+ * chamador responde 503 em vez de aceitar em silêncio e estourar a memória.
+ */
+export function addSubscription(subscription: PushSubscription): boolean {
+  if (!store.has(subscription.endpoint) && store.size >= MAX_SUBSCRIPTIONS) return false;
   store.set(subscription.endpoint, subscription);
+  return true;
 }
 
 export function removeSubscription(endpoint: string): void {
