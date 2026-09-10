@@ -91,12 +91,19 @@ dela.
 
 ## Deploy
 
-O projeto não tem infraestrutura própria de servidor (sem rotas de API, sem
-banco remoto) — é estático o suficiente para qualquer host de arquivos
-estáticos/edge que rode Next.js. O workflow de CI (`.github/workflows/web-ci.yml`)
-inclui um passo opcional de deploy para a [Vercel](https://vercel.com/), que só
-roda quando os secrets abaixo estiverem configurados no repositório
-(**Settings → Secrets and variables → Actions**):
+O projeto tem duas rotas de API (`/api/push/subscribe`, `/api/push/send`,
+ambas `runtime = 'nodejs'` — usam `web-push`, que depende de `crypto` do
+Node) além de tudo o mais ser estático. Isso exclui *static export*
+(`output: 'export'`) como opção de deploy: o host precisa rodar Next.js de
+verdade (servidor Node, container, ou uma plataforma com adapter/integração
+Next.js), não só servir arquivos estáticos.
+
+### Vercel
+
+O workflow de CI (`.github/workflows/web-ci.yml`) inclui um passo opcional de
+deploy para a [Vercel](https://vercel.com/), que só roda quando os secrets
+abaixo estiverem configurados no repositório (**Settings → Secrets and
+variables → Actions**):
 
 | Secret | Descrição |
 |---|---|
@@ -108,6 +115,41 @@ roda quando os secrets abaixo estiverem configurados no repositório
 Sem os três primeiros secrets, o job de deploy é pulado — o resto do CI
 (lint, testes, build) continua rodando normalmente. Para deploy manual:
 `npx vercel --cwd web`.
+
+### Netlify
+
+`netlify.toml` fica na **raiz do monorepo** (não em `web/`) — é onde a
+Netlify procura o arquivo antes de aplicar `base`, e é o que faz o botão
+"Deploy to Netlify" do README funcionar sem configuração manual adicional.
+Ele fixa `base = "web"`, o comando de build (`npm run build`, que já inclui
+`--webpack` — ver acima) e declara o plugin `@netlify/plugin-nextjs`, que a
+Netlify baixa e aplica sozinha a partir dessa declaração.
+
+**Por que não é o novo Adapter API do Next.js 16:** a Netlify ainda não tem
+um adapter verificado na [Adapter API](https://nextjs.org/docs/app/api-reference/config/next-config-js/adapterPath)
+introduzida nesta versão — no momento desta configuração ela oferece sua
+própria integração (`@netlify/plugin-nextjs`), o mesmo modelo usado por
+projetos Next.js na Netlify há vários anos. Isso pode mudar em versões
+futuras do Next.js sem exigir nada deste repositório além de atualizar o
+plugin.
+
+Conectando o repositório pelo painel da Netlify (**Add new site → Import an
+existing project**), o `netlify.toml` já configura tudo — não precisa mexer
+em "Build settings" manualmente. Para deploy manual via CLI:
+`netlify deploy --build` (rodado a partir da raiz do repositório, onde
+`netlify.toml` está).
+
+Configure as mesmas variáveis de ambiente da tabela da Vercel (ver
+`.env.example`) em **Site configuration → Environment variables** no painel
+da Netlify — `NEXT_PUBLIC_*` são embutidas em build, as demais (`VAPID_*`,
+`PUSH_SEND_SECRET`, `SENTRY_*`) só em runtime/build conforme o caso.
+
+**Limitação conhecida, igual na Vercel:** o armazenamento de inscrições de
+push (`src/server/pushStore.ts`) vive em memória do processo. Numa função
+serverless — Netlify Functions inclusive — isso não sobrevive a cold starts
+nem é compartilhado entre instâncias. Funciona para demonstração; produção
+de verdade precisa trocar por um armazenamento externo (KV/Redis/Postgres),
+o que já está documentado no próprio arquivo.
 
 ## Testes
 

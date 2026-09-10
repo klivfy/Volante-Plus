@@ -4,6 +4,7 @@
 [![Web CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/web-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/web-ci.yml)
 [![Desktop CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/desktop-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/desktop-ci.yml)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Mestrys/Volante-Plus&root-directory=web)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Mestrys/Volante-Plus)
 
 App Android (Kotlin + Jetpack Compose, Material Design 3), versão web
 (Next.js + PWA, ver `web/`) e app desktop para Windows (Compose
