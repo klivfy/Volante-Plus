@@ -162,9 +162,18 @@ Sem essas quatro condições, `ModuleBReport.approved` é `false` — que é o
 resultado esperado sob a hipótese nula, e reportado com o mesmo peso que uma
 aprovação teria. `__tests__/moduleB.test.ts` roda o controle negativo
 (histórico honesto não pode aprovar nada) sobre o mesmo tipo de dado sintético
-que valida o Módulo A; ainda não foi rodado sobre o espelho real de
-`mirrorSnapshot/` — isso é um próximo passo, não parte desta definição de
-método.
+que valida o Módulo A.
+
+### O que o espelho mostrou
+
+`__tests__/realHistoryModuleB.test.ts` roda o método sobre o mesmo espelho de
+terceiros do Módulo A. Em ambas as modalidades, nenhuma estratégia superou
+`random-uniform` de forma significativa na fatia de seleção — a confirmação
+nem chega a rodar (não há candidata a confirmar), e `approved` sai `false`
+nos dois casos. É exatamente o resultado que a hipótese nula prevê, e a
+Regra 5 barra qualquer alegação preditiva a partir daqui: o Módulo C, sobre o
+mesmo dado, usa `tier-weighted` sem alegação preditiva nos dois casos (ver
+seção abaixo).
 
 ## Módulo C — sugestão de jogos (`moduleC.ts`)
 
