@@ -56,3 +56,7 @@ keystore.properties
 # Netlify CLI (estado local de `netlify link`/`netlify deploy`, roda a
 # partir da raiz — é aqui que `netlify.toml` vive)
 .netlify
+
+# Pacote temporário que o @netlify/mcp gera na raiz do repo ao empacotar um
+# deploy (não é um artefato do projeto, some sozinho ao final do deploy)
+/deploy-*.zip
