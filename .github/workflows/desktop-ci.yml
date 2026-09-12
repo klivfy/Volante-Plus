@@ -89,7 +89,7 @@ jobs:
           path: |
             desktop/build/compose/binaries/main/msi/*.msi
             desktop/build/compose/binaries/main/exe/*.exe
-          retention-days: 14
+          retention-days: 3
 
   # Só roda em tags "v*-desktop" (ex.: v1.1.0-desktop) — o instalador já saiu
   # do job "build" acima (mesmo commit, mesmo runner Windows); aqui só
