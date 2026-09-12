@@ -15,6 +15,12 @@
 [build]
   base = "web"
   command = "npm run build"
+  # O plugin recusa build/publish apontando para o mesmo diretório (o painel
+  # da Netlify tinha "Publish directory" = "web", igual ao base, herdado do
+  # assistente de criação do site antes deste arquivo existir). O Next
+  # Runtime gerencia o output dele mesmo a partir do build do Next em
+  # `.next`, relativo a `base` — só precisa ser um caminho diferente do base.
+  publish = ".next"
 
 # Mesma versão fixada em `vercel.json` (nodeVersion: "20.x") e em
 # `web/.nvmrc` — mantém os três caminhos de deploy no mesmo runtime.

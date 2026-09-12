@@ -122,8 +122,18 @@ Sem os três primeiros secrets, o job de deploy é pulado — o resto do CI
 Netlify procura o arquivo antes de aplicar `base`, e é o que faz o botão
 "Deploy to Netlify" do README funcionar sem configuração manual adicional.
 Ele fixa `base = "web"`, o comando de build (`npm run build`, que já inclui
-`--webpack` — ver acima) e declara o plugin `@netlify/plugin-nextjs`, que a
-Netlify baixa e aplica sozinha a partir dessa declaração.
+`--webpack` — ver acima), `publish = ".next"` (relativo a `base`) e declara
+o plugin `@netlify/plugin-nextjs`, que a Netlify baixa e aplica sozinha a
+partir dessa declaração.
+
+**Sobre `publish = ".next"`:** o Next Runtime da Netlify recusa o build
+quando o diretório de publicação é igual ao `base` (`Error: Your publish
+directory cannot be the same as the base directory of your site`) — erro
+visto na prática quando o site é criado pelo assistente da Netlify antes
+deste arquivo existir, que às vezes preenche "Publish directory" com o
+mesmo valor do "Base directory" no painel. Declarar `publish` aqui garante
+que o valor certo viaje com o repositório, independente do que o painel
+tiver herdado.
 
 **Por que não é o novo Adapter API do Next.js 16:** a Netlify ainda não tem
 um adapter verificado na [Adapter API](https://nextjs.org/docs/app/api-reference/config/next-config-js/adapterPath)
