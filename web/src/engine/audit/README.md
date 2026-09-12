@@ -134,8 +134,54 @@ inteiro.
 ## O que este módulo não faz
 
 Não prevê dezenas, e nenhum resultado dele autoriza isso. Aprovação em
-previsibilidade é o Módulo B (`engine/walkForwardMulti.ts`,
-`engine/strategyBenchmark.ts`), que compara qualquer método contra gerador
-aleatório fora da amostra. Ausência de anomalia em A **não** é evidência a
+previsibilidade é o Módulo B. Ausência de anomalia em A **não** é evidência a
 favor de método preditivo nenhum — é o contrário: confirma o modelo sob o
 qual todas as combinações são equiprováveis.
+
+## Módulo B — previsibilidade (`moduleB.ts`)
+
+Método pré-registrado, escrito e commitado antes de rodar sobre o espelho
+real (mesma disciplina do Módulo A — ver seção acima). Fixa, antes de ver
+qualquer resultado:
+
+1. **Separação cronológica**: os últimos `CONFIRMATION_HOLDOUT_FRACTION`
+   (20%) do histórico são reservados para **confirmação** e nunca entram na
+   escolha de estratégia.
+2. **Seleção**: dentro do restante (80%), `strategyBenchmark.ts` compara as 5
+   estratégias (incluindo `random-uniform`, o baseline que a Regra 5 exige)
+   com correção de Bonferroni entre elas. Só uma estratégia com vantagem
+   significativa vira candidata.
+3. **Confirmação**: a candidata é reexecutada, sozinha, em cortes
+   walk-forward sucessivos dentro da fatia de confirmação — o desenho de
+   replicação de A5, aplicado a previsão.
+4. **Aprovação**: só `true` quando a vantagem replica em pelo menos
+   `APPROVAL_MIN_CONSISTENCY` (80%) dos cortes de confirmação, com Bonferroni
+   aplicado entre eles.
+
+Sem essas quatro condições, `ModuleBReport.approved` é `false` — que é o
+resultado esperado sob a hipótese nula, e reportado com o mesmo peso que uma
+aprovação teria. `__tests__/moduleB.test.ts` roda o controle negativo
+(histórico honesto não pode aprovar nada) sobre o mesmo tipo de dado sintético
+que valida o Módulo A; ainda não foi rodado sobre o espelho real de
+`mirrorSnapshot/` — isso é um próximo passo, não parte desta definição de
+método.
+
+## Módulo C — sugestão de jogos (`moduleC.ts`)
+
+A especificação original previa um orçamento em reais informado pelo
+usuário, que nunca chegou. `suggestGames` redefine o orçamento em
+**quantidade de jogos** (`budgetGames`, padrão `DEFAULT_BUDGET_GAMES =
+MIN_GAMES`, teto `MAX_GAMES` — os mesmos limites que o app já usa), o que
+evita depender do preço da aposta.
+
+A Regra 5 é aplicada na assinatura, não na UI: `suggestGames` exige um
+`ModuleBReport` da mesma loteria e decide a partir dele —
+
+- **aprovado**: usa a estratégia candidata do Módulo B, com aviso que reporta
+  a vantagem medida no passado sem prometer resultado futuro;
+- **não aprovado** (o caso esperado): usa `tier-weighted` (o motor já
+  existente do app) e imprime `NO_CLAIM_DISCLAIMER`, que declara
+  explicitamente a equivalência estatística ao sorteio aleatório.
+
+Não existe caminho de código que produza uma sugestão "premium" sem ter
+passado pelo relatório do Módulo B.

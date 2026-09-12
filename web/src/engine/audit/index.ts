@@ -379,3 +379,5 @@ export * from './anomalyTests';
 export * from './baseline';
 export * from './preregistration';
 export * from './provenance';
+export * from './moduleB';
+export * from './moduleC';
