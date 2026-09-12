@@ -4,6 +4,46 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
 ## [Unreleased]
 
+## [2.2.0]
+
+Laboratório estatístico de loterias (`web/`) — nenhuma mudança de código
+Android ou desktop neste lançamento.
+
+### Added
+- Rateio de prêmio (`web/src/engine/unpopularity.ts`, `payoutShare.ts`):
+  porta do modelo de aglomeração/popularidade do Android, exposta na tela
+  principal via `PayoutSharePanel` e por jogo em `GameCard`, condicionada ao
+  usuário informar o número de apostas do concurso.
+- Auditoria de anomalias pré-registrada — Módulo A (`web/src/engine/audit/`):
+  A1 (uniformidade de dezenas/trevos), A2 (independência entre concursos),
+  A3 (distribuição da soma), A4 (ganhadores vs. Poisson, com limitação
+  declarada), A5 (replicação nas duas metades do histórico); linha de base
+  simulada, correção de Bonferroni sobre o total de testes executados,
+  efeito mínimo detectável a 80% de poder. Guarda de procedência
+  (`provenance.ts`) recusa dado sintético ou não identificado.
+- Primeira execução real do Módulo A sobre um espelho de terceiros dos
+  resultados da Caixa (`data/mirrorSnapshot/`, 2.797 concursos da Mega-Sena
+  e 199 da +Milionária) — nenhuma anomalia confirmada em nenhuma das duas
+  modalidades.
+- Método de previsibilidade pré-registrado — Módulo B (`moduleB.ts`):
+  separa cronologicamente 20% do histórico para confirmação, escolhe
+  estratégia candidata por benchmark com Bonferroni entre 5 estratégias, e
+  só aprova alegação preditiva se a vantagem replicar em >=80% dos cortes
+  walk-forward de confirmação. Sugestão de jogos — Módulo C (`moduleC.ts`):
+  orçamento redefinido em quantidade de jogos (sem valor em reais nunca
+  informado); usa a estratégia aprovada pelo Módulo B ou, no caso esperado
+  de nenhuma aprovação, o motor padrão com aviso explícito de equivalência
+  ao sorteio aleatório. Rodados sobre o mesmo espelho real: nenhuma
+  estratégia aprovada em nenhuma das duas modalidades.
+- `netlify.toml` (raiz do monorepo) e `web/.nvmrc`: segundo caminho de
+  deploy além da Vercel, via `@netlify/plugin-nextjs`; botão "Deploy to
+  Netlify" no README; seção correspondente em `docs/WEB.md`.
+
+### Changed
+- `retention-days` reduzido em todos os artefatos de CI (Android, desktop,
+  web) para conter o acúmulo que esgotou a cota de armazenamento do
+  GitHub Actions da conta.
+
 ## [2.1.0]
 
 Lançamento da plataforma desktop Windows (`desktop/`) — o app passa a rodar
