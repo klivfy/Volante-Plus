@@ -1,0 +1,145 @@
+name: Desktop CI
+
+# Roda em windows-latest de propósito: o empacotamento nativo do Compose
+# Desktop (jpackage, por baixo do targetFormats(Msi, Exe)) não faz
+# cross-compilation — só gera instalador .msi/.exe rodando de fato num
+# Windows. Um runner Linux só serviria para compilar o Kotlin, não para
+# empacotar.
+on:
+  push:
+    branches: [main]
+    tags: ["v*-desktop"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compilar e empacotar (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle (com cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compila :shared e :desktop
+        run: ./gradlew.bat :desktop:compileKotlinDesktop
+
+      - name: Empacota instaladores (.msi e .exe)
+        run: ./gradlew.bat :desktop:packageMsi :desktop:packageExe
+
+      # O plugin do Compose Desktop só assina nativamente no macOS — no
+      # Windows, jpackage não assina o instalador, então a assinatura
+      # Authenticode roda aqui via signtool (já vem no Windows SDK do
+      # próprio runner windows-latest, sem dependência nova). Só executa se
+      # o repositório tiver os secrets do certificado configurados; sem
+      # eles, o instalador sai sem assinatura (o de sempre até hoje) e o
+      # restante do workflow segue normalmente — ver docs/DESKTOP.md.
+      - name: Assina os instaladores (Authenticode)
+        # Secrets não podem ser referenciados diretamente num `if:` (o
+        # workflow falha na validação estática, antes de qualquer job
+        # rodar) — por isso o valor passa primeiro por uma env var, que aí
+        # sim pode ser testada na condição.
+        if: ${{ env.PFX_BASE64 != '' }}
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:PFX_BASE64))
+
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match "\\x64\\" } |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) {
+            throw "signtool.exe não encontrado no Windows SDK deste runner."
+          }
+
+          $installers = Get-ChildItem -Path "desktop/build/compose/binaries/main" -Recurse -Include *.msi, *.exe
+          foreach ($installer in $installers) {
+            & $signtool sign /f $pfxPath /p $env:PFX_PASSWORD /fd SHA256 `
+              /tr http://timestamp.digicert.com /td SHA256 $installer.FullName
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao assinar $($installer.FullName)"
+            }
+          }
+
+          Remove-Item $pfxPath
+
+      - name: Publica instaladores
+        uses: actions/upload-artifact@v4
+        with:
+          name: volante-plus-desktop-windows
+          path: |
+            desktop/build/compose/binaries/main/msi/*.msi
+            desktop/build/compose/binaries/main/exe/*.exe
+          retention-days: 3
+
+  # Só roda em tags "v*-desktop" (ex.: v1.1.0-desktop) — o instalador já saiu
+  # do job "build" acima (mesmo commit, mesmo runner Windows); aqui só
+  # empacota isso como Release draft do GitHub, para download público, sem
+  # publicar automaticamente (fica em rascunho — revisão humana antes de
+  # publicar é intencional, ver docs/WINDOWS.md).
+  release:
+    name: Release draft (instaladores)
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Baixa os instaladores do job de build
+        uses: actions/download-artifact@v4
+        with:
+          name: volante-plus-desktop-windows
+          path: dist
+
+      - name: Publica Release draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes="## Volante+ Desktop ${TAG}
+
+          Instaladores Windows (.msi/.exe) gerados por \`desktop-ci.yml\` em \`windows-latest\`.
+          Release em **rascunho** — revise e publique manualmente no GitHub (ver \`docs/WINDOWS.md\`)."
+
+          # actions/upload-artifact preserva os subdiretórios originais
+          # (desktop/build/.../msi, desktop/build/.../exe) dentro de "dist" —
+          # por isso busca recursiva em vez de assumir arquivos direto na raiz.
+          mapfile -t installers < <(find dist -type f \( -name "*.msi" -o -name "*.exe" \))
+          if [ "${#installers[@]}" -eq 0 ]; then
+            echo "::error::Nenhum instalador (.msi/.exe) encontrado em dist/"
+            exit 1
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${installers[@]}" --clobber
+          else
+            gh release create "$TAG" "${installers[@]}" \
+              --target "${{ github.sha }}" \
+              --title "Volante+ Desktop $TAG" \
+              --notes "$notes" \
+              --draft
+          fi

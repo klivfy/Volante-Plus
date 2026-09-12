@@ -1,0 +1,21 @@
+{
+  "name": "volante-plus-extension",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Extensão de navegador (Chrome/Edge/Firefox): popup com a página Volante simplificada, sincronização em segundo plano via chrome.alarms e badge de novos sorteios.",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:chrome": "node build.mjs --target=chrome",
+    "build:edge": "node build.mjs --target=edge",
+    "build:firefox": "node build.mjs --target=firefox"
+  },
+  "dependencies": {
+    "webextension-polyfill": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/webextension-polyfill": "^0.12.3",
+    "esbuild": "^0.25.0",
+    "typescript": "^5"
+  }
+}

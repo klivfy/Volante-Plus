@@ -22,3 +22,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Volante-Plus"
 include(":app")
+include(":shared")
+include(":desktop")

@@ -54,4 +54,18 @@ class CsvDrawParserTest {
     fun `conteudo vazio produz lista vazia`() {
         assertEquals(emptyList<Any>(), parser.parse(Lottery.MEGA_SENA, ""))
     }
+
+    @Test
+    fun `linha com numero de concurso corrompido nao e confundida com cabecalho`() {
+        val csv = """
+            concurso;data;dezenas;trevos
+            2699;2024-05-30;01 05 20 33 47 60;
+            ;2024-06-01;04 12 23 34 45 56;
+        """.trimIndent()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            parser.parse(Lottery.MEGA_SENA, csv)
+        }
+        assertTrue(error.message!!.contains("Linha 3"))
+    }
 }

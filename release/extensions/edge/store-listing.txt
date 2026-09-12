@@ -1,0 +1,288 @@
+================================================================================
+VOLANTE+ EDGE EXTENSION - MICROSOFT EDGE ADD-ONS LISTING
+================================================================================
+
+EXTENSION NAME (max 50 characters)
+================================================================================
+Volante+ - Gerador de Jogos de Loterias
+
+SUMMARY (max 250 characters - what users see in search results)
+================================================================================
+Gera jogos de loterias com análise de desempenho histórico direto da barra de ferramentas. Sincronização automática de novos sorteios.
+
+DETAILED DESCRIPTION (max 10,000 characters)
+================================================================================
+Volante+ é uma extensão Microsoft Edge para análise inteligente e geração de jogos de loterias brasileiras.
+
+PRINCIPAIS RECURSOS:
+
+✨ Geração de Jogos Inteligente
+- Analisa o desempenho histórico de números em loterias
+- Sugere combinações baseadas em backtesting estatístico
+- Suporta: Mega-Sena e +Milionária
+- Interface simplificada direto da barra de ferramentas
+- Funciona completamente offline com dados cacheados
+
+🔄 Sincronização Automática em Tempo Real
+- Monitora novos sorteios automaticamente
+- Notifica quando novos resultados são disponibilizados
+- Atualiza dados de desempenho em background
+- Executa sincronização a cada hora sem interrupção
+
+📊 Análise de Desempenho
+- Visualiza padrões de números mais frequentes
+- Calcula probabilidades baseadas em histórico
+- Dados sincronizados com a aplicação web Volante+
+- Interface gráfica intuitiva com resultados visuais
+
+🔐 Privado e Seguro
+- Funciona completamente offline após primeira sincronização
+- Dados locais armazenados no navegador Edge
+- Sem rastreamento ou coleta de dados pessoais
+- Sem cookies de terceiros
+- Código aberto e auditável no GitHub
+
+COMO USAR:
+
+1. Instale a extensão a partir da Microsoft Edge Add-ons
+2. Clique no ícone Volante+ na barra de ferramentas
+3. Selecione a loteria desejada (Mega-Sena ou +Milionária)
+4. Visualize números com melhor desempenho
+5. Gere lotes de jogos automaticamente
+6. A extensão sincroniza dados em background automaticamente
+
+COMPATIBILIDADE:
+
+- Microsoft Edge: versão 100+ (Manifest V3 compatível)
+- Suporta Edge em Windows, macOS e Linux
+- Offline-first: funciona sem internet após cache inicial
+- Sincronização com Chrome: compatível com perfis sincronizados
+
+PERMISSÕES SOLICITADAS:
+
+- storage: Armazena dados de desempenho e preferências localmente no navegador
+- alarms: Agendamento de sincronização periódica de dados (a cada 60 minutos)
+- Acesso a loteriascaixa-api.herokuapp.com: Busca dados oficiais de sorteios
+
+Por que essas permissões são necessárias:
+- storage: Mantém histórico de números e análises para funcionar offline
+- alarms: Permite sincronização automática de novos sorteios em background
+- Host permission: Busca dados oficiais de loterias para análise
+
+PRIVACIDADE E DADOS:
+
+Volante+ não coleta nenhum dado pessoal. Todos os dados são:
+- Armazenados localmente no seu navegador Edge
+- Nunca sincronizados com servidores de terceiros
+- Completamente sob seu controle
+
+Nenhum rastreamento é realizado. A extensão respeita sua privacidade completamente.
+
+COMPATIBILIDADE COM OUTROS NAVEGADORES:
+
+Esta extensão Edge é totalmente compatível com o ecossistema Chromium. Versões também disponíveis para:
+- Google Chrome: "Volante+ - Chrome Web Store"
+- Mozilla Firefox: "Volante+ - Mozilla Add-ons"
+
+SUPORTE:
+
+Dúvidas, problemas ou sugestões?
+- Site: https://volante-plus.app
+- GitHub: https://github.com/mestrys/volante-plus
+- Issues: https://github.com/mestrys/volante-plus/issues
+- Email: support@volante-plus.app
+
+CHANGELOG (Versão 2.0.0):
+
+- Migração para Manifest V3 (Edge 100+)
+- Suporte otimizado para Microsoft Edge
+- Melhor desempenho com novo sistema de cache
+- Sincronização aprimorada de sorteios
+- Interface refinada com Material Design
+
+LINGUAGEM:
+
+- Idioma principal: Português (Brasil)
+- Suporte a localização: pt-BR
+
+CATEGORIA & ETIQUETAS:
+
+Categoria: Produtividade
+Etiquetas: loteria, mega-sena, milionária, gerador, análise, jogos, sincronização, desempenho
+
+REQUISITOS EDGE ADD-ONS:
+
+✓ Manifest Version: 3 (MV3 para Edge 100+)
+✓ Permissions: Minimal and justified (storage, alarms)
+✓ Hosted on: GitHub (open source)
+✓ Content Security Policy: Compliant
+✓ No external content injection
+✓ No dynamic code execution (eval)
+✓ Privacy: GDPR compliant
+✓ Security: No vulnerabilities detected
+
+VERSIONING:
+
+Versão: 2.0.0 (Semantic Versioning)
+Build ID: 2026-07-31
+Status: Ready for Microsoft Edge Add-ons review
+
+================================================================================
+END OF EDGE STORE LISTING
+================================================================================
+
+Last Updated: 2026-07-31
+Status: Ready for submission
+
+================================================================================
+EDGE-SPECIFIC ADAPTATIONS & POLICY NOTES
+================================================================================
+
+DIFFERENCES FROM CHROME:
+
+1. MANIFEST COMPATIBILITY:
+   - Edge uses same Manifest V3 format as Chrome
+   - No browser_specific_settings required (unlike Firefox)
+   - Service worker format identical to Chrome
+   - All Chrome APIs work in Edge without modification
+
+2. EDGE ADD-ONS STORE POLICIES:
+   - Similar to Chrome Web Store but with some differences
+   - Privacy requirements slightly stricter
+   - Must comply with Microsoft Services Agreement
+   - Different review timeline (typically 24-72 hours)
+
+3. PRIVACY CONSIDERATIONS:
+   - Edge has built-in privacy protections (InPrivate mode, Tracking Prevention)
+   - Extension should be transparent about data collection
+   - Local storage only (no cloud sync of extension data)
+   - Users can trust that Edge enforces same security as Chrome
+
+4. PERMISSIONS MODEL:
+   - Same permission system as Chrome
+   - Users see permission warnings on install
+   - runtime.requestPermissions() supported for optional permissions
+
+5. DISTRIBUTION:
+   - Edge Store URL: https://microsoftedge.microsoft.com/addons
+   - Account: Microsoft (MSA or AAD)
+   - Cost: Free submission (no registration fee like Chrome Web Store)
+   - Review: Automated + manual (24-72 hours typical)
+
+6. ACCOUNT REQUIREMENTS:
+   - Microsoft Account (Hotmail, Outlook, or AAD)
+   - Publisher identity verification may be required
+   - Organization name/Individual developer name
+   - Contact email for support
+
+7. SUPPORTED FEATURES:
+   ✓ chrome.storage API (local storage)
+   ✓ chrome.alarms API (background scheduling)
+   ✓ chrome.runtime API (messaging and events)
+   ✓ Offline functionality
+   ✓ Auto-updates from Edge Add-ons
+   ✓ User reviews and ratings
+   ✓ Extension statistics and analytics
+
+8. NOT SUPPORTED IN EDGE (vs Chrome):
+   - chrome.webRequest (deprecated in MV3 everywhere)
+   - Sync storage (not available)
+   - WebGL/WebGPU in service workers
+   - Some deprecated Chrome APIs
+
+9. EDGE-SPECIFIC BENEFITS:
+   - Shared profile with Microsoft Account
+   - Collections and reading list integration
+   - Built-in reward system (Microsoft Rewards)
+   - Better privacy controls than Chrome
+   - Performance on lower-end devices
+
+10. TESTING & QUALITY ASSURANCE:
+    - Test in Edge 100+ (current stable)
+    - Test in both Windows and macOS versions
+    - Verify offline functionality works
+    - Check that badge and notifications display correctly
+    - Ensure background sync timing works (1 hour intervals)
+
+11. SUBMISSION CHECKLIST FOR EDGE STORE:
+    ✓ Manifest V3 valid (same as Chrome)
+    ✓ All icons present (16, 32, 48, 128)
+    ✓ Privacy policy URL accessible
+    ✓ Support/help URL available
+    ✓ Store listing clear and accurate
+    ✓ No external scripts or CDN dependencies
+    ✓ No eval() or dynamic code execution
+    ✓ HTTPS-only for external connections
+    ✓ No deceptive practices
+    ✓ Proper content rating
+
+12. DEVELOPER ACCOUNT SETUP:
+    Step 1: Go to https://microsoftedge.microsoft.com/addons/Microsoft
+    Step 2: Sign in with Microsoft Account
+    Step 3: Click "Become a developer"
+    Step 4: Accept Microsoft Services Agreement
+    Step 5: Verify email address
+    Step 6: Ready to submit!
+
+13. TIMELINE & EXPECTATIONS:
+    Account Setup:  5-10 minutes (free, no registration fee)
+    Upload:         2 minutes
+    Automated Scan: 15-30 minutes
+    Manual Review:  24-48 hours typical
+    Publication:    1-7 days after approval
+    Total:          1-4 days (similar to Chrome)
+
+14. MONITORING POST-PUBLICATION:
+    - Check daily for reviews and ratings
+    - Monitor crash reports (Edge provides analytics)
+    - Respond to user feedback
+    - Update extension regularly
+    - Monitor for policy violations
+
+15. EDGE STORE ADVANTAGES OVER CHROME:
+    - No $5 registration fee (FREE submission)
+    - Smaller marketplace (less competition)
+    - Good opportunity for Portuguese-language users
+    - Edge growing in market share
+    - Same technical foundation as Chrome (Chromium)
+
+================================================================================
+EDGE ADD-ONS SUBMISSION GUIDE
+================================================================================
+
+BEFORE SUBMISSION:
+1. Create Microsoft Account at https://account.microsoft.com
+2. Go to https://microsoftedge.microsoft.com/addons/developer
+3. Click "Become a developer"
+4. Accept terms and verify email
+5. Set up your publisher profile
+
+SUBMISSION PROCESS:
+1. In Developer Dashboard: Click "New extension"
+2. Upload edge.zip file
+3. Fill in extension details (copy from store-listing.txt above)
+4. Add publisher information
+5. Set content rating
+6. Submit for review
+
+WHAT HAPPENS NEXT:
+1. Automated scan runs (~15-30 min)
+2. Manual review by Microsoft team (~24-48 hours)
+3. Email notification if changes needed
+4. Once approved, extension listed on Edge Add-ons
+5. Auto-updates enabled for users
+
+QUALITY GATES:
+- No malware detected ✓
+- Manifest V3 compliant ✓
+- Privacy policy accessible ✓
+- Clear description of functionality ✓
+- No policy violations ✓
+
+EXPECTED REACH:
+- Edge users worldwide: ~100+ million
+- Portuguese-language markets: Strong presence
+- Desktop users: Primary audience
+- Mobile users: Limited (mobile restrictions)
+
+================================================================================

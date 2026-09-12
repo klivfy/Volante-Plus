@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Volante+ — Política de Privacidade</title>
+    <style>
+      body {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+        font-family: system-ui, sans-serif;
+        color: #1c1b1f;
+        background: #fffbfe;
+        line-height: 1.6;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        font-size: 1.15rem;
+        margin-top: 2em;
+      }
+      .effective-date {
+        color: #49454f;
+        font-size: 0.9rem;
+      }
+      a {
+        color: #6750a4;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          color: #e6e1e5;
+          background: #1c1b1f;
+        }
+        .effective-date {
+          color: #cac4d0;
+        }
+        a {
+          color: #d0bcff;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Volante+ — Política de Privacidade</h1>
+    <p class="effective-date">Vigente desde: 31 de julho de 2026.</p>
+
+    <h2>Resumo</h2>
+    <p>
+      O Volante+ não coleta, armazena ou compartilha nenhum dado pessoal seu.
+      Não há conta de usuário, não há analytics, não há rastreamento. Todo o
+      processamento — geração de jogos, backtesting — acontece localmente no
+      seu navegador.
+    </p>
+
+    <h2>Dados que coletamos</h2>
+    <p>Nenhum. O Volante+ não tem servidor próprio nem banco de dados remoto.</p>
+
+    <h2>Armazenamento local</h2>
+    <p>
+      O app guarda alguns dados <strong>só no seu navegador</strong>, nunca
+      enviados a nós ou a terceiros:
+    </p>
+    <ul>
+      <li>
+        <strong>Cache do Service Worker</strong> — arquivos estáticos da
+        aplicação (HTML, CSS, JavaScript, ícones), guardados para o app
+        funcionar offline depois da primeira visita.
+      </li>
+      <li>
+        <strong>IndexedDB</strong> — o histórico de concursos que você
+        importa e o desempenho calculado de cada dezena, usados para gerar
+        jogos e rodar backtesting sem depender de rede.
+      </li>
+    </ul>
+    <p>
+      Não usamos cookies de rastreamento nem de publicidade. Você pode apagar
+      todo esse armazenamento a qualquer momento pelas configurações do seu
+      navegador (dados de site/aplicativo).
+    </p>
+
+    <h2>Serviços de terceiros</h2>
+    <p>
+      Para exibir a data e o prêmio estimado do próximo concurso, o app faz
+      uma requisição a uma API pública de terceiros (não o serviço oficial da
+      Caixa — ver <code>docs/WEB.md</code> no repositório do projeto). Essa
+      requisição não inclui nenhum dado pessoal seu, apenas pede o resultado
+      público do próximo sorteio.
+    </p>
+
+    <h2>Crianças</h2>
+    <p>
+      O Volante+ é uma ferramenta de análise estatística educativa e não é
+      direcionado a menores de idade. Loterias envolvem apostas reais fora do
+      app — consulte a legislação local sobre idade mínima antes de apostar.
+    </p>
+
+    <h2>Alterações a esta política</h2>
+    <p>
+      Se esta política mudar, a data de vigência no topo desta página será
+      atualizada.
+    </p>
+
+    <h2>Contato</h2>
+    <p>
+      Dúvidas sobre privacidade: <a href="mailto:privacidade@mestrys.com.br">privacidade@mestrys.com.br</a>
+    </p>
+  </body>
+</html>

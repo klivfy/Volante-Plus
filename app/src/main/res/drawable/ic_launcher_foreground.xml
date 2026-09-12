@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Primeiro plano do ícone adaptável: um "V" (Volante+) em âmbar, com uma
+    dezena circulada representando um número sorteado. Desenhado dentro da
+    área segura de 66dp x 66dp centralizada no canvas de 108dp x 108dp, como
+    recomenda a especificação de adaptive icons do Android.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Traço do "V", em âmbar (AmberSecondaryContainer), espesso e com pontas arredondadas. -->
+    <path
+        android:strokeColor="#FFDF9E"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 34,32 L 54,66 L 74,32" />
+
+    <!-- Dezena sorteada: círculo branco vazado, ancorado no vértice do "V". -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4"
+        android:pathData="M 63,76 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
+</vector>

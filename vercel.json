@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schema.vercel.sh",
+  "framework": "nextjs",
+  "buildCommand": "cd web && npm run build",
+  "outputDirectory": "web/.next",
+  "public": false,
+  "regions": ["sfo1", "iad1", "gru1"],
+  "nodeVersion": "20.x",
+  "git": {
+    "deploymentEnabled": {
+      "main": false,
+      "master": false
+    }
+  },
+  "env": {
+    "NEXT_PUBLIC_CAIXA_API_BASE_URL": {
+      "description": "Base URL for Caixa Lotteries API"
+    },
+    "NEXT_PUBLIC_VAPID_PUBLIC_KEY": {
+      "description": "VAPID public key for Web Push notifications (optional)"
+    },
+    "NEXT_PUBLIC_PLAUSIBLE_DOMAIN": {
+      "description": "Domain for Plausible Analytics tracking (optional)"
+    },
+    "NEXT_PUBLIC_SENTRY_DSN": {
+      "description": "Sentry DSN for error tracking (optional)"
+    },
+    "NEXT_PUBLIC_APP_VERSION": {
+      "description": "App version to report (default: 2.0.0)"
+    }
+  }
+}

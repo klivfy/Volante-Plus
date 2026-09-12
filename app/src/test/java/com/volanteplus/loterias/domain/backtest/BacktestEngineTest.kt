@@ -1,10 +1,9 @@
 package com.volanteplus.loterias.domain.backtest
 
 import com.volanteplus.loterias.domain.model.Draw
-import com.volanteplus.loterias.domain.model.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
-import com.volanteplus.loterias.testutil.InMemoryDrawRepository
+import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -28,7 +27,6 @@ class BacktestEngineTest {
 
     private fun config(gamesPerContest: Int = 3, seed: Long? = 42L) = BacktestConfig(
         lottery = Lottery.MEGA_SENA,
-        strategy = GenerationStrategy.RANDOM,
         cutoff = cutoff,
         gamesPerContest = gamesPerContest,
         seed = seed,
@@ -46,18 +44,114 @@ class BacktestEngineTest {
     }
 
     @Test
-    fun `estatisticas sao consistentes com a distribuicao de acertos`() = runTest {
+    fun `desempenho do relatorio cobre o universo e vem so da janela de treino`() = runTest {
         val report = BacktestEngine(seededRepository()).run(config())
 
-        // reconstrói em ordem diferente da original: compara com tolerância,
-        // pois a soma de Doubles não é associativa
-        val hits = report.hitDistribution.flatMap { (hit, count) -> List(count) { hit } }
-        val expected = Statistics.of(hits)
-        assertEquals(expected.mean, report.stats.mean, 1e-9)
-        assertEquals(expected.variance, report.stats.variance, 1e-9)
-        assertEquals(expected.stdDeviation, report.stats.stdDeviation, 1e-9)
+        assertEquals(Lottery.MEGA_SENA.numberRange.count(), report.performances.size)
+        assertTrue(report.trevoPerformances.isEmpty())
+        // 5 concursos de treino × 6 dezenas: nenhuma dezena pode ter mais
+        // aparições do que a janela de treino comporta.
+        assertTrue(report.performances.all { it.hitCount <= report.trainingDraws })
+        assertEquals(1.0, report.performances.first().weight, 1e-9)
+    }
+
+    @Test
+    fun `a unidade de analise e o concurso nao o jogo`() = runTest {
+        val report = BacktestEngine(seededRepository()).run(config(gamesPerContest = 3))
+
+        // n da inferência = concursos de validação, não os 60 jogos gerados
+        assertEquals(20, report.outcomes.size)
+        assertEquals(20, report.stats.count)
+        assertEquals(20, report.hypothesisTest.meanTest.sampleSize)
+        assertEquals(60, report.totalGames)
+    }
+
+    @Test
+    fun `media global e a media das medias por concurso`() = runTest {
+        val report = BacktestEngine(seededRepository()).run(config(gamesPerContest = 3))
+
+        // com lotes de tamanho igual, a média das médias iguala a média global
+        val totalHits = report.outcomes.sumOf { it.totalHits }
+        assertEquals(totalHits.toDouble() / report.totalGames, report.stats.mean, 1e-9)
+        assertEquals(
+            report.outcomes.map { it.meanHits }.average(),
+            report.stats.mean,
+            1e-9,
+        )
         assertTrue(report.stats.mean in 0.0..6.0)
         assertEquals(0.6, report.expectedMeanHits, 1e-9)
+    }
+
+    @Test
+    fun `variancia amostral usa n menos 1 e alimenta o erro padrao`() = runTest {
+        val report = BacktestEngine(seededRepository()).run(config(gamesPerContest = 3))
+        val stats = report.stats
+
+        // n−1 > populacional (n) sempre que há dispersão
+        assertEquals(
+            stats.variance * stats.count / (stats.count - 1),
+            stats.sampleVariance,
+            1e-12,
+        )
+        assertEquals(
+            stats.sampleStdDeviation / Math.sqrt(stats.count.toDouble()),
+            stats.standardError,
+            1e-12,
+        )
+        assertEquals(stats.standardError, report.hypothesisTest.meanTest.standardError, 1e-12)
+    }
+
+    @Test
+    fun `acertos por concurso somam a distribuicao global`() = runTest {
+        val report = BacktestEngine(seededRepository()).run(config(gamesPerContest = 3))
+
+        val fromOutcomes = report.outcomes
+            .flatMap { it.hitsPerGame }
+            .groupingBy { it }
+            .eachCount()
+        assertEquals(fromOutcomes, report.hitDistribution.toMap())
+        report.outcomes.forEach { assertEquals(3, it.hitsPerGame.size) }
+    }
+
+    @Test
+    fun `relatorio traz teste de hipotese e analise de premiacao coerentes`() = runTest {
+        val report = BacktestEngine(seededRepository()).run(config(gamesPerContest = 3))
+
+        val prize = report.prizeAnalysis
+        assertEquals(report.prizeCount, prize.prizeCount)
+        assertEquals(report.totalBets, prize.totalBets)
+        assertEquals(0.00043524, prize.theoreticalRate, 1e-7)
+        assertEquals(prize.totalBets * prize.theoreticalRate, prize.expectedPrizes, 1e-12)
+        // 60 apostas geram ~0,026 prêmio esperado: taxa inestimável nesta janela
+        assertTrue(prize.underpowered)
+        assertTrue(prize.wilsonInterval.upper > prize.observedRate)
+
+        // Janela de treino de só 5 concursos: a geração ponderada por
+        // desempenho (não mais aleatória pura) amplifica ruído de amostra
+        // pequena em peso real, produzindo desvio detectável mesmo com só
+        // 20 concursos de validação — mas ainda sem poder para o efeito
+        // mínimo de interesse.
+        assertEquals(Verdict.DESVIO_SIGNIFICATIVO, report.verdict)
+        assertTrue(report.hypothesisTest.meanTest.power < 0.8)
+        assertEquals(0.05, report.hypothesisTest.significanceLevel, 1e-12)
+    }
+
+    @Test
+    fun `correcao de bonferroni divide o alfa pelas comparacoes`() = runTest {
+        val report = BacktestEngine(seededRepository())
+            .run(config(gamesPerContest = 3).copy(comparisons = 5))
+
+        assertEquals(0.01, report.hypothesisTest.significanceLevel, 1e-12)
+        assertEquals(5, report.hypothesisTest.comparisons)
+    }
+
+    @Test
+    fun `distribuicao teorica exata acompanha o relatorio`() = runTest {
+        val report = BacktestEngine(seededRepository()).run(config(gamesPerContest = 3))
+
+        assertEquals(1.0, report.theoreticalDistribution.values.sum(), 1e-12)
+        assertEquals(0.5158844124, report.theoreticalDistribution.getValue(0), 1e-9)
+        assertEquals(0.703020, report.expectedStdDeviation, 1e-5)
     }
 
     @Test
@@ -78,6 +172,19 @@ class BacktestEngineTest {
     }
 
     @Test
+    fun `janela de treino vazia ainda produz lote com pesos uniformes`() = runTest {
+        val repo = InMemoryDrawRepository()
+        // apenas concursos após o corte: treino vazio
+        repo.upsertAll((1..3).map { megaDraw(it, LocalDate.of(2024, 7, it)) })
+
+        val report = BacktestEngine(repo).run(config(gamesPerContest = 2))
+
+        assertEquals(0, report.trainingDraws)
+        assertEquals(6, report.totalGames)
+        assertEquals(1, report.performances.map { it.weight }.distinct().size)
+    }
+
+    @Test
     fun `cobertura total multiplica apostas efetivas na milionaria`() = runTest {
         val repo = InMemoryDrawRepository()
         repo.upsertAll(
@@ -92,7 +199,6 @@ class BacktestEngineTest {
         val report = BacktestEngine(repo).run(
             BacktestConfig(
                 lottery = Lottery.MAIS_MILIONARIA,
-                strategy = GenerationStrategy.RANDOM,
                 cutoff = cutoff,
                 gamesPerContest = 2,
                 trevoStrategy = TrevoStrategy.COBERTURA_TOTAL,
@@ -103,29 +209,6 @@ class BacktestEngineTest {
         assertEquals(2, report.totalGames)
         assertEquals(30, report.totalBets) // 2 jogos × 15 duplas
         assertEquals(0.72, report.expectedMeanHits, 1e-9)
-    }
-
-    @Test
-    fun `estrategia com historico roda sobre a janela de treino`() = runTest {
-        val report = BacktestEngine(seededRepository()).run(
-            config().copy(strategy = GenerationStrategy.FREQUENCY)
-        )
-
-        assertEquals(5, report.trainingDraws)
-        assertEquals(60, report.totalGames)
-    }
-
-    @Test
-    fun `estrategia com historico falha sem janela de treino`() = runTest {
-        val repo = InMemoryDrawRepository()
-        // apenas concursos após o corte: treino vazio
-        repo.upsertAll(listOf(megaDraw(1, LocalDate.of(2024, 7, 10))))
-
-        val error = runCatching {
-            BacktestEngine(repo).run(config().copy(strategy = GenerationStrategy.FREQUENCY))
-        }.exceptionOrNull()
-
-        assertTrue(error is IllegalArgumentException)
     }
 
     @Test

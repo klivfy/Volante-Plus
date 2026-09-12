@@ -1,0 +1,135 @@
+================================================================================
+VOLANTE+ FIREFOX EXTENSION - MOZILLA ADD-ONS LISTING
+================================================================================
+
+EXTENSION NAME (max 50 characters)
+================================================================================
+Volante+ - Gerador de Jogos de Loterias
+
+SUMMARY (max 250 characters - what users see in search results)
+================================================================================
+Gera jogos de loterias com análise de desempenho histórico direto da barra de ferramentas. Inclui sincronização automática de novos sorteios da Mega-Sena e +Milionária.
+
+DETAILED DESCRIPTION (max 10,000 characters)
+================================================================================
+Volante+ é uma extensão Firefox para análise inteligente e geração de jogos de loterias brasileiras usando técnicas de backtesting.
+
+PRINCIPAIS RECURSOS:
+
+✨ Geração de Jogos Inteligente
+- Analisa o desempenho histórico de números em loterias
+- Sugere combinações baseadas em backtesting estatístico
+- Suporta: Mega-Sena e +Milionária
+- Interface simplificada direto da barra de ferramentas
+- Funciona completamente offline com dados cacheados
+
+🔄 Sincronização Automática em Tempo Real
+- Monitora novos sorteios automaticamente
+- Notifica quando novos resultados são disponibilizados
+- Atualiza dados de desempenho em background
+- Executa sincronização a cada hora sem interrupção
+
+📊 Análise de Desempenho
+- Visualiza padrões de números mais frequentes
+- Calcula probabilidades baseadas em histórico
+- Dados sincronizados com a aplicação web Volante+
+- Interface gráfica intuitiva com resultados visuais
+
+🔐 Privado e Seguro
+- Funciona completamente offline após primeira sincronização
+- Dados locais armazenados no navegador Firefox (localStorage)
+- Sem rastreamento ou coleta de dados pessoais
+- Sem cookies de terceiros
+- Código aberto e auditável no GitHub
+
+COMO USAR:
+
+1. Instale a extensão a partir da Mozilla Add-ons
+2. Clique no ícone Volante+ na barra de ferramentas
+3. Selecione a loteria desejada (Mega-Sena ou +Milionária)
+4. Visualize números com melhor desempenho
+5. Gere lotes de jogos automaticamente
+6. A extensão sincroniza dados em background automaticamente
+
+COMPATIBILIDADE:
+
+- Firefox: versão 115+ (Manifest V3 compatível)
+- Suporta Firefox Desktop
+- Offline-first: funciona sem internet após cache inicial
+
+PERMISSÕES SOLICITADAS:
+
+- storage: Armazena dados de desempenho e preferências localmente no navegador
+- alarms: Agendamento de sincronização periódica de dados (a cada 60 minutos)
+- Acesso a loteriascaixa-api.herokuapp.com: Busca dados oficiais de sorteios
+
+Por que essas permissões são necessárias:
+- storage: Mantém histórico de números e análises para funcionar offline
+- alarms: Permite sincronização automática de novos sorteios em background
+- Host permission: Busca dados oficiais de loterias para análise
+
+PRIVACIDADE E DADOS:
+
+Volante+ não coleta nenhum dado pessoal. Todos os dados são:
+- Armazenados localmente no seu navegador Firefox
+- Nunca sincronizados com servidores de terceiros
+- Completamente sob seu controle
+
+Nenhum rastreamento é realizado. A extensão respeita sua privacidade completamente.
+
+COMPATIBILIDADE COM CHROME/EDGE:
+
+Esta extensão Firefox é específica para Firefox. Versões compatíveis estão disponíveis para:
+- Google Chrome: "Volante+ - Chrome Web Store"
+- Microsoft Edge: "Volante+ - Edge Add-ons"
+
+SUPORTE:
+
+Dúvidas, problemas ou sugestões?
+- Site: https://volante-plus.app
+- GitHub: https://github.com/mestrys/volante-plus
+- Issues: https://github.com/mestrys/volante-plus/issues
+- Email: support@volante-plus.app
+
+CHANGELOG (Versão 2.0.0):
+
+- Migração para Manifest V3 (Firefox 115+)
+- Suporte otimizado para Firefox Desktop
+- Melhor desempenho com novo sistema de cache
+- Sincronização aprimorada de sorteios
+- Interface refinada com Material Design
+
+LINGUAGEM:
+
+- Idioma principal: Português (Brasil)
+- Suporte a localização: pt-BR
+
+CATEGORIA & ETIQUETAS:
+
+Categoria: Produtividade
+Etiquetas: loteria, mega-sena, milionária, gerador, análise, jogos, sincronização, desempenho
+
+REQUISITOS ADICIONAIS MOZILLA:
+
+✓ Manifest Version: 3 (MV3 para Firefox 115+)
+✓ Permissions: Minimal and justified (storage, alarms)
+✓ Gecko ID: {1b97191f-a1cd-4979-b79e-0f1dfe988928}
+✓ Minimum Firefox Version: 115.0
+✓ Hosted on: GitHub (open source)
+✓ Content Security Policy: Compliant
+✓ No external content injection
+✓ No dynamic code execution (eval)
+✓ Privacy: GDPR compliant
+
+VERSIONING:
+
+Versão: 2.0.0 (Semantic Versioning)
+Build ID: 2026-07-31
+Status: Ready for Mozilla Add-ons review
+
+================================================================================
+END OF FIREFOX STORE LISTING
+================================================================================
+
+Last Updated: 2026-07-31
+Status: Ready for submission

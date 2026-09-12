@@ -10,10 +10,12 @@ import com.volanteplus.loterias.R
 
 // Tipografia global do app: exclusivamente Open Sans (diretriz de design).
 val OpenSans = FontFamily(
+    Font(R.font.open_sans_light, FontWeight.Light),
     Font(R.font.open_sans_regular, FontWeight.Normal),
     Font(R.font.open_sans_medium, FontWeight.Medium),
     Font(R.font.open_sans_semibold, FontWeight.SemiBold),
     Font(R.font.open_sans_bold, FontWeight.Bold),
+    Font(R.font.open_sans_extrabold, FontWeight.ExtraBold),
 )
 
 val VolanteTypography = Typography(

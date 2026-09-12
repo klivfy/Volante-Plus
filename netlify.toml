@@ -1,0 +1,25 @@
+# Configuração de deploy na Netlify para o app web (Next.js 16, em `web/`).
+#
+# Este arquivo fica na raiz do monorepo (não em `web/`) porque a Netlify lê
+# `netlify.toml` a partir da raiz do repositório antes de aplicar `base` —
+# é também o que faz o botão "Deploy to Netlify" do README funcionar sem
+# configuração manual adicional no painel.
+#
+# Netlify ainda não tem um adapter verificado na nova Adapter API do Next.js
+# 16 (`adapterPath`) — no momento deste commit ela oferece sua própria
+# integração via `@netlify/plugin-nextjs`, que a Netlify baixa e aplica
+# automaticamente a partir da declaração `[[plugins]]` abaixo, sem precisar
+# estar em `package.json`. Ver `docs/WEB.md#deploy` para o restante da
+# configuração (variáveis de ambiente, limitações conhecidas).
+
+[build]
+  base = "web"
+  command = "npm run build"
+
+# Mesma versão fixada em `vercel.json` (nodeVersion: "20.x") e em
+# `web/.nvmrc` — mantém os três caminhos de deploy no mesmo runtime.
+[build.environment]
+  NODE_VERSION = "20"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
