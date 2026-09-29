@@ -28,7 +28,10 @@
     "copyError": "Não foi possível copiar o jogo.",
     "generateError": "Não foi possível gerar os jogos.",
     "performanceError": "Não foi possível calcular o desempenho das dezenas.",
-    "batchLimited": "Com {{available}} dezenas analisadas, é possível gerar até {{max}} jogo(s) sem repetição de dezenas."
+    "batchLimited": "Com {{available}} dezenas analisadas, é possível gerar até {{max}} jogo(s) sem repetição de dezenas.",
+    "strategyNote": "Cada jogo é sorteado entre combinações uniformes e fica com a menos disputada. Não aumenta a chance de ganhar — só reduz com quantos apostadores o prêmio seria dividido.",
+    "modeAvulsos": "Jogos avulsos",
+    "modeFechamento": "Fechamento"
   },
   "backtesting": {
     "title": "Backtesting",
@@ -159,5 +162,27 @@
     "tickets": "Apostas estimadas no concurso",
     "ticketsInput": "Apostas no concurso (opcional)",
     "ticketsInputHelp": "Necessário para medir o rateio do prêmio entre os jogos gerados"
+  },
+  "fechamento": {
+    "pickLabel": "Marque suas dezenas ({{count}}/{{max}})",
+    "pickAria": "Dezenas do fechamento",
+    "guaranteeLabel": "Garantia",
+    "guaranteeOption": "{{t}} acertos garantidos",
+    "contract": "{{games}} jogos · R$ {{cost}} — se {{t}} ou mais das suas {{pool}} dezenas saírem, ao menos um jogo acerta {{t}} ou mais. Não aumenta a chance de as dezenas saírem.",
+    "needMore": "Marque pelo menos {{min}} dezenas para montar o fechamento.",
+    "generate": "Gerar fechamento",
+    "closureResult": "Fechamento com garantia de {{t}} acertos",
+    "costNote": "Custo calculado ao preço de referência de R$ {{price}} por aposta; confira o valor vigente."
+  },
+  "evidence": {
+    "title": "O histórico favorece alguma dezena?",
+    "verdict": {
+      "COMPATIVEL_COM_ACASO": "Não. Em {{draws}} concursos nenhuma dezena se afasta do acaso após correção de múltiplas comparações. Quem saiu mais não tem mais chance de sair.",
+      "DESVIO_SIGNIFICATIVO": "{{count}} dezena(s) se afasta(m) do acaso em {{draws}} concursos. Confira a fonte dos dados antes de tirar conclusões: um desvio real num sorteio honesto seria muito raro.",
+      "AMOSTRA_INSUFICIENTE": "Histórico curto demais para concluir ({{draws}} concursos; o teste exige {{minimum}})."
+    },
+    "hottest": "A mais frequente foi a {{number}}: {{hits}} vezes contra {{expected}} esperadas (z = {{z}}).",
+    "power": "Com este histórico, só um viés acima de {{bias}}% numa dezena seria detectado (poder de 80%).",
+    "footnote": "O ranking por frequência ordena as dezenas, mas ordenar sempre produz um primeiro lugar. O teste ao lado diz se a diferença é maior que a do acaso."
   }
 }

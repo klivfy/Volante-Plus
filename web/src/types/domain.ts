@@ -69,6 +69,14 @@ export interface GameBatch {
   strategyLabel: string;
   performancesSnapshot?: NumberPerformance[];
   sourcePool?: number[];
+  /** Contrato do fechamento por cobertura, quando o lote veio de `generateClosure`. */
+  closure?: {
+    /** Acertos garantidos em algum jogo se o sorteio trouxer tantas dezenas do pool. */
+    guarantee: number;
+    poolSize: number;
+    /** Custo total em reais, ao preço de referência da aposta simples. */
+    cost: number;
+  };
 }
 
 /**

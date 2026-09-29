@@ -4,6 +4,30 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
 ## [Unreleased]
 
+### Added
+- Fechamento por cobertura combinatória (`web/src/engine/closureDesigner.ts`):
+  o modo Fechamento agora existe na tela principal, com seletor de dezenas e
+  contrato explícito ("N jogos · R$ X — se t ou mais das suas dezenas saírem,
+  algum jogo acerta t ou mais"). A garantia é construída por set cover guloso
+  com reinícios e poda, e provada por verificação exaustiva (`verifyClosure`)
+  para todos os pools de 7 a 15 dezenas. C(10,6,4) sai com 20 jogos, a melhor
+  cota conhecida. Só se oferecem garantias que podem pagar prêmio na modalidade.
+- Evidência estatística sobre a frequência das dezenas
+  (`web/src/engine/numberEvidence.ts`, `EvidencePanel`): teste bilateral por
+  dezena com Bonferroni, qui-quadrado global, poder e viés mínimo detectável,
+  e veredito (`COMPATIVEL_COM_ACASO`, `DESVIO_SIGNIFICATIVO`,
+  `AMOSTRA_INSUFICIENTE`). Calibrado por simulação: falso-positivo global de
+  5,8% em 400 históricos honestos.
+
+### Changed
+- A estratégia de sorteio padrão passa a ser `UNPOPULAR`: cada jogo é o menos
+  popular entre 64 candidatos uniformes. Não altera a chance de ganhar; reduz a
+  divisão do prêmio (pelo modelo do app, cerca de +12% no valor condicional a
+  ganhar com 30 milhões de apostas, para o percentil 5 de popularidade). Os
+  trevos passam a ser sorteados uniformemente. A estratégia por tiers de
+  frequência continua disponível (`strategy: 'FREQUENCY_TIERS'`) e é a usada
+  pelo backtest e pelo benchmark, que existem para medi-la.
+
 ## [2.2.0]
 
 Laboratório estatístico de loterias (`web/`) — nenhuma mudança de código
