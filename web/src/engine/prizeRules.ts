@@ -136,3 +136,31 @@ export function classifyHits(
 export function isPrized(lottery: Lottery, numberHits: number, trevoHits = 0): boolean {
   return classifyHits(lottery, numberHits, trevoHits) !== null;
 }
+
+/** Espaços sorteados de uma modalidade: as dezenas e, na +Milionária, os trevos. */
+export type DrawSpace = 'numbers' | 'trevos';
+
+export interface DrawSpaceSpec {
+  /** Tamanho do universo (N). */
+  universe: number;
+  /** Quantos são sorteados por concurso (K). */
+  drawn: number;
+}
+
+/**
+ * Universo e quantidade sorteada de cada espaço. É o que permite aplicar os
+ * mesmos testes estatísticos às dezenas (60/6 ou 50/6) e aos trevos (6/2)
+ * sem casos especiais por modalidade.
+ *
+ * @throws RangeError para `trevos` numa modalidade sem trevos.
+ */
+export function drawSpace(lottery: Lottery, space: DrawSpace): DrawSpaceSpec {
+  const rules = lotteryRules(lottery);
+  if (space === 'numbers') {
+    return { universe: rules.numberUniverse, drawn: rules.numbersDrawn };
+  }
+  if (rules.trevoUniverse === 0) {
+    throw new RangeError('Esta modalidade não tem trevos');
+  }
+  return { universe: rules.trevoUniverse, drawn: rules.trevosDrawn };
+}

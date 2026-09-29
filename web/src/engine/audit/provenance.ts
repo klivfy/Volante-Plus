@@ -1,4 +1,4 @@
-import { getSeedData } from '../../data/seed';
+import { getSyntheticFixture } from '../../data/syntheticFixture';
 import { Draw, Lottery } from '../../types/domain';
 import { lotteryRules } from '../prizeRules';
 
@@ -10,7 +10,7 @@ import { lotteryRules } from '../prizeRules';
  * Uma auditoria de honestidade só significa alguma coisa se rodar sobre
  * sorteios reais. Rodá-la sobre dados sintéticos não produz um resultado
  * fraco — produz um resultado **vazio e enganoso**: as séries de
- * `data/seed/` saem de um PRNG (`mulberry32`), que é uniforme por
+ * `data/syntheticFixture/` saem de um PRNG (`mulberry32`), que é uniforme por
  * construção, então A1–A3 passariam em tudo e o relatório sairia com a
  * cara de "compatível com sorteio honesto" quando o que ele mediu foi a
  * qualidade do gerador pseudoaleatório.
@@ -53,7 +53,7 @@ export type DrawProvenance =
    * ressalva em destaque, antes de qualquer resultado.
    */
   | 'third_party_mirror'
-  /** Gerado por PRNG — `data/seed/`, fixtures de teste, simulações. */
+  /** Gerado por PRNG — `data/syntheticFixture/`, fixtures de teste, simulações. */
   | 'synthetic'
   /** Origem não estabelecida. Tratado como não auditável. */
   | 'unknown';
@@ -184,7 +184,7 @@ function validateStructure(dataset: DrawDataset): void {
  * publicar um relatório que auditou um PRNG.
  */
 function rejectBundledSeed(dataset: DrawDataset): void {
-  const seed = getSeedData(dataset.lottery);
+  const seed = getSyntheticFixture(dataset.lottery);
   if (seed.length === 0) return;
 
   const seedSignatures = new Set(seed.map(signature));

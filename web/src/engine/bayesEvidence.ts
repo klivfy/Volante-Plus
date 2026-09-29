@@ -1,5 +1,5 @@
 import { Draw, Lottery, NumberPerformance } from '../types/domain';
-import { lotteryRules } from './prizeRules';
+import { DrawSpace, drawSpace } from './prizeRules';
 
 /**
  * Evidência bayesiana sobre a uniformidade das dezenas.
@@ -56,6 +56,28 @@ import { lotteryRules } from './prizeRules';
 
 /** Concentração de referência, fixada antes de olhar qualquer histórico. */
 export const DEFAULT_ALPHA = 20;
+
+/** Spread relativo do prior por componente que os defaults `defaultAlpha`/`defaultKappa` reproduzem. */
+const PRIOR_RELATIVE_SPREAD = 0.3;
+
+/**
+ * Concentração Dirichlet de referência para `m` categorias, escolhida para o
+ * prior ter o mesmo espalhamento relativo em qualquer universo:
+ * `sqrt((m−1)/(mα+1)) ≈ 0,22`. Dá 20 para 60 e 50 dezenas (o `DEFAULT_ALPHA`
+ * original) e 17 para os 6 trevos.
+ */
+export function defaultAlpha(m: number): number {
+  return Math.max(1, Math.round(((m - 1) / 0.0484 - 1) / m));
+}
+
+/**
+ * Força do prior Beta de referência para uma dezena/trevo de probabilidade
+ * `p0`: espalhamento relativo de 30% (`(1−p0)/(p0·0,3²) − 1`). Dá ≈100 para
+ * dezenas (`DEFAULT_KAPPA`) e ≈22 para trevos.
+ */
+export function defaultKappa(p0: number): number {
+  return Math.max(2, Math.round((1 - p0) / (p0 * PRIOR_RELATIVE_SPREAD ** 2) - 1));
+}
 
 /**
  * Força do prior Beta por dezena no alternativo esparso, fixada antes dos
@@ -119,8 +141,8 @@ export function logBayesFactorSparse(
 }
 
 /** Fator de desenho da amostragem sem reposição: `(N−K)/(N−1)`. */
-export function designEffect(lottery: Lottery): number {
-  const { numberUniverse: N, numbersDrawn: K } = lotteryRules(lottery);
+export function designEffect(lottery: Lottery, space: DrawSpace = 'numbers'): number {
+  const { universe: N, drawn: K } = drawSpace(lottery, space);
   return (N - K) / (N - 1);
 }
 
@@ -224,14 +246,15 @@ function empiricalBayesKappa(inclusions: readonly number[], draws: number, p0: n
 
 function evidenceOf(
   lottery: Lottery,
+  space: DrawSpace,
   draws: number,
   inclusions: readonly number[],
   alpha: number,
   kappa: number,
 ): { log10Bf10: number; log10BfOmnibus: number; log10BfSparse: number } {
-  const { numbersDrawn, numberUniverse } = lotteryRules(lottery);
-  const p0 = numbersDrawn / numberUniverse;
-  const deff = designEffect(lottery);
+  const { drawn, universe } = drawSpace(lottery, space);
+  const p0 = drawn / universe;
+  const deff = designEffect(lottery, space);
   const lnOmnibus = logBayesFactorUniform(
     inclusions.map((c) => c / deff),
     alpha,
@@ -247,14 +270,15 @@ function evidenceOf(
 
 function summarize(
   lottery: Lottery,
+  space: DrawSpace,
   draws: number,
   inclusions: readonly number[],
   alpha: number,
   kappa: number,
 ): BayesEvidence {
-  const { numbersDrawn, numberUniverse } = lotteryRules(lottery);
-  const p0 = numbersDrawn / numberUniverse;
-  const evidence = evidenceOf(lottery, draws, inclusions, alpha, kappa);
+  const { drawn, universe } = drawSpace(lottery, space);
+  const p0 = drawn / universe;
+  const evidence = evidenceOf(lottery, space, draws, inclusions, alpha, kappa);
   const empiricalKappa = draws > 0 ? empiricalBayesKappa(inclusions, draws, p0) : Infinity;
   const shrunk = inclusions.map((c) =>
     Number.isFinite(empiricalKappa) ? (c + empiricalKappa * p0) / (draws + empiricalKappa) : p0,
@@ -272,33 +296,44 @@ function summarize(
 }
 
 /** Inclusões por dezena (concursos em que cada dezena saiu), ordem 1..universo. */
-function inclusionsOf(lottery: Lottery, hits: ReadonlyMap<number, number>): number[] {
-  const { numberUniverse } = lotteryRules(lottery);
-  return Array.from({ length: numberUniverse }, (_, i) => hits.get(i + 1) ?? 0);
+function inclusionsOf(lottery: Lottery, space: DrawSpace, hits: ReadonlyMap<number, number>): number[] {
+  const { universe } = drawSpace(lottery, space);
+  return Array.from({ length: universe }, (_, i) => hits.get(i + 1) ?? 0);
 }
 
-/** Evidência a partir das frequências do ranking (`hitCount`), sem o histórico bruto. */
+/**
+ * Evidência a partir das frequências do ranking (`hitCount`), sem o histórico bruto.
+ * `space` escolhe dezenas (padrão) ou trevos (+Milionária); `alpha` e `kappa`
+ * têm defaults derivados do universo (`defaultAlpha`, `defaultKappa`).
+ */
 export function bayesEvidenceFromPerformances(
   lottery: Lottery,
   performances: readonly NumberPerformance[],
-  alpha: number = DEFAULT_ALPHA,
-  kappa: number = DEFAULT_KAPPA,
+  space: DrawSpace = 'numbers',
+  alpha?: number,
+  kappa?: number,
 ): BayesEvidence {
-  const { numbersDrawn } = lotteryRules(lottery);
+  const { drawn, universe } = drawSpace(lottery, space);
   const hits = new Map(performances.map((p) => [p.number, p.hitCount]));
   const totalHits = performances.reduce((sum, p) => sum + p.hitCount, 0);
   return summarize(
     lottery,
-    Math.round(totalHits / numbersDrawn),
-    inclusionsOf(lottery, hits),
-    alpha,
-    kappa,
+    space,
+    Math.round(totalHits / drawn),
+    inclusionsOf(lottery, space, hits),
+    alpha ?? defaultAlpha(universe),
+    kappa ?? (space === 'numbers' ? DEFAULT_KAPPA : defaultKappa(drawn / universe)),
   );
 }
 
 export interface BayesPoint {
   contestNumber: number;
   log10Bf10: number;
+}
+
+/** Itens sorteados de um concurso no espaço pedido (dezenas ou trevos). */
+function itemsOf(draw: Draw, space: DrawSpace): readonly number[] {
+  return space === 'numbers' ? draw.numbers : (draw.trevos ?? []);
 }
 
 /**
@@ -309,9 +344,13 @@ export interface BayesPoint {
 export function bayesTrajectory(
   lottery: Lottery,
   draws: readonly Draw[],
-  alpha: number = DEFAULT_ALPHA,
-  kappa: number = DEFAULT_KAPPA,
+  space: DrawSpace = 'numbers',
+  alpha?: number,
+  kappa?: number,
 ): { points: BayesPoint[]; maxLog10Bf10: number; anytimeP: number } {
+  const { drawn, universe } = drawSpace(lottery, space);
+  const a = alpha ?? defaultAlpha(universe);
+  const k = kappa ?? (space === 'numbers' ? DEFAULT_KAPPA : defaultKappa(drawn / universe));
   const hits = new Map<number, number>();
   const points: BayesPoint[] = [];
   let seen = 0;
@@ -319,8 +358,8 @@ export function bayesTrajectory(
   for (const draw of draws) {
     if (draw.lottery !== lottery) continue;
     seen++;
-    for (const n of draw.numbers) hits.set(n, (hits.get(n) ?? 0) + 1);
-    const { log10Bf10 } = evidenceOf(lottery, seen, inclusionsOf(lottery, hits), alpha, kappa);
+    for (const n of itemsOf(draw, space)) hits.set(n, (hits.get(n) ?? 0) + 1);
+    const { log10Bf10 } = evidenceOf(lottery, space, seen, inclusionsOf(lottery, space, hits), a, k);
     points.push({ contestNumber: draw.contestNumber, log10Bf10 });
     if (log10Bf10 > max) max = log10Bf10;
   }
@@ -331,19 +370,28 @@ export function bayesTrajectory(
   };
 }
 
-/** Evidência sobre um histórico completo de concursos. */
+/** Evidência sobre um histórico completo de concursos, para dezenas ou trevos. */
 export function bayesEvidenceFromDraws(
   lottery: Lottery,
   draws: readonly Draw[],
-  alpha: number = DEFAULT_ALPHA,
-  kappa: number = DEFAULT_KAPPA,
+  space: DrawSpace = 'numbers',
+  alpha?: number,
+  kappa?: number,
 ): BayesEvidence {
+  const { drawn, universe } = drawSpace(lottery, space);
   const hits = new Map<number, number>();
   let count = 0;
   for (const draw of draws) {
     if (draw.lottery !== lottery) continue;
     count++;
-    for (const n of draw.numbers) hits.set(n, (hits.get(n) ?? 0) + 1);
+    for (const n of itemsOf(draw, space)) hits.set(n, (hits.get(n) ?? 0) + 1);
   }
-  return summarize(lottery, count, inclusionsOf(lottery, hits), alpha, kappa);
+  return summarize(
+    lottery,
+    space,
+    count,
+    inclusionsOf(lottery, space, hits),
+    alpha ?? defaultAlpha(universe),
+    kappa ?? (space === 'numbers' ? DEFAULT_KAPPA : defaultKappa(drawn / universe)),
+  );
 }

@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import EvidencePanel from '@/components/EvidencePanel';
 import GameCard from '@/components/GameCard';
 import GameSlider from '@/components/GameSlider';
+import HistoryStatus from '@/components/HistoryStatus';
 import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
 import NumberPicker from '@/components/NumberPicker';
@@ -87,6 +88,21 @@ export default function VolantePage() {
   const bayes = useMemo(
     () => (performances.length > 0 ? bayesEvidenceFromPerformances(lottery, performances) : null),
     [lottery, performances],
+  );
+  // Na +Milionária os trevos recebem exatamente o mesmo tratamento das dezenas.
+  const trevoEvidence = useMemo(
+    () =>
+      hasTrevos(lottery) && trevoPerformances.length > 0
+        ? numberEvidence(lottery, trevoPerformances, 'trevos')
+        : null,
+    [lottery, trevoPerformances],
+  );
+  const trevoBayes = useMemo(
+    () =>
+      hasTrevos(lottery) && trevoPerformances.length > 0
+        ? bayesEvidenceFromPerformances(lottery, trevoPerformances, 'trevos')
+        : null,
+    [lottery, trevoPerformances],
   );
   const rules = lotteryRules(lottery);
   const guarantees = offeredGuarantees(lottery);
@@ -210,6 +226,8 @@ export default function VolantePage() {
         </Box>
 
         <LotterySelector value={lottery} onChange={handleLotteryChange} disabled={isBusy} />
+
+        <HistoryStatus lottery={lottery} />
 
         <NextDrawCard nextDraw={nextDraw.data} loading={nextDraw.loading} />
 
@@ -365,6 +383,15 @@ export default function VolantePage() {
             summary={evidence}
             bayes={bayes}
             expectedShare={rules.numbersDrawn / rules.numberUniverse}
+          />
+        )}
+
+        {trevoEvidence && (
+          <EvidencePanel
+            summary={trevoEvidence}
+            bayes={trevoBayes}
+            expectedShare={rules.trevosDrawn / rules.trevoUniverse}
+            space="trevos"
           />
         )}
       </Stack>

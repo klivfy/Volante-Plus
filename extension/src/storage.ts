@@ -18,6 +18,8 @@ export interface StoredPerformance {
   performances: NumberPerformance[];
   trevoPerformances: NumberPerformance[];
   updatedAt: string;
+  /** Último concurso usado na análise; cache com concurso menor que o histórico está defasado. */
+  lastContest?: number;
 }
 
 interface StorageShape {
@@ -68,12 +70,13 @@ export async function savePerformances(
   lottery: Lottery,
   performances: NumberPerformance[],
   trevoPerformances: NumberPerformance[],
+  lastContest?: number,
 ): Promise<void> {
   const existing = await readStorage('performances');
   await browser.storage.local.set({
     performances: {
       ...existing,
-      [lottery]: { performances, trevoPerformances, updatedAt: new Date().toISOString() },
+      [lottery]: { performances, trevoPerformances, updatedAt: new Date().toISOString(), lastContest },
     },
   });
 }

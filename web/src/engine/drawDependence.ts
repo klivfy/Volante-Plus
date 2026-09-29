@@ -1,6 +1,6 @@
 import { Draw, Lottery } from '../types/domain';
 import { hypergeometricProbability } from './hypergeometric';
-import { lotteryRules } from './prizeRules';
+import { hasTrevos, lotteryRules } from './prizeRules';
 import { defaultRandom, RandomSource } from './random';
 
 /**
@@ -8,9 +8,10 @@ import { defaultRandom, RandomSource } from './random';
  * testes por dezena (`numberEvidence`, `bayesEvidence`) não enxergam.
  *
  * ## 1. Colisão (problema do aniversário)
- * Com `n` concursos e `C = C(N,K)` combinações equiprováveis, o número de pares
- * de concursos idênticos é ~Poisson(`λ = n(n−1)/(2C)`). Na Mega-Sena, com
- * ~2.800 concursos, `λ ≈ 0,08`: uma repetição seria surpreendente, e sobretudo
+ * Com `n` concursos e `C` combinações equiprováveis, o número de pares de
+ * concursos idênticos é ~Poisson(`λ = n(n−1)/(2C)`). `C = C(N,K)` na Mega-Sena
+ * e `C(50,6)·C(6,2)` na +Milionária (dezenas E trevos). Na Mega-Sena, com
+ * ~3.000 concursos, `λ ≈ 0,09`: uma repetição seria surpreendente, e sobretudo
  * é o sinal clássico de **dado duplicado ou corrompido** na fonte.
  *
  * ## 2. Espectro de sobreposição
@@ -30,12 +31,21 @@ import { defaultRandom, RandomSource } from './random';
  * auditoria de anomalias (`audit/`) usa.
  */
 
-/** Combinações possíveis de um concurso: `C(N,K)`. */
-function combinationsCount(lottery: Lottery): number {
-  const { numberUniverse: N, numbersDrawn: K } = lotteryRules(lottery);
+function choose(n: number, k: number): number {
   let c = 1;
-  for (let i = 1; i <= K; i++) c = (c * (N - K + i)) / i;
+  for (let i = 1; i <= k; i++) c = (c * (n - k + i)) / i;
   return Math.round(c);
+}
+
+/**
+ * Concursos distintos possíveis: `C(N,K)` dezenas e, na +Milionária, vezes
+ * `C(6,2) = 15` duplas de trevos. Um concurso "idêntico" a outro repete as
+ * dezenas E os trevos.
+ */
+function combinationsCount(lottery: Lottery): number {
+  const rules = lotteryRules(lottery);
+  const numbers = choose(rules.numberUniverse, rules.numbersDrawn);
+  return hasTrevos(lottery) ? numbers * choose(rules.trevoUniverse, rules.trevosDrawn) : numbers;
 }
 
 /** P(X ≥ r) para X ~ Poisson(λ), somando a cauda inferior. */
@@ -70,7 +80,10 @@ export function collisionTest(lottery: Lottery, draws: readonly Draw[]): Collisi
   const seen = new Map<string, number[]>();
   const repeated: [number, number][] = [];
   for (const draw of own) {
-    const key = [...draw.numbers].sort((a, b) => a - b).join('-');
+    const numbersKey = [...draw.numbers].sort((a, b) => a - b).join('-');
+    const key = hasTrevos(lottery)
+      ? `${numbersKey}+${[...(draw.trevos ?? [])].sort((a, b) => a - b).join('-')}`
+      : numbersKey;
     const prior = seen.get(key);
     if (prior) for (const earlier of prior) repeated.push([earlier, draw.contestNumber]);
     seen.set(key, [...(prior ?? []), draw.contestNumber]);

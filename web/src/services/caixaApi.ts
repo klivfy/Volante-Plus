@@ -6,7 +6,7 @@ import { Draw, Lottery, NextDrawInfo } from '../types/domain';
  * `maismilionaria`, igual à chave interna de `Lottery` — não há mapeamento a
  * fazer aqui, mas o `Record` fica explícito caso a API mude.
  */
-const API_PATH: Record<Lottery, string> = {
+export const API_PATH: Record<Lottery, string> = {
   [Lottery.MEGA_SENA]: 'megasena',
   [Lottery.MAIS_MILIONARIA]: 'maismilionaria',
 };
@@ -24,7 +24,7 @@ const API_PATH: Record<Lottery, string> = {
  * não muda esse comportamento em produção, mas impede testes de simular a
  * variável ausente/presente em cada caso.
  */
-function baseUrl(): string {
+export function baseUrl(): string {
   return process.env.NEXT_PUBLIC_CAIXA_API_BASE_URL ?? 'https://loteriascaixa-api.herokuapp.com/api';
 }
 
@@ -36,7 +36,7 @@ interface RawNextDrawResponse {
   concurso?: number;
   dataProximoConcurso?: string;
   data_proximo_concurso?: string;
-  proximoConcurso?: string;
+  proximoConcurso?: string | number;
   dataProxima?: string;
   valorEstimadoProximoConcurso?: number;
   valor_estimado_proximo_concurso?: number;
@@ -83,11 +83,20 @@ export async function fetchNextDraw(lottery: Lottery): Promise<NextDrawInfo | nu
     }
 
     const raw = (await response.json()) as RawNextDrawResponse;
-    const contestNumber = firstDefined(raw.numero, raw.numeroConcurso, raw.numero_concurso, raw.concurso);
+    // `proximoConcurso` numérico é o número do PRÓXIMO concurso (a API da
+    // comunidade o traz ao lado de `concurso`, que é o último já sorteado);
+    // sem ele, cai nos nomes de campo das demais APIs.
+    const contestNumber = firstDefined(
+      typeof raw.proximoConcurso === 'number' ? raw.proximoConcurso : undefined,
+      raw.numero,
+      raw.numeroConcurso,
+      raw.numero_concurso,
+      raw.concurso,
+    );
     const rawDate = firstDefined(
       raw.dataProximoConcurso,
       raw.data_proximo_concurso,
-      raw.proximoConcurso,
+      typeof raw.proximoConcurso === 'string' ? raw.proximoConcurso : undefined,
       raw.dataProxima,
     );
     const estimatedPrize = firstDefined(
@@ -113,7 +122,7 @@ export async function fetchNextDraw(lottery: Lottery): Promise<NextDrawInfo | nu
 }
 
 /** Shape tolerante de um concurso já realizado, como devolvido pela API de histórico. */
-interface RawDrawResponse {
+export interface RawDrawResponse {
   numero?: number;
   numeroConcurso?: number;
   concurso?: number;
@@ -133,7 +142,7 @@ function toNumberArray(values: Array<string | number> | undefined): number[] | u
   return numbers.every((n) => Number.isFinite(n)) ? numbers : undefined;
 }
 
-function parseRawDraw(lottery: Lottery, raw: RawDrawResponse): Draw | null {
+export function parseRawDraw(lottery: Lottery, raw: RawDrawResponse): Draw | null {
   const contestNumber = firstDefined(raw.numero, raw.numeroConcurso, raw.concurso);
   const rawDate = firstDefined(raw.dataApuracao, raw.data_apuracao, raw.data);
   const numbers = toNumberArray(firstDefined(raw.dezenas, raw.listaDezenas, raw.dezenasSorteadas));

@@ -8,7 +8,10 @@ import {
   getDrawsAfter,
   getDrawsUpTo,
   getPerformances,
+  getLastContest,
+  getStoredContests,
   MANUAL_CACHE_TTL_MS,
+  markHistorySeeded,
   saveDraws,
   savePerformances,
   seedIfEmpty,
@@ -24,7 +27,7 @@ beforeEach(async () => {
   // getDraws/getDrawsUpTo/getDrawsAfter chamam seedIfEmpty() sozinhos (ver
   // "seed offline" abaixo); marcar como já aplicado aqui mantém estes testes
   // de CRUD puro isolados desse comportamento.
-  await db.config.put({ key: 'seedApplied', value: 'true' });
+  await markHistorySeeded();
 });
 
 afterEach(async () => {
@@ -204,27 +207,29 @@ describe('performances — savePerformances / getPerformances', () => {
   });
 });
 
-describe('seed offline (primeiro uso)', () => {
-  // Aqui, diferente do resto do arquivo, a flag "seedApplied" também
-  // precisa começar limpa — é exatamente o que este bloco testa.
+describe('seed do histórico real (primeiro uso)', () => {
+  // Aqui a flag do seed precisa começar limpa — é exatamente o que este bloco testa.
   beforeEach(async () => {
     await db.config.clear();
   });
 
-  it('popula draws com o seed quando o banco nunca teve histórico', async () => {
+  it('popula o banco com o histórico COMPLETO de ambas as loterias, desde o concurso 1', async () => {
     await seedIfEmpty();
 
-    expect(await getDraws(Lottery.MEGA_SENA)).not.toHaveLength(0);
-    expect(await getDraws(Lottery.MAIS_MILIONARIA)).not.toHaveLength(0);
+    for (const lottery of [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA]) {
+      const draws = await getDraws(lottery);
+      expect(draws[0].contestNumber).toBe(1);
+      expect(draws.map((d) => d.contestNumber)).toEqual(draws.map((_, i) => i + 1));
+      expect(draws.length).toBeGreaterThan(300);
+    }
+    expect((await getDraws(Lottery.MEGA_SENA)).length).toBeGreaterThan(3000);
   });
 
   it('getDraws aciona o seed sozinho na primeira leitura', async () => {
-    const result = await getDraws(Lottery.MEGA_SENA);
-
-    expect(result.length).toBeGreaterThan(0);
+    expect((await getDraws(Lottery.MEGA_SENA)).length).toBeGreaterThan(3000);
   });
 
-  it('não reaplica o seed depois da primeira vez, mesmo se o histórico for apagado de novo', async () => {
+  it('não reaplica o seed depois da primeira vez, mesmo se o histórico for apagado', async () => {
     await seedIfEmpty();
     await db.draws.clear();
 
@@ -233,12 +238,52 @@ describe('seed offline (primeiro uso)', () => {
     expect(await getDraws(Lottery.MEGA_SENA)).toHaveLength(0);
   });
 
-  it('não sobrescreve histórico real já sincronizado antes da primeira checagem', async () => {
-    await saveDraws([draw(9999, '2026-01-01')]);
+  it('só PREENCHE o que falta: nunca sobrescreve um concurso já sincronizado', async () => {
+    await saveDraws([{ ...draw(100, '2099-01-01'), numbers: [7, 8, 9, 10, 11, 12] }, draw(999999, '2099-02-02')]);
 
     await seedIfEmpty();
 
     const result = await getDraws(Lottery.MEGA_SENA);
-    expect(result.map((d) => d.contestNumber)).toEqual([9999]);
+    const kept = result.find((d) => d.contestNumber === 100);
+    expect(kept?.date).toBe('2099-01-01');
+    expect(kept?.numbers).toEqual([7, 8, 9, 10, 11, 12]);
+    expect(result.some((d) => d.contestNumber === 999999)).toBe(true);
+    expect(result.some((d) => d.contestNumber === 1)).toBe(true);
+  });
+
+  it('remove o seed SINTÉTICO que versões antigas gravaram, e só ele', async () => {
+    const { getSyntheticFixture } = await import('../../data/syntheticFixture');
+    const fake = getSyntheticFixture(Lottery.MEGA_SENA)[0];
+    await db.draws.put(fake);
+    // Uma linha real com o mesmo número de concurso mas conteúdo diferente NÃO pode ser apagada.
+    const fakeMais = getSyntheticFixture(Lottery.MAIS_MILIONARIA)[0];
+    await db.draws.put({ ...fakeMais, numbers: [1, 2, 3, 4, 5, 6] });
+
+    await seedIfEmpty();
+
+    const mega = await getDraws(Lottery.MEGA_SENA);
+    expect(mega.find((d) => d.contestNumber === fake.contestNumber)?.numbers).not.toEqual(fake.numbers);
+    const mais = await getDraws(Lottery.MAIS_MILIONARIA);
+    expect(mais.find((d) => d.contestNumber === fakeMais.contestNumber)?.numbers).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('chamadas simultâneas não duplicam nem quebram', async () => {
+    await Promise.all([seedIfEmpty(), seedIfEmpty(), seedIfEmpty()]);
+    const draws = await getDraws(Lottery.MAIS_MILIONARIA);
+    expect(new Set(draws.map((d) => d.contestNumber)).size).toBe(draws.length);
+  });
+});
+
+describe('getLastContest / getStoredContests', () => {
+  it('devolvem o maior concurso e o conjunto salvo, por loteria', async () => {
+    await saveDraws([draw(5, '2024-01-01'), draw(9, '2024-02-01'), draw(2, '2024-03-01', Lottery.MAIS_MILIONARIA)]);
+
+    expect(await getLastContest(Lottery.MEGA_SENA)).toBe(9);
+    expect(await getLastContest(Lottery.MAIS_MILIONARIA)).toBe(2);
+    expect([...(await getStoredContests(Lottery.MEGA_SENA))].sort()).toEqual([5, 9]);
+  });
+
+  it('null quando não há nada', async () => {
+    expect(await getLastContest(Lottery.MEGA_SENA)).toBeNull();
   });
 });

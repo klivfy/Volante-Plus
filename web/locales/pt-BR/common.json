@@ -181,7 +181,11 @@
       "COMPATIVEL_COM_ACASO": "Não. Em {{draws}} concursos nenhuma dezena se afasta do acaso após correção de múltiplas comparações. Quem saiu mais não tem mais chance de sair.",
       "DESVIO_SIGNIFICATIVO": "{{count}} dezena(s) se afasta(m) do acaso em {{draws}} concursos. Confira a fonte dos dados antes de tirar conclusões: um desvio real num sorteio honesto seria muito raro.",
       "AMOSTRA_INSUFICIENTE": "Histórico curto demais para concluir ({{draws}} concursos; o teste exige {{minimum}}).",
-      "COMPATIVEL_POUCO_PODER": "Nenhuma dezena se afasta do acaso em {{draws}} concursos, mas o histórico é curto: só um viés muito grande seria detectado. Isso não prova que o acaso vale — falta dado para afirmar."
+      "COMPATIVEL_POUCO_PODER": "Nenhuma dezena se afasta do acaso em {{draws}} concursos, mas o histórico é curto: só um viés muito grande seria detectado. Isso não prova que o acaso vale — falta dado para afirmar.",
+      "COMPATIVEL_COM_ACASO_trevo": "Não. Em {{draws}} concursos nenhum trevo se afasta do acaso após correção de múltiplas comparações. Quem saiu mais não tem mais chance de sair.",
+      "DESVIO_SIGNIFICATIVO_trevo": "{{count}} trevo(s) se afasta(m) do acaso em {{draws}} concursos. Confira a fonte dos dados antes de tirar conclusões: um desvio real num sorteio honesto seria muito raro.",
+      "AMOSTRA_INSUFICIENTE_trevo": "Histórico curto demais para concluir ({{draws}} concursos; o teste exige {{minimum}}).",
+      "COMPATIVEL_POUCO_PODER_trevo": "Nenhum trevo se afasta do acaso em {{draws}} concursos, mas o histórico é curto: só um viés muito grande seria detectado. Isso não prova que o acaso vale — falta dado para afirmar."
     },
     "hottest": "A mais frequente foi a {{number}}: {{hits}} vezes contra {{expected}} esperadas (z = {{z}}).",
     "power": "Com este histórico, só um viés acima de {{bias}}% numa dezena seria detectado (poder de 80%).",
@@ -192,15 +196,36 @@
       "MODERADA_PRO_ACASO": "Uniformidade global: evidência moderada a favor do acaso ({{ratio}} vezes mais provável que um viés difuso).",
       "INCONCLUSIVO": "Uniformidade global: inconclusivo (fator de Bayes {{bf}}).",
       "MODERADA_CONTRA_ACASO": "Uniformidade global: evidência moderada de viés difuso (fator de Bayes {{bf}}).",
-      "FORTE_CONTRA_ACASO": "Uniformidade global: evidência forte de viés difuso (fator de Bayes {{bf}})."
+      "FORTE_CONTRA_ACASO": "Uniformidade global: evidência forte de viés difuso (fator de Bayes {{bf}}).",
+      "FORTE_PRO_ACASO_trevo": "Uniformidade global: evidência forte a favor do acaso (10^{{exp}} vezes mais provável que um viés difuso).",
+      "MODERADA_PRO_ACASO_trevo": "Uniformidade global: evidência moderada a favor do acaso ({{ratio}} vezes mais provável que um viés difuso).",
+      "INCONCLUSIVO_trevo": "Uniformidade global: inconclusivo (fator de Bayes {{bf}}).",
+      "MODERADA_CONTRA_ACASO_trevo": "Uniformidade global: evidência moderada de viés difuso (fator de Bayes {{bf}}).",
+      "FORTE_CONTRA_ACASO_trevo": "Uniformidade global: evidência forte de viés difuso (fator de Bayes {{bf}})."
     },
     "sparse": {
       "FORTE_PRO_ACASO": "Uma dezena isolada viciada: evidência forte contra.",
       "MODERADA_PRO_ACASO": "Uma dezena isolada viciada: evidência moderada contra.",
       "INCONCLUSIVO": "Uma dezena isolada viciada: inconclusivo — nenhuma se destaca o bastante para afirmar viés (fator de Bayes {{bf}}).",
       "MODERADA_CONTRA_ACASO": "Uma dezena isolada viciada: evidência moderada a favor (fator de Bayes {{bf}}).",
-      "FORTE_CONTRA_ACASO": "Uma dezena isolada viciada: evidência forte a favor (fator de Bayes {{bf}})."
+      "FORTE_CONTRA_ACASO": "Uma dezena isolada viciada: evidência forte a favor (fator de Bayes {{bf}}).",
+      "FORTE_PRO_ACASO_trevo": "Um trevo isolado viciado: evidência forte contra.",
+      "MODERADA_PRO_ACASO_trevo": "Um trevo isolado viciado: evidência moderada contra.",
+      "INCONCLUSIVO_trevo": "Um trevo isolado viciado: inconclusivo — nenhum se destaca o bastante para afirmar viés (fator de Bayes {{bf}}).",
+      "MODERADA_CONTRA_ACASO_trevo": "Um trevo isolado viciado: evidência moderada a favor (fator de Bayes {{bf}}).",
+      "FORTE_CONTRA_ACASO_trevo": "Um trevo isolado viciado: evidência forte a favor (fator de Bayes {{bf}})."
     },
-    "shrunk": "A dezena mais frequente saiu em {{raw}}% dos concursos; a estimativa com encolhimento (Bayes empírico) é {{shrunk}}% — o esperado sob acaso é {{expected}}%. A diferença é o quanto do desvio é ruído."
+    "shrunk": "A dezena mais frequente saiu em {{raw}}% dos concursos; a estimativa com encolhimento (Bayes empírico) é {{shrunk}}% — o esperado sob acaso é {{expected}}%. A diferença é o quanto do desvio é ruído.",
+    "title_trevo": "Os trevos favorecem algum número?",
+    "hottest_trevo": "O mais frequente foi o {{number}}: {{hits}} vezes contra {{expected}} esperadas (z = {{z}}).",
+    "power_trevo": "Com este histórico, só um viés acima de {{bias}}% num trevo seria detectado (poder de 80%).",
+    "shrunk_trevo": "O trevo mais frequente saiu em {{raw}}% dos concursos; a estimativa com encolhimento (Bayes empírico) é {{shrunk}}% — o esperado sob acaso é {{expected}}%. A diferença é o quanto do desvio é ruído.",
+    "footnote_trevo": "O ranking por frequência ordena os trevos, mas ordenar sempre produz um primeiro lugar. O teste ao lado diz se a diferença é maior que a do acaso."
+  },
+  "history": {
+    "upToDate": "Histórico completo: concursos {{first}} a {{last}} ({{count}} sorteios), até {{date}}. Em dia com o último concurso.",
+    "checking": "Histórico: concursos {{first}} a {{last}} ({{count}} sorteios), até {{date}}. Conferindo se saiu concurso novo…",
+    "offline": "Histórico até o concurso {{last}} ({{date}}). Não foi possível conferir se saiu concurso novo agora; a análise usa o que está salvo.",
+    "gaps": "Histórico com {{missing}} concurso(s) faltando entre o {{first}} e o {{last}}. A sincronização vai completar quando houver conexão."
   }
 }
