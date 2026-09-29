@@ -73,7 +73,10 @@ export function generateForStrategy(
 
   switch (strategy) {
     case 'tier-weighted': {
-      const batch = generateGames(lottery, Math.max(count, 2), performances, { random });
+      const batch = generateGames(lottery, Math.max(count, 2), performances, {
+        random,
+        strategy: 'FREQUENCY_TIERS',
+      });
       return batch.games.slice(0, count).map((game) => game.numbers);
     }
     case 'frequency-pure': {

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBacktestWorker } from './useBacktestWorker';
 import { trackBacktestAnalysis } from '../services/analytics';
 import { reportDbError, reportWorkerError, addBreadcrumb } from '../services/errorReporter';
-import { getDraws, getPerformances, PerformanceRecord, savePerformances } from '../services/db';
+import { getDraws, getLastContest, getPerformances, PerformanceRecord, savePerformances } from '../services/db';
+import { HISTORY_UPDATED_EVENT } from '../services/syncService';
 import { DEFAULT_SIMULATIONS_PER_NUMBER } from '../engine/backtestAnalyzer';
 import { Lottery, NumberPerformance } from '../types/domain';
 
@@ -45,6 +46,8 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
     run,
   } = useBacktestWorker();
   const pendingLotteryRef = useRef<Lottery | null>(null);
+  /** Último concurso do histórico usado na análise em andamento (gravado junto do cache). */
+  const pendingLastContestRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,8 +57,18 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
       setError(null);
       try {
         addBreadcrumb(`Loading performances for ${lottery}`, { lottery: lottery.toString() });
-        const cached = await getPerformances(lottery);
+        const cachedRecord = await getPerformances(lottery);
         if (cancelled) return;
+
+        // Um cache `auto` gerado com menos concursos que os hoje salvos está
+        // defasado (chegou concurso novo, ou o seed real substituiu o antigo):
+        // recalcula. Um cache `manual` é uma janela escolhida pelo usuário e só
+        // expira pelo TTL.
+        const latestContest = await getLastContest(lottery);
+        if (cancelled) return;
+        const stale =
+          cachedRecord?.source === 'auto' && (cachedRecord.lastContest ?? 0) < (latestContest ?? 0);
+        const cached = stale ? undefined : cachedRecord;
 
         if (cached) {
           setPerformances(cached.performances);
@@ -70,6 +83,7 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
           pendingLotteryRef.current = lottery;
           const draws = await getDraws(lottery);
           if (cancelled) return;
+          pendingLastContestRef.current = draws.length ? draws[draws.length - 1].contestNumber : undefined;
           run({ draws, lottery, simulationsPerDraw: DEFAULT_SIMULATIONS_PER_NUMBER });
         }
       } catch (err) {
@@ -114,7 +128,10 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
         lottery: targetLottery.toString(),
         source: 'auto',
       });
-      void savePerformances(targetLottery, result, trevos, { source: 'auto' }).catch((err) => {
+      void savePerformances(targetLottery, result, trevos, {
+        source: 'auto',
+        lastContest: pendingLastContestRef.current,
+      }).catch((err) => {
         reportDbError(err instanceof Error ? err : new Error('Failed to save performances'), {
           table: `performances_${targetLottery}`,
           operation: 'save',
@@ -140,9 +157,21 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
     pendingLotteryRef.current = lottery;
     setLoading(true);
     getDraws(lottery).then((draws) => {
+      pendingLastContestRef.current = draws.length ? draws[draws.length - 1].contestNumber : undefined;
       run({ draws, lottery, simulationsPerDraw: DEFAULT_SIMULATIONS_PER_NUMBER });
     });
   }, [lottery, run]);
+
+  // Concursos novos sincronizados com o app aberto: reanalisa na hora, sem
+  // esperar a próxima abertura. Um backtest manual não é sobrescrito.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onHistoryUpdated = (): void => {
+      if (source !== 'manual') refreshAuto();
+    };
+    window.addEventListener(HISTORY_UPDATED_EVENT, onHistoryUpdated);
+    return () => window.removeEventListener(HISTORY_UPDATED_EVENT, onHistoryUpdated);
+  }, [source, refreshAuto]);
 
   return {
     performances,

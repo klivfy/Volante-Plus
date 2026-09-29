@@ -7,7 +7,7 @@ import {
 } from '../../../../web/src/engine/backtestAnalyzer';
 import { generateGames } from '../../../../web/src/engine/gameGenerator';
 import { hasTrevos } from '../../../../web/src/engine/prizeRules';
-import { getSeedData } from '../../../../web/src/data/seed';
+import { loadHistorySeed } from '../../../../web/src/data/history';
 import {
   GameBatch,
   Lottery,
@@ -65,24 +65,31 @@ export default function PopupContent() {
 
     async function load(): Promise<void> {
       try {
+        // Histórico = seed real embutido (do concurso 1) + o que a sincronização
+        // já trouxe; o sincronizado prevalece sobre o seed no mesmo concurso.
+        const stored = await getDraws(lottery);
+        const byContest = new Map((await loadHistorySeed(lottery)).map((d) => [d.contestNumber, d]));
+        for (const draw of stored) byContest.set(draw.contestNumber, draw);
+        const draws = [...byContest.values()].sort((a, b) => a.contestNumber - b.contestNumber);
+        const lastContest = draws.length ? draws[draws.length - 1].contestNumber : 0;
+
+        // Cache defasado (chegou concurso novo desde a análise) é recalculado.
         const cached = await getPerformances(lottery);
         if (cancelled) return;
-        if (cached) {
+        if (cached && (cached.lastContest ?? 0) >= lastContest) {
           setPerformances(cached.performances);
           setTrevoPerformances(cached.trevoPerformances);
           setStatus('ready');
           return;
         }
 
-        const stored = await getDraws(lottery);
-        const draws = stored.length > 0 ? stored : getSeedData(lottery);
         const computed = analyzeBacktest(draws, lottery, DEFAULT_SIMULATIONS_PER_NUMBER);
         const computedTrevos = analyzeTrevoBacktest(draws, lottery, DEFAULT_SIMULATIONS_PER_NUMBER);
         if (cancelled) return;
 
         setPerformances(computed);
         setTrevoPerformances(computedTrevos);
-        void savePerformances(lottery, computed, computedTrevos);
+        void savePerformances(lottery, computed, computedTrevos, lastContest);
         setStatus('ready');
       } catch (err) {
         if (cancelled) return;

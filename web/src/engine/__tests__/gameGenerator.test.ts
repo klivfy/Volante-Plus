@@ -8,7 +8,13 @@ import {
   PerformanceTier,
   TrevoStrategy,
 } from '../../types/domain';
-import { STRATEGY_LABEL, allTrevoPairs, generateGames } from '../gameGenerator';
+import {
+  STRATEGY_LABEL,
+  UNPOPULAR_STRATEGY_LABEL,
+  allTrevoPairs,
+  generateGames,
+} from '../gameGenerator';
+import { unpopularityPenalty } from '../unpopularity';
 import { createSeededRandom } from '../random';
 
 /**
@@ -43,7 +49,10 @@ function trevoPerformances(weightOf: (n: number) => number = () => 1): NumberPer
   return performances(6, weightOf);
 }
 
-const seeded = (seed = 42) => ({ random: createSeededRandom(seed) });
+const seeded = (seed = 42) => ({
+  random: createSeededRandom(seed),
+  strategy: 'FREQUENCY_TIERS' as const,
+});
 
 function allNumbers(games: GeneratedGame[]): number[] {
   return games.flatMap((game) => game.numbers);
@@ -350,5 +359,81 @@ describe('generateGames — trevos', () => {
     expect(pairs).toHaveLength(15);
     expect(pairs.every(([a, b]) => a < b)).toBe(true);
     expect(allTrevoPairs(Lottery.MEGA_SENA)).toEqual([]);
+  });
+});
+
+describe('generateGames — estratégia UNPOPULAR (padrão)', () => {
+  const unpopularPenalty = (games: GeneratedGame[]) =>
+    games.reduce((sum, g) => sum + unpopularityPenalty(Lottery.MEGA_SENA, g.numbers), 0) / games.length;
+
+  it('é o padrão e rotula o lote', () => {
+    const batch = generateGames(Lottery.MEGA_SENA, 3, megaPerformances(), {
+      random: createSeededRandom(1),
+    });
+    expect(batch.strategyLabel).toBe(UNPOPULAR_STRATEGY_LABEL);
+  });
+
+  it('mantém os invariantes: 6 dezenas distintas, dezenas sem repetição entre jogos', () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      const batch = generateGames(Lottery.MEGA_SENA, 4, megaPerformances(), {
+        random: createSeededRandom(seed),
+      });
+      const all = allNumbers(batch.games);
+      expect(batch.games).toHaveLength(4);
+      expect(new Set(all).size).toBe(24);
+      for (const game of batch.games) {
+        expect(game.numbers).toHaveLength(6);
+        expect(game.numbers.every((n) => n >= 1 && n <= 60)).toBe(true);
+      }
+    }
+  });
+
+  it('é bem menos popular que o sorteio uniforme', () => {
+    const rnd = createSeededRandom(2);
+    const unpopular: GeneratedGame[] = [];
+    const uniform: GeneratedGame[] = [];
+    for (let i = 0; i < 300; i++) {
+      unpopular.push(
+        ...generateGames(Lottery.MEGA_SENA, 2, megaPerformances(), { random: rnd }).games,
+      );
+      const s = new Set<number>();
+      while (s.size < 6) s.add(1 + rnd.nextInt(60));
+      uniform.push({ numbers: [...s] });
+    }
+    expect(unpopularPenalty(unpopular)).toBeLessThan(unpopularPenalty(uniform) * 0.85);
+  });
+
+  it('ignora os pesos do histórico (nenhuma dezena é favorecida por frequência)', () => {
+    // Pesos extremamente enviesados para 1..10 não podem mudar a frequência de escolha.
+    const skewed = performances(60, (n) => (n <= 10 ? 100 : 1));
+    const flat = megaPerformances();
+    const share = (perf: NumberPerformance[]) => {
+      const rnd = createSeededRandom(9);
+      let low = 0;
+      let total = 0;
+      for (let i = 0; i < 1500; i++) {
+        for (const g of generateGames(Lottery.MEGA_SENA, 2, perf, { random: rnd }).games) {
+          low += g.numbers.filter((n) => n <= 10).length;
+          total += 6;
+        }
+      }
+      return low / total;
+    };
+    expect(Math.abs(share(skewed) - share(flat))).toBeLessThan(0.02);
+  });
+
+  it('+Milionária: trevos uniformes entre 1..6', () => {
+    const rnd = createSeededRandom(4);
+    const counts = new Map<number, number>();
+    for (let i = 0; i < 3000; i++) {
+      const [game] = generateGames(Lottery.MAIS_MILIONARIA, 2, milionariaPerformances(), {
+        random: rnd,
+      }).games;
+      for (const t of game.trevoDuplas![0]) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    const expected = (3000 * 2) / 6;
+    for (let t = 1; t <= 6; t++) {
+      expect(Math.abs((counts.get(t) ?? 0) - expected) / expected).toBeLessThan(0.12);
+    }
   });
 });

@@ -10,6 +10,7 @@ import {
 import { tierCuts } from './backtestAnalyzer';
 import { hasTrevos, lotteryRules } from './prizeRules';
 import { defaultRandom, RandomSource } from './random';
+import { unpopularityPenalty } from './unpopularity';
 
 /**
  * Gerador de lotes de jogos simples (6 dezenas).
@@ -36,8 +37,32 @@ import { defaultRandom, RandomSource } from './random';
  * Porta direta do `GameGenerator.kt` do app Android.
  */
 
-/** Rótulo exibido em todo lote — não há mais estratégia a escolher. */
+/** Rótulo do lote gerado pela estratégia legada por tiers de frequência. */
 export const STRATEGY_LABEL = 'Backtest-Driven';
+
+/** Rótulo do lote gerado pela estratégia padrão, de baixa popularidade. */
+export const UNPOPULAR_STRATEGY_LABEL = 'Baixa popularidade';
+
+/**
+ * - `UNPOPULAR` (padrão): dezenas sorteadas uniformemente; entre
+ *   `UNPOPULAR_CANDIDATES` candidatos por jogo fica o menos popular segundo
+ *   `unpopularityPenalty`. Não altera a chance de ganhar (teorema da
+ *   invariância) — só reduz com quantos apostadores o prêmio seria dividido.
+ * - `FREQUENCY_TIERS`: a estratégia anterior, por tiers de frequência
+ *   histórica. Mantida para o backtest e o benchmark, que existem justamente
+ *   para medir que ela não supera o acaso.
+ */
+export type GenerationStrategy = 'UNPOPULAR' | 'FREQUENCY_TIERS';
+
+/**
+ * Candidatos avaliados por jogo na estratégia `UNPOPULAR`.
+ *
+ * WHY 64 e não o mínimo global: escolher sempre a combinação menos popular
+ * faria todo usuário do app jogar o mesmo bilhete — e o app, ele mesmo,
+ * viraria a fonte de popularidade. Com 64 sorteios uniformes o jogo escolhido
+ * cai, em média, entre os ~2% menos populares, mas continua aleatório.
+ */
+export const UNPOPULAR_CANDIDATES = 64;
 
 /** Proporção-alvo de vagas por tier (o low fica com o restante, 10%). */
 export const TOP_TIER_SHARE = 0.7;
@@ -59,6 +84,8 @@ export interface GenerateOptions {
   pool?: Iterable<number>;
   /** Injetável para lotes reproduzíveis e testes determinísticos. */
   random?: RandomSource;
+  /** Estratégia de sorteio; padrão `UNPOPULAR`. */
+  strategy?: GenerationStrategy;
 }
 
 /**
@@ -129,6 +156,7 @@ export function generateGames(
     );
   }
 
+  const strategy = options.strategy ?? 'UNPOPULAR';
   const numberTiers = tiersOf(eligible);
   const trevoTiers = buildTrevoTiers(lottery, options.trevoPerformances ?? []);
 
@@ -144,6 +172,18 @@ export function generateGames(
   const effectiveCount = Math.min(count, maxDistinctGames(lottery, eligible.length));
 
   for (let index = 0; index < effectiveCount; index++) {
+    if (strategy === 'UNPOPULAR') {
+      const game = buildUnpopularGame(
+        lottery,
+        eligible.map((performance) => performance.number).filter((n) => !usedNumbersGlobal.has(n)),
+        rules.numbersPerBet,
+        trevoStrategy,
+        random,
+      );
+      game.numbers.forEach((n) => usedNumbersGlobal.add(n));
+      games.push(game);
+      continue;
+    }
     games.push(
       nextDistinctGameWithGlobalDedup(games, usedNumbersGlobal, {
         gameSize: rules.numbersPerBet,
@@ -159,10 +199,54 @@ export function generateGames(
   return {
     lottery,
     games,
-    strategyLabel: STRATEGY_LABEL,
+    strategyLabel: strategy === 'UNPOPULAR' ? UNPOPULAR_STRATEGY_LABEL : STRATEGY_LABEL,
     performancesSnapshot: eligible,
     ...(pool === null ? {} : { sourcePool: [...pool].sort((a, b) => a - b) }),
   };
+}
+
+/** `k` elementos distintos de `pool`, uniformes (Fisher-Yates parcial). */
+function sampleDistinct(pool: readonly number[], k: number, random: RandomSource): number[] {
+  const copy = [...pool];
+  for (let i = 0; i < k; i++) {
+    const j = i + random.nextInt(copy.length - i);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, k).sort((a, b) => a - b);
+}
+
+/**
+ * Jogo da estratégia `UNPOPULAR`: o de menor `unpopularityPenalty` entre
+ * `UNPOPULAR_CANDIDATES` sorteios uniformes das dezenas ainda disponíveis.
+ * Os trevos são sorteados uniformemente — não há evidência de viés de
+ * popularidade neles, e ranquear por frequência seria a mesma ilusão das dezenas.
+ */
+function buildUnpopularGame(
+  lottery: Lottery,
+  available: readonly number[],
+  gameSize: number,
+  trevoStrategy: TrevoStrategy,
+  random: RandomSource,
+): GeneratedGame {
+  let best: number[] = [];
+  let bestPenalty = Infinity;
+  for (let i = 0; i < UNPOPULAR_CANDIDATES; i++) {
+    const candidate = sampleDistinct(available, gameSize, random);
+    const penalty = unpopularityPenalty(lottery, candidate);
+    if (penalty < bestPenalty) {
+      best = candidate;
+      bestPenalty = penalty;
+    }
+  }
+  if (!hasTrevos(lottery)) {
+    return { numbers: best };
+  }
+  const universe = Array.from({ length: lotteryRules(lottery).trevoUniverse }, (_, i) => i + 1);
+  const duplas: [number, number][] =
+    trevoStrategy === TrevoStrategy.COBERTURA_TOTAL
+      ? allTrevoPairs(lottery)
+      : [sampleDistinct(universe, lotteryRules(lottery).trevosPerBet, random) as [number, number]];
+  return { numbers: best, trevoDuplas: duplas };
 }
 
 interface BuildContext {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSeedData } from '../../../data/seed';
+import { getSyntheticFixture } from '../../../data/syntheticFixture';
 import { Draw, Lottery } from '../../../types/domain';
 import {
   DrawDataset,
@@ -75,7 +75,7 @@ describe('assertAuditable — a guarda', () => {
   it('RECUSA o seed empacotado mesmo rotulado de oficial — defesa em profundidade', () => {
     // Este é o caso que a checagem de conteúdo existe para pegar: alguém
     // (ou algum caminho de código) afirma que o seed é dado oficial.
-    const seed = getSeedData(Lottery.MEGA_SENA);
+    const seed = getSyntheticFixture(Lottery.MEGA_SENA);
     const mislabeled = dataset(seed, {
       provenance: 'official',
       sourceLabel: 'mentira: seed rotulado de oficial',
@@ -162,7 +162,7 @@ describe("provenance 'third_party_mirror'", () => {
   });
 
   it('ainda é recusado se coincidir com o seed empacotado', () => {
-    const seed = getSeedData(Lottery.MEGA_SENA);
+    const seed = getSyntheticFixture(Lottery.MEGA_SENA);
     const data = dataset(seed, { provenance: 'third_party_mirror' });
     expect(() => assertAuditable(data)).toThrow(/seed sintético empacotado/);
   });

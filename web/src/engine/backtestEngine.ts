@@ -101,6 +101,9 @@ export function runBacktest(
       trevoPerformances,
       trevoStrategy,
       random,
+      // O backtest existe para medir a estratégia por frequência histórica —
+      // não a de baixa popularidade, que por construção não usa o histórico.
+      strategy: 'FREQUENCY_TIERS',
     });
 
     for (const game of batch.games) {
