@@ -16,7 +16,7 @@ import { lotteryRules } from '../prizeRules';
  *
  * Este módulo foi escrito e commitado enquanto o repositório **não tinha
  * histórico oficial nenhum** (ver `provenance.ts` e o README de
- * `data/seed/`). O git carrega a data. Qualquer alteração posterior a estes
+ * `data/syntheticFixture/`). O git carrega a data. Qualquer alteração posterior a estes
  * valores aparece no diff, com autor e momento. A regra deixa de depender da
  * boa-fé de quem analisa e passa a depender de um registro que ninguém
  * reescreve em silêncio.

@@ -8,8 +8,6 @@ import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Grid from '@mui/material/Grid';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
@@ -18,16 +16,20 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import EvidencePanel from '@/components/EvidencePanel';
 import GameCard from '@/components/GameCard';
-import GameSlider from '@/components/GameSlider';
+import GameCountControl from '@/components/GameCountControl';
+import HistoryStatus from '@/components/HistoryStatus';
 import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
 import NumberPicker from '@/components/NumberPicker';
+import SegmentedControl from '@/components/SegmentedControl';
 import NotificationOptIn from '@/components/NotificationOptIn';
 import PayoutSharePanel from '@/components/PayoutSharePanel';
 import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } from '@/services/analytics';
 import { reportUserError, addBreadcrumb } from '@/services/errorReporter';
 import { closureCost, generateClosure, offeredGuarantees, SIMPLE_BET_PRICE_BRL } from '@/engine/closureDesigner';
 import { generateGames, maxDistinctGames } from '@/engine/gameGenerator';
+import { bayesEvidenceFromPerformances } from '@/engine/bayesEvidence';
+import { guaranteeProbability } from '@/engine/betPlanning';
 import { numberEvidence } from '@/engine/numberEvidence';
 import { evaluatePayoutBatch } from '@/engine/payoutShare';
 import { hasTrevos, lotteryRules } from '@/engine/prizeRules';
@@ -81,6 +83,25 @@ export default function VolantePage() {
   const evidence = useMemo(
     () => (performances.length > 0 ? numberEvidence(lottery, performances) : null),
     [lottery, performances],
+  );
+  const bayes = useMemo(
+    () => (performances.length > 0 ? bayesEvidenceFromPerformances(lottery, performances) : null),
+    [lottery, performances],
+  );
+  // Na +Milionária os trevos recebem exatamente o mesmo tratamento das dezenas.
+  const trevoEvidence = useMemo(
+    () =>
+      hasTrevos(lottery) && trevoPerformances.length > 0
+        ? numberEvidence(lottery, trevoPerformances, 'trevos')
+        : null,
+    [lottery, trevoPerformances],
+  );
+  const trevoBayes = useMemo(
+    () =>
+      hasTrevos(lottery) && trevoPerformances.length > 0
+        ? bayesEvidenceFromPerformances(lottery, trevoPerformances, 'trevos')
+        : null,
+    [lottery, trevoPerformances],
   );
   const rules = lotteryRules(lottery);
   const guarantees = offeredGuarantees(lottery);
@@ -205,29 +226,28 @@ export default function VolantePage() {
 
         <LotterySelector value={lottery} onChange={handleLotteryChange} disabled={isBusy} />
 
+        <HistoryStatus lottery={lottery} />
+
         <NextDrawCard nextDraw={nextDraw.data} loading={nextDraw.loading} />
 
         {status === 'error' && <Alert severity="error">{t('volante.performanceError')}</Alert>}
 
         <Card variant="outlined">
           <CardContent>
-            <ToggleButtonGroup
-              exclusive
-              fullWidth
-              size="small"
+            <SegmentedControl
               value={mode}
-              onChange={(_, next: GameMode | null) => {
-                if (next) {
-                  setMode(next);
-                  setGeneratedBatch(null);
-                }
+              onChange={(next: GameMode) => {
+                setMode(next);
+                setGeneratedBatch(null);
               }}
               disabled={isBusy}
-              sx={{ mb: 2 }}
-            >
-              <ToggleButton value={GameMode.JOGOS_AVULSOS}>{t('volante.modeAvulsos')}</ToggleButton>
-              <ToggleButton value={GameMode.FECHAMENTO}>{t('volante.modeFechamento')}</ToggleButton>
-            </ToggleButtonGroup>
+              ariaLabel={t('volante.modeLabel')}
+              options={[
+                { value: GameMode.JOGOS_AVULSOS, label: t('volante.modeAvulsos') },
+                { value: GameMode.FECHAMENTO, label: t('volante.modeFechamento') },
+              ]}
+            />
+            <Box sx={{ mb: 2 }} />
             {closureMode ? (
               <>
                 <NumberPicker
@@ -238,31 +258,28 @@ export default function VolantePage() {
                   disabled={isBusy}
                 />
                 {guarantees.length > 1 && (
-                  <ToggleButtonGroup
-                    exclusive
-                    size="small"
-                    value={guarantee}
-                    onChange={(_, next: number | null) => next && setGuarantee(next)}
-                    disabled={isBusy}
-                    aria-label={t('fechamento.guaranteeLabel')}
-                    sx={{ mt: 2 }}
-                  >
-                    {guarantees.map((g) => (
-                      <ToggleButton key={g} value={g}>
-                        {t('fechamento.guaranteeOption', { t: g })}
-                      </ToggleButton>
-                    ))}
-                  </ToggleButtonGroup>
+                  <Box sx={{ mt: 2 }}>
+                    <SegmentedControl
+                      value={guarantee}
+                      onChange={setGuarantee}
+                      disabled={isBusy}
+                      ariaLabel={t('fechamento.guaranteeLabel')}
+                      options={guarantees.map((g) => ({
+                        value: g,
+                        label: t('fechamento.guaranteeOption', { t: g }),
+                      }))}
+                    />
+                  </Box>
                 )}
-                <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
                   {pool.length < minPool
                     ? t('fechamento.needMore', { min: minPool })
                     : t('fechamento.costNote', { price: SIMPLE_BET_PRICE_BRL })}
-                </Alert>
+                </Typography>
               </>
             ) : (
               <>
-                <GameSlider value={batchCount} onChange={setBatchCount} disabled={isBusy} />
+                <GameCountControl value={batchCount} onChange={setBatchCount} disabled={isBusy} />
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                   {t('volante.strategyNote')}
                 </Typography>
@@ -318,6 +335,20 @@ export default function VolantePage() {
               t: generatedBatch.closure.guarantee,
               pool: generatedBatch.closure.poolSize,
             })}
+            <br />
+            {(() => {
+              const p = guaranteeProbability(
+                lottery,
+                generatedBatch.closure.poolSize,
+                generatedBatch.closure.guarantee,
+              );
+              return t('fechamento.odds', {
+                percent: (p * 100).toFixed(2).replace('.', ','),
+                oneIn: Math.round(1 / p).toLocaleString('pt-BR'),
+                t: generatedBatch.closure.guarantee,
+                pool: generatedBatch.closure.poolSize,
+              });
+            })()}
           </Alert>
         )}
 
@@ -340,7 +371,22 @@ export default function VolantePage() {
 
         {payoutAssessment && <PayoutSharePanel assessment={payoutAssessment} />}
 
-        {evidence && <EvidencePanel summary={evidence} />}
+        {evidence && (
+          <EvidencePanel
+            summary={evidence}
+            bayes={bayes}
+            expectedShare={rules.numbersDrawn / rules.numberUniverse}
+          />
+        )}
+
+        {trevoEvidence && (
+          <EvidencePanel
+            summary={trevoEvidence}
+            bayes={trevoBayes}
+            expectedShare={rules.trevosDrawn / rules.trevoUniverse}
+            space="trevos"
+          />
+        )}
       </Stack>
 
       <Snackbar

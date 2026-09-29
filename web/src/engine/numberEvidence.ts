@@ -1,6 +1,6 @@
 import { Lottery, NumberPerformance } from '../types/domain';
 import { bonferroniCorrection } from './multipleComparisons';
-import { lotteryRules } from './prizeRules';
+import { DrawSpace, drawSpace } from './prizeRules';
 import { approxChi2CDF, approxNormalCDF } from './statUtils';
 
 /**
@@ -69,16 +69,20 @@ const POWER = 0.8;
 const ALPHA = 0.05;
 
 /**
- * @param performances desempenho por dezena; `hitCount` é a frequência real.
+ * @param performances desempenho por dezena (ou por trevo); `hitCount` é a
+ *   frequência real.
+ * @param space `numbers` (padrão) ou `trevos` — a +Milionária tem os dois
+ *   espaços, com universo e quantidade sorteada diferentes (6/2 nos trevos).
  */
 export function numberEvidence(
   lottery: Lottery,
   performances: readonly NumberPerformance[],
+  space: DrawSpace = 'numbers',
 ): EvidenceSummary {
-  const rules = lotteryRules(lottery);
-  const p = rules.numbersDrawn / rules.numberUniverse;
+  const spec = drawSpace(lottery, space);
+  const p = spec.drawn / spec.universe;
   const totalHits = performances.reduce((sum, row) => sum + row.hitCount, 0);
-  const draws = Math.round(totalHits / rules.numbersDrawn);
+  const draws = Math.round(totalHits / spec.drawn);
   const minimumDraws = Math.ceil(5 / p);
   const expected = draws * p;
   const sd = Math.sqrt(draws * p * (1 - p));

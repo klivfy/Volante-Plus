@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-09-29T03:46:07.114Z",
+  "source": "loteriascaixa-api (arquivo local)",
+  "lotteries": {
+    "megasena": {
+      "count": 3063,
+      "firstContest": 1,
+      "lastContest": 3063,
+      "lastDate": "2026-09-27",
+      "crossChecked": 2797
+    },
+    "maismilionaria": {
+      "count": 393,
+      "firstContest": 1,
+      "lastContest": 393,
+      "lastDate": "2026-09-27",
+      "crossChecked": 199
+    }
+  }
+}

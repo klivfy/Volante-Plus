@@ -7,8 +7,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-const SPLASH_DURATION_MS = 2500;
-const SPLASH_FADE_MS = 300;
+const SPLASH_DURATION_MS = 700;
+const SPLASH_FADE_MS = 200;
 const SPLASH_SHOWN_KEY = 'volante_splash_shown';
 
 export interface SplashScreenProps {
@@ -32,7 +32,10 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
   // toda navegação subsequente da sessão. `typeof window` guarda o SSR.
   if (!sessionChecked && typeof window !== 'undefined') {
     setSessionChecked(true);
-    if (sessionStorage.getItem(SPLASH_SHOWN_KEY)) {
+    // Sem splash quando a sessão já o mostrou ou quando o sistema pede menos
+    // movimento: o app deve abrir na hora, não fazer o usuário esperar.
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (reduceMotion || sessionStorage.getItem(SPLASH_SHOWN_KEY)) {
       setVisible(false);
     } else {
       sessionStorage.setItem(SPLASH_SHOWN_KEY, 'true');
@@ -63,7 +66,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+        background: `linear-gradient(135deg, ${theme.vars?.palette.primary.main ?? theme.palette.primary.main} 0%, ${theme.vars?.palette.primary.dark ?? theme.palette.primary.dark} 100%)`,
         zIndex: 9999,
         animation: `fadeOut ${SPLASH_FADE_MS}ms ease-in-out forwards`,
         animationDelay: `${SPLASH_DURATION_MS - SPLASH_FADE_MS}ms`,

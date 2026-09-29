@@ -1,26 +1,42 @@
-import { fetchDrawHistory, fetchNextDraw } from './caixaApi';
-import { db, saveDraws } from './db';
 import { Lottery } from '../types/domain';
+import { db, getLastContest, getStoredContests, saveDraws, seedIfEmpty } from './db';
+import { defaultSources, DrawSource } from './drawSources';
+import { analyzeHistory, HistoryStatus, syncLottery, SyncReport } from './historySync';
 
 /**
  * Sincronização incremental do histórico de concursos.
  *
  * O gatilho varia por ambiente — Periodic Background Sync no PWA,
- * `chrome.alarms` na extensão — mas a ação de sincronizar em si (esta
- * função) é a mesma nos três: busca o histórico e o próximo concurso na API
- * da Caixa e faz upsert no IndexedDB (`saveDraws`, já idempotente pela chave
- * composta `[lottery+contestNumber]`). Nunca lança: falha de rede vira
- * `null` em `fetchDrawHistory`/`fetchNextDraw`, e o app segue com o que já
- * tem localmente (seed ou sincronização anterior).
+ * `chrome.alarms` na extensão, abertura/retorno ao app — mas a ação é a mesma:
+ * garantir o seed embutido (concursos 1..N desde a geração do app), descobrir o
+ * último concurso realizado e buscar SÓ o que falta (`historySync.syncLottery`).
+ * Nunca lança: falha de rede vira relatório `reachable: false` e o app segue
+ * com o que já tem.
  */
 
-/** Intervalo mínimo entre sincronizações completas do fallback ao abrir o app. */
-export const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** Intervalo pedido ao Periodic Background Sync (o navegador pode espaçar mais). */
+export const SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Intervalo mínimo entre verificações ao abrir/voltar ao app. A verificação é
+ * barata (uma chamada do "último concurso" quando nada mudou), então é frequente:
+ * sorteios saem 2 a 3 vezes por semana e o usuário deve vê-los logo.
+ */
+export const LATEST_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+
+/** Evento disparado em `window` quando a sincronização grava concursos novos. */
+export const HISTORY_UPDATED_EVENT = 'volante:history-updated';
 
 const LAST_SYNC_CONFIG_KEY = 'lastSyncAt';
+const STATUS_KEY_PREFIX = 'historyStatus:';
 const ALARM_NAME = 'volante-plus-sync';
 
 const ALL_LOTTERIES = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA];
+
+export interface SyncOptions {
+  /** Fontes a tentar, em ordem; padrão `defaultSources()`. Injetável para testes. */
+  sources?: DrawSource[];
+}
 
 async function getLastSyncAt(): Promise<number | null> {
   const record = await db.config.get(LAST_SYNC_CONFIG_KEY);
@@ -33,51 +49,124 @@ async function setLastSyncAt(timestamp: number): Promise<void> {
   await db.config.put({ key: LAST_SYNC_CONFIG_KEY, value: String(timestamp) });
 }
 
+interface StoredSyncStatus {
+  latestKnown: number | null;
+  checkedAt: number;
+  reachable: boolean;
+  source: string | null;
+}
+
+async function saveSyncStatus(report: SyncReport): Promise<void> {
+  const previous = await readSyncStatus(report.lottery);
+  const status: StoredSyncStatus = {
+    // Sem rede, mantém o último concurso conhecido em vez de apagá-lo.
+    latestKnown: report.latest ?? previous?.latestKnown ?? null,
+    checkedAt: Date.now(),
+    reachable: report.reachable,
+    source: report.source,
+  };
+  await db.config.put({ key: STATUS_KEY_PREFIX + report.lottery, value: JSON.stringify(status) });
+}
+
+async function readSyncStatus(lottery: Lottery): Promise<StoredSyncStatus | null> {
+  const record = await db.config.get(STATUS_KEY_PREFIX + lottery);
+  if (!record) return null;
+  try {
+    return JSON.parse(record.value) as StoredSyncStatus;
+  } catch {
+    return null;
+  }
+}
+
+/** Situação do histórico de uma loteria: completude, atualização e última consulta. */
+export interface HistorySummary extends HistoryStatus {
+  /** Data (ISO) do último concurso salvo. */
+  lastDate: string | null;
+  /** Epoch ms da última consulta à fonte; `null` se nunca consultou. */
+  checkedAt: number | null;
+  /** A última consulta alcançou alguma fonte. */
+  reachable: boolean | null;
+  /** O banco tem o último concurso realizado conhecido. */
+  upToDate: boolean;
+}
+
+export async function getHistorySummary(lottery: Lottery): Promise<HistorySummary> {
+  await seedIfEmpty();
+  const stored = await readSyncStatus(lottery);
+  const contests = await getStoredContests(lottery);
+  const status = analyzeHistory(lottery, contests, stored?.latestKnown ?? null);
+  const last = await getLastContest(lottery);
+  const lastRow = last === null ? undefined : await db.draws.get([lottery, last]);
+  return {
+    ...status,
+    lastDate: lastRow?.date ?? null,
+    checkedAt: stored?.checkedAt ?? null,
+    reachable: stored ? stored.reachable : null,
+    upToDate:
+      status.lastContest !== null &&
+      (stored?.latestKnown ?? 0) > 0 &&
+      status.lastContest >= (stored?.latestKnown ?? 0),
+  };
+}
+
+function announceHistoryUpdate(): void {
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new Event(HISTORY_UPDATED_EVENT));
+  }
+}
+
 /**
- * Sincroniza o histórico de todas as loterias suportadas. Concursos que
- * falharem (histórico indisponível, ou próximo concurso indisponível) são
- * simplesmente ignorados — a sincronização é best-effort, nunca lança.
+ * Sincroniza todas as loterias suportadas: garante o seed, descobre o último
+ * concurso e preenche o que faltar (concursos novos e lacunas antigas). Devolve
+ * um relatório por loteria; nunca lança.
  */
-export async function syncNow(): Promise<void> {
+export async function syncNow(options: SyncOptions = {}): Promise<SyncReport[]> {
+  const sources = options.sources ?? defaultSources();
+  try {
+    await seedIfEmpty();
+  } catch {
+    // Sem seed (IndexedDB indisponível?) a sincronização ainda tenta preencher tudo.
+  }
+  const reports: SyncReport[] = [];
   for (const lottery of ALL_LOTTERIES) {
-    const history = await fetchDrawHistory(lottery);
-    if (history && history.length > 0) {
-      await saveDraws(history);
-    }
-    // `fetchNextDraw` só informa data/prêmio estimado do próximo concurso —
-    // não é um `Draw` realizado, então não entra em `saveDraws`; quem
-    // precisa dele (`useNextDraw`) já busca sob demanda.
-    await fetchNextDraw(lottery);
+    const report = await syncLottery(lottery, {
+      sources,
+      storedContests: getStoredContests,
+      save: saveDraws,
+    });
+    await saveSyncStatus(report);
+    reports.push(report);
   }
   await setLastSyncAt(Date.now());
+  if (reports.some((r) => r.added > 0)) announceHistoryUpdate();
+  return reports;
 }
 
 /**
  * Como `syncNow`, mas devolve quantos concursos novos entraram no banco — a
  * base para atualizar o badge do ícone ("N novos sorteios"). Compara a
- * contagem total de `draws` antes e depois do upsert; como `saveDraws` é
- * idempotente pela chave composta, só concursos realmente inéditos aumentam a
- * contagem.
+ * contagem total de `draws` antes e depois; como `saveDraws` é idempotente pela
+ * chave composta, só concursos realmente inéditos aumentam a contagem.
  */
-export async function syncAndCountNew(): Promise<number> {
+export async function syncAndCountNew(options: SyncOptions = {}): Promise<number> {
+  await seedIfEmpty();
   const before = await db.draws.count();
-  await syncNow();
+  await syncNow(options);
   const after = await db.draws.count();
   return Math.max(0, after - before);
 }
 
 /**
- * Sincroniza apenas se a última sincronização foi há mais de
- * `SYNC_INTERVAL_MS` (ou nunca aconteceu) — fallback usado ao abrir o app,
- * para os casos em que nem Periodic Background Sync nem `chrome.alarms`
- * dispararam (navegador não suporta, permissão negada, app ficou fechado).
+ * Sincroniza se a última verificação foi há mais de `LATEST_CHECK_INTERVAL_MS`
+ * (ou nunca aconteceu) — chamada ao abrir o app e ao voltar a ele, para os
+ * casos em que Periodic Background Sync / `chrome.alarms` não dispararam.
  */
-export async function syncIfStale(): Promise<void> {
+export async function syncIfStale(options: SyncOptions = {}): Promise<void> {
   const lastSyncAt = await getLastSyncAt();
-  if (lastSyncAt !== null && Date.now() - lastSyncAt < SYNC_INTERVAL_MS) {
+  if (lastSyncAt !== null && Date.now() - lastSyncAt < LATEST_CHECK_INTERVAL_MS) {
     return;
   }
-  await syncNow();
+  await syncNow(options);
 }
 
 interface PeriodicSyncManager {

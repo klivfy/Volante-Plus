@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Lottery } from '../../types/domain';
+import { CLOSURE_TABLES } from '../closureTables';
 import {
   SIMPLE_BET_PRICE_BRL,
   closureCost,
@@ -7,6 +8,7 @@ import {
   designClosure,
   generateClosure,
   offeredGuarantees,
+  schonheimBound,
   verifyClosure,
 } from '../closureDesigner';
 import { createSeededRandom } from '../random';
@@ -97,5 +99,57 @@ describe('generateClosure', () => {
 
   it('custo = jogos × preço de referência', () => {
     expect(closureCost(20)).toBe(20 * SIMPLE_BET_PRICE_BRL);
+  });
+});
+
+describe('tabelas pré-computadas', () => {
+  it('toda entrada é uma cobertura válida (verificação exaustiva)', () => {
+    for (const [key, blocks] of Object.entries(CLOSURE_TABLES)) {
+      const [v, t] = key.split(':').map(Number);
+      const positions = range(0, v - 1);
+      const design = { games: blocks.map((b) => [...b]), guarantee: t, poolSize: v };
+      expect(verifyClosure(design, positions), `C(${v},6,${t})`).toBe(true);
+      expect(blocks.every((b) => b.length === 6 && new Set(b).size === 6)).toBe(true);
+    }
+  });
+
+  it('tamanhos conhecidos (regressão) e nunca abaixo do limite de Schönheim', () => {
+    const known: Record<string, number> = {
+      '7:4': 5, '8:4': 7, '9:4': 12, '10:4': 20, '11:4': 32, '12:4': 41, '13:4': 66, '14:4': 80, '15:4': 134,
+      '7:3': 4, '8:3': 4, '9:3': 7, '10:3': 10, '11:3': 11, '12:3': 15, '13:3': 21, '14:3': 25, '15:3': 31,
+    };
+    for (const [key, size] of Object.entries(known)) {
+      const [v, t] = key.split(':').map(Number);
+      const design = designClosure(range(1, v), 6, t);
+      expect(design.games.length, `C(${v},6,${t})`).toBe(size);
+      expect(design.games.length).toBeGreaterThanOrEqual(schonheimBound(v, 6, t));
+    }
+  });
+
+  it('C(12,6,4) = 41 (ótimo provado na literatura)', () => {
+    expect(designClosure(range(1, 12), 6, 4).games).toHaveLength(41);
+  });
+
+  it('a renomeação por penalidade preserva a garantia e reduz a popularidade', () => {
+    const pool = range(1, 12);
+    const plain = designClosure(pool, 6, 4);
+    const weighted = designClosure(pool, 6, 4, (numbers) => numbers.filter((n) => n <= 6).length);
+    expect(verifyClosure(weighted, pool)).toBe(true);
+    const cost = (d: { games: number[][] }) => d.games.reduce((s, g) => s + g.filter((n) => n <= 6).length, 0);
+    expect(cost(weighted)).toBeLessThanOrEqual(cost(plain));
+  });
+
+  it('é determinístico: o mesmo pool dá sempre o mesmo fechamento', () => {
+    const pool = [3, 9, 14, 21, 27, 33, 38, 44, 51, 58, 60];
+    expect(designClosure(pool, 6, 4).games).toEqual(designClosure(pool, 6, 4).games);
+  });
+});
+
+describe('schonheimBound', () => {
+  it('valores clássicos', () => {
+    expect(schonheimBound(10, 6, 4)).toBe(19); // ⌈10/6·⌈9/5·⌈2·3⌉⌉⌉ = ⌈10/6·11⌉
+    expect(schonheimBound(12, 6, 4)).toBe(36); // mais fraco que o ótimo 41
+    expect(schonheimBound(7, 6, 3)).toBe(4);
+    expect(schonheimBound(7, 6, 4)).toBe(5); // C(7,6,4) = 5 exato: os pontos omitidos não podem caber num 4-subconjunto
   });
 });

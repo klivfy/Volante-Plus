@@ -19,7 +19,54 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   `AMOSTRA_INSUFICIENTE`). Calibrado por simulação: falso-positivo global de
   5,8% em 400 históricos honestos.
 
+- Métodos estatísticos adicionais (ver `docs/metodos-estatisticos-adicionais.md`):
+  fator de Bayes omnibus e esparso com p-valor sempre válido e encolhimento por
+  Bayes empírico (`bayesEvidence.ts`); testes de colisão e de espectro de
+  sobreposição entre concursos (`drawDependence.ts`); chance de a garantia do
+  fechamento valer e chance acumulada (`betPlanning.ts`).
+- Fechamentos por recozimento simulado (`closureTables.ts`,
+  `web/scripts/covering-search.mjs`): C(12,6,4) cai de 51 para 41 jogos (ótimo
+  provado), C(11,6,4) de 36 para 32, C(14,6,4) de 107 para 80, com verificação
+  exaustiva e o guloso como reserva.
+
+- Histórico real completo e sempre atualizado (ver `docs/historico.md`): seed
+  embutido com Mega-Sena 1..3063 e +Milionária 1..393 (até 27/09/2026), validado
+  e conferido contra um espelho independente; sincronização dirigida pelo que
+  falta (`historySync.ts`), com fontes em cascata, validação estrutural,
+  preenchimento de lacunas, verificação ao abrir/voltar à aba/a cada 30 min, e
+  painel com o intervalo, a data do último concurso e o estado de completude.
+- Os testes de evidência (frequentista e bayesiano), a colisão e o painel passam
+  a cobrir também os trevos da +Milionária; `modalityParity.test.ts` roda todos
+  os métodos nas duas modalidades.
+
+### Fixed
+- Acessibilidade e modo escuro, a partir de uma revisão de design da tela principal:
+  - **Modo escuro na primeira carga** deixava os cartões claros com texto branco
+    (contraste 1,02:1). O tema agora troca claro/escuro por variáveis CSS
+    (`prefers-color-scheme`), sem trocar em JavaScript depois da hidratação.
+  - **Texto em `rem`**: com `px` o texto ignorava a preferência de tamanho do
+    sistema. Os rótulos da barra inferior têm tamanho fixo de propósito.
+  - **Contraste das cores das modalidades** (verde da Mega-Sena 3,07:1 com branco;
+    azul da +Milionária 2,53:1 no escuro): todos os pares passam em 4,5:1.
+  - **Alvos de toque de 44 pt** (chips 32, segmentado 36, dezenas do fechamento
+    29×36 com 4 pt de folga, polegar do slider 20); o slider de 3 valores virou
+    controle segmentado; foco do teclado com contorno de 2 px.
+  - Painel de evidência com "Ver detalhes" e plural correto; avisos de status
+    deixam de empurrar a tarefa principal; um só estilo de seletor; splash de
+    0,7 s (era 2,5 s) e desligado com "Reduzir movimento"; fonte do sistema no
+    lugar do `@import` do Google Fonts.
+- O seed offline era sintético (PRNG): sem rede o app analisava sorteios
+  inventados. Agora é o histórico real; a fixture sintética ficou só para a
+  guarda de auditoria, e os concursos sintéticos são removidos do banco dos
+  usuários que os receberam.
+- O cache de desempenho `auto` nunca era invalidado: a análise ficava presa ao
+  histórico de quando foi gerada. Agora é recalculado quando o histórico avança.
+- O "próximo concurso" exibia o número do último sorteado (a API traz o do
+  próximo em `proximoConcurso`).
+
 ### Changed
+- O painel de evidência deixa de afirmar "não" quando o histórico é curto demais
+  para detectar viés moderado: passa a dizer que falta dado.
 - A estratégia de sorteio padrão passa a ser `UNPOPULAR`: cada jogo é o menos
   popular entre 64 candidatos uniformes. Não altera a chance de ganhar; reduz a
   divisão do prêmio (pelo modelo do app, cerca de +12% no valor condicional a

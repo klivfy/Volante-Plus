@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSeedData } from '../../../data/seed';
+import { getSyntheticFixture } from '../../../data/syntheticFixture';
 import { Draw, Lottery } from '../../../types/domain';
 import { createSeededRandom } from '../../random';
 import { ContestOutcome } from '../anomalyTests';
@@ -45,7 +45,7 @@ describe('runAudit — a guarda vem antes de tudo', () => {
   });
 
   it('não roda sobre o seed empacotado rotulado de oficial', () => {
-    const data = official(getSeedData(MEGA));
+    const data = official(getSyntheticFixture(MEGA));
     expect(() => runAudit(data, FAST)).toThrow(/seed sintético empacotado/);
   });
 });

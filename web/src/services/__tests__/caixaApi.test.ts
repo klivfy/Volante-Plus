@@ -30,6 +30,31 @@ describe('parseDrawDate', () => {
   });
 });
 
+describe('fetchNextDraw — número do PRÓXIMO concurso', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('usa proximoConcurso numérico, não o `concurso` (que é o último já sorteado)', async () => {
+    mockFetchOnce({
+      json: async () => ({
+        concurso: 3063,
+        data: '27/09/2026',
+        proximoConcurso: 3064,
+        dataProximoConcurso: '29/09/2026',
+        valorEstimadoProximoConcurso: 52_000_000,
+      }),
+    });
+
+    const next = await fetchNextDraw(Lottery.MEGA_SENA);
+
+    expect(next).toEqual({
+      lottery: Lottery.MEGA_SENA,
+      contestNumber: 3064,
+      drawDate: '2026-09-29',
+      estimatedPrize: 52_000_000,
+    });
+  });
+});
+
 describe('fetchNextDraw', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_CAIXA_API_BASE_URL', BASE_URL);
