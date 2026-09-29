@@ -42,7 +42,11 @@ export default function HistoryStatus({ lottery }: HistoryStatusProps) {
     );
   }
   if (summary.reachable === false) {
-    return <Alert severity="info">{t('history.offline', range)}</Alert>;
+    return (
+      <Typography variant="caption" color="text.secondary" component="p">
+        {t('history.offline', range)}
+      </Typography>
+    );
   }
   return (
     <Typography variant="caption" color="text.secondary" component="p">

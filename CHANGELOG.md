@@ -40,6 +40,21 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   os métodos nas duas modalidades.
 
 ### Fixed
+- Acessibilidade e modo escuro, a partir de uma revisão de design da tela principal:
+  - **Modo escuro na primeira carga** deixava os cartões claros com texto branco
+    (contraste 1,02:1). O tema agora troca claro/escuro por variáveis CSS
+    (`prefers-color-scheme`), sem trocar em JavaScript depois da hidratação.
+  - **Texto em `rem`**: com `px` o texto ignorava a preferência de tamanho do
+    sistema. Os rótulos da barra inferior têm tamanho fixo de propósito.
+  - **Contraste das cores das modalidades** (verde da Mega-Sena 3,07:1 com branco;
+    azul da +Milionária 2,53:1 no escuro): todos os pares passam em 4,5:1.
+  - **Alvos de toque de 44 pt** (chips 32, segmentado 36, dezenas do fechamento
+    29×36 com 4 pt de folga, polegar do slider 20); o slider de 3 valores virou
+    controle segmentado; foco do teclado com contorno de 2 px.
+  - Painel de evidência com "Ver detalhes" e plural correto; avisos de status
+    deixam de empurrar a tarefa principal; um só estilo de seletor; splash de
+    0,7 s (era 2,5 s) e desligado com "Reduzir movimento"; fonte do sistema no
+    lugar do `@import` do Google Fonts.
 - O seed offline era sintético (PRNG): sem rede o app analisava sorteios
   inventados. Agora é o histórico real; a fixture sintética ficou só para a
   guarda de auditoria, e os concursos sintéticos são removidos do banco dos

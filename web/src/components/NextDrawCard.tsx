@@ -62,17 +62,15 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
   }
 
   if (!nextDraw) {
+    // Sem os dados do próximo concurso não há ação a tomar: uma linha discreta,
+    // não um cartão que empurra a tarefa principal para baixo.
     return (
-      <Card variant="outlined">
-        <CardContent>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <CloudOffIcon color="disabled" />
-            <Typography variant="body2" color="text.secondary">
-              {t('nextDraw.unavailable')}
-            </Typography>
-          </Stack>
-        </CardContent>
-      </Card>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <CloudOffIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+        <Typography variant="caption" color="text.secondary">
+          {t('nextDraw.unavailable')}
+        </Typography>
+      </Stack>
     );
   }
 
