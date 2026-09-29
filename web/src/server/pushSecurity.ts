@@ -123,6 +123,36 @@ export function sameOriginPath(url: unknown): string {
   return '/';
 }
 
+const RATE_WINDOW_MS = 60 * 60 * 1000;
+const RATE_MAX_PER_WINDOW = 20;
+const RATE_MAX_KEYS = 10_000;
+const hits = new Map<string, { count: number; resetAt: number }>();
+
+/**
+ * Limitador de janela fixa em memória. Devolve `true` quando `key` excedeu o
+ * teto. Best-effort: em serverless o estado é por instância, mas já barra o
+ * laço de inscrições forjadas vindo de um mesmo IP.
+ */
+export function rateLimited(key: string, now: number = Date.now()): boolean {
+  if (hits.size >= RATE_MAX_KEYS) {
+    for (const [k, v] of hits) if (v.resetAt <= now) hits.delete(k);
+    if (hits.size >= RATE_MAX_KEYS) hits.clear();
+  }
+  const entry = hits.get(key);
+  if (!entry || entry.resetAt <= now) {
+    hits.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_MAX_PER_WINDOW;
+}
+
+/** IP do cliente a partir dos cabeçalhos de proxy; `unknown` se ausentes. */
+export function clientIp(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return forwarded || request.headers.get('x-real-ip') || 'unknown';
+}
+
 /** Corta o texto exibido na notificação, evitando payloads abusivos. */
 export function clampNotificationText(value: string, max: number): string {
   const trimmed = value.trim();

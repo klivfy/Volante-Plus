@@ -4,6 +4,7 @@ import {
   addSubscription,
   configureWebPush,
   removeSubscription,
+  removeSubscriptionIfAuthMatches,
   sendToAll,
   subscriptionCount,
 } from '../pushStore';
@@ -13,6 +14,15 @@ function fakeSub(endpoint: string): PushSubscription {
 }
 
 describe('pushStore', () => {
+  it('só remove por auth quando o segredo da inscrição confere', () => {
+    const start = subscriptionCount();
+    addSubscription(fakeSub('https://push.example/c'));
+    expect(removeSubscriptionIfAuthMatches('https://push.example/c', 'errado')).toBe(false);
+    expect(subscriptionCount()).toBe(start + 1);
+    expect(removeSubscriptionIfAuthMatches('https://push.example/c', 'a')).toBe(true);
+    expect(subscriptionCount()).toBe(start);
+  });
+
   it('add/remove refletem na contagem, sem duplicar por endpoint', () => {
     const start = subscriptionCount();
 

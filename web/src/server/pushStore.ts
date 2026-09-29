@@ -56,6 +56,18 @@ export function removeSubscription(endpoint: string): void {
   store.delete(endpoint);
 }
 
+/**
+ * Remove a inscrição só se `auth` for o segredo `keys.auth` guardado para o
+ * endpoint — quem conhece apenas a URL não consegue cancelar a de outro.
+ * Devolve `true` se removeu.
+ */
+export function removeSubscriptionIfAuthMatches(endpoint: string, auth: string): boolean {
+  const existing = store.get(endpoint);
+  if (!existing || existing.keys?.auth !== auth) return false;
+  store.delete(endpoint);
+  return true;
+}
+
 export function subscriptionCount(): number {
   return store.size;
 }

@@ -105,3 +105,14 @@ describe('clampNotificationText', () => {
     expect(clampNotificationText('x'.repeat(50), 10).endsWith('…')).toBe(true);
   });
 });
+
+describe('rateLimited', () => {
+  it('bloqueia depois do teto e libera na janela seguinte', async () => {
+    const { rateLimited } = await import('../pushSecurity');
+    const t0 = 1_000_000;
+    for (let i = 0; i < 20; i++) expect(rateLimited('ip-a', t0)).toBe(false);
+    expect(rateLimited('ip-a', t0)).toBe(true);
+    expect(rateLimited('ip-b', t0)).toBe(false);
+    expect(rateLimited('ip-a', t0 + 60 * 60 * 1000 + 1)).toBe(false);
+  });
+});

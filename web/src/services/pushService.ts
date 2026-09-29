@@ -104,7 +104,10 @@ export async function unsubscribeFromPush(): Promise<boolean> {
     await fetch('/api/push/subscribe', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: subscription.endpoint }),
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+        keys: { auth: subscription.toJSON().keys?.auth },
+      }),
     });
   } catch {
     // Ver subscribeToPush: falha ao avisar o backend não impede o cancelamento local.
