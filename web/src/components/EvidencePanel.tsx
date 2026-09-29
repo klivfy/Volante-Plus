@@ -52,6 +52,7 @@ export default function EvidencePanel({
     summary.minimumDetectableRelativeBias !== null &&
     summary.minimumDetectableRelativeBias > 0.6;
   const verdictKey = weak ? 'COMPATIVEL_POUCO_PODER' : summary.verdict;
+  const flagged = summary.rows.filter((r) => r.significant);
 
   return (
     <Card variant="outlined">
@@ -66,6 +67,15 @@ export default function EvidencePanel({
             minimum: summary.minimumDraws,
           })}
         </Alert>
+        {flagged.length > 0 && (
+          <Typography variant="body2" sx={{ fontWeight: 600 }} gutterBottom>
+            {t(k('evidence.flagged'), {
+              list: flagged
+                .map((r) => `${r.number} (${r.z > 0 ? t('evidence.above') : t('evidence.below')}, ${r.hitCount} vs ${r.expected.toFixed(0)})`)
+                .join('; '),
+            })}
+          </Typography>
+        )}
         {summary.verdict !== 'AMOSTRA_INSUFICIENTE' && hottest && (
           <Typography variant="body2" color="text.secondary">
             {t(k('evidence.hottest'), {

@@ -29,6 +29,26 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   provado), C(11,6,4) de 36 para 32, C(14,6,4) de 107 para 80, com verificação
   exaustiva e o guloso como reserva.
 
+- Histórico real completo e sempre atualizado (ver `docs/historico.md`): seed
+  embutido com Mega-Sena 1..3063 e +Milionária 1..393 (até 27/09/2026), validado
+  e conferido contra um espelho independente; sincronização dirigida pelo que
+  falta (`historySync.ts`), com fontes em cascata, validação estrutural,
+  preenchimento de lacunas, verificação ao abrir/voltar à aba/a cada 30 min, e
+  painel com o intervalo, a data do último concurso e o estado de completude.
+- Os testes de evidência (frequentista e bayesiano), a colisão e o painel passam
+  a cobrir também os trevos da +Milionária; `modalityParity.test.ts` roda todos
+  os métodos nas duas modalidades.
+
+### Fixed
+- O seed offline era sintético (PRNG): sem rede o app analisava sorteios
+  inventados. Agora é o histórico real; a fixture sintética ficou só para a
+  guarda de auditoria, e os concursos sintéticos são removidos do banco dos
+  usuários que os receberam.
+- O cache de desempenho `auto` nunca era invalidado: a análise ficava presa ao
+  histórico de quando foi gerada. Agora é recalculado quando o histórico avança.
+- O "próximo concurso" exibia o número do último sorteado (a API traz o do
+  próximo em `proximoConcurso`).
+
 ### Changed
 - O painel de evidência deixa de afirmar "não" quando o histórico é curto demais
   para detectar viés moderado: passa a dizer que falta dado.

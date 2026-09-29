@@ -64,34 +64,52 @@ otimalidade e **sem conferência contra a tabela do La Jolla Covering
 Repository**, que estava inacessível na geração — podem existir coberturas
 menores. O limite inferior de Schönheim está em `schonheimBound`.
 
-## Resultado sobre o histórico real (espelho de terceiros)
+## Resultado sobre o histórico real completo
 
-Mesma fonte e mesmas ressalvas de [`engine/audit/README.md`](../web/src/engine/audit/README.md):
-agregação de terceiros, parada em 2024-11-17, sem datas por concurso. O código
-foi commitado **antes** de rodar sobre estes dados (commit `b3ff118`).
+Histórico real desde o concurso 1 até 27/09/2026 (ver [`historico.md`](./historico.md)):
+Mega-Sena 3.063 concursos, +Milionária 393. Fonte de terceiros, confirmada contra
+um segundo espelho independente (0 divergências), **não** exportação oficial.
+Os métodos foram commitados antes de rodar sobre estes dados.
 
-| Teste | Mega-Sena (2.797) | +Milionária (199) |
-|---|---|---|
-| Bayes omnibus, `log10 BF10` | **−18,06** (uniformidade fortemente sustentada) | −2,19 |
-| Bayes esparso (uma dezena viciada) | +0,09 (inconclusivo) | +0,02 |
-| Trajetória sequencial, máximo | 0,00 (p sempre válido = 1) | +0,16 |
-| Colisão | 0 repetições; λ = 0,078; p = 1 | 0; λ = 0,0012; p = 1 |
-| Sobreposição, p (simulado) | **0,022** (1.000 sim.) | 0,70 (400 sim.) |
-| — 1ª metade | 0,73 | — |
-| — 2ª metade | **0,004** | — |
+O espelho antigo terminava no concurso 2.797 (Mega) e 199 (+Milionária). Os
+**266 e 194 concursos seguintes** são dado fora da amostra: nenhum teste foi
+ajustado olhando para eles, então funcionam como replicação.
 
-**Leitura honesta.** A Mega-Sena tem forte evidência de uniformidade difusa e
-nenhuma dezena isolada se destaca. O espectro de sobreposição, porém, dá
-p = 0,022 no histórico completo, e o sinal está inteiro na 2ª metade
-(p = 0,004; 0,012 após Bonferroni sobre as 3 janelas), sem replicar na 1ª
-(p = 0,73). Isso coincide com a 2ª metade "anomalia" que o teste A1 já havia
-apontado (p corrigido = 0,012). **Não são evidências independentes:** a
-sobreposição entre pares carrega a informação de frequência por dezena (a soma
-das sobreposições é função de `Σ cᵢ²`), então A1 e este teste medem o mesmo
-excesso de dispersão. Sem replicação entre as metades, sem correção sobre todos
-os testes do protocolo e com fonte de terceiros, **isto não é um alarme
-confirmado** — é um ponto a reexaminar com a exportação oficial da Caixa. Não
-há colisões: nenhum sinal de dado duplicado.
+| Teste | Mega completo (3.063) | Mega só novos (266) | +Milionária (393) | +Milionária só novos (194) |
+|---|---|---|---|---|
+| Frequência por dezena (Bonferroni) | **1 dezena** (χ² p = 0,006) | compatível (χ² p = 0,78) | compatível (p = 0,12) | compatível (p = 0,18) |
+| Bayes omnibus, `log10 BF10` | −18,7 | −5,0 | −4,4 | −1,9 |
+| Bayes esparso (uma dezena viciada) | +0,28 | −0,09 | +0,02 | +0,01 |
+| Colisão | 0 repetições (λ = 0,094) | 0 | 0 (λ = 0,0003) | 0 |
+| Sobreposição, p simulado | 0,018 | 0,36 | 0,28 | 0,43 |
+| **Trevos** (frequência / Bayes esparso) | — | — | compatível (χ² p = 0,94) / −0,61 | — |
+
+**A dezena 26 da Mega-Sena.** Com o histórico completo, uma dezena cruza o limite
+de Bonferroni por pouco: a **26 saiu 250 vezes contra 306 esperadas** (z = −3,39;
+p = 6,97e-4 contra o limite 8,33e-4; p ajustado para as 60 dezenas ≈ 0,042). O
+desvio é para **baixo**, já estava em z = −2,94 no espelho antigo e nos 266
+concursos novos ela seguiu abaixo (17 contra 26,6 esperadas, z ≈ −1,9, sem
+significância isolada).
+
+Como ler isso, sem exagero nem descaso:
+
+- É um resultado **limítrofe**: p familiar de 4%, depois de várias análises
+  sobre o mesmo histórico, no qual um desvio assim aparece por acaso com
+  frequência não desprezível.
+- O fator de Bayes não o corrobora: o omnibus sustenta fortemente a
+  uniformidade (−18,7) e o esparso é inconclusivo (+0,28).
+- Na mesma direção, mas sem força própria, nos dados novos: **não é replicação
+  confirmada**, e o restante (sobreposição, qui-quadrado e Bayes nos concursos
+  novos) é totalmente compatível com o acaso.
+- Ainda que fosse real, não daria vantagem de previsão utilizável: uma dezena
+  ~18% menos frequente altera a chance de um jogo em fração desprezível, e o
+  teorema da invariância continua valendo para qualquer jogo escolhido antes do
+  sorteio.
+- O que resolve é **dado oficial** e mais concursos. O monitoramento sequencial
+  (`bayesTrajectory`) fica acompanhando: o p sempre-válido hoje é 0,99.
+
+O painel da tela principal agora mostra qual dezena está fora do acaso e em que
+direção, em vez de só uma contagem.
 
 ## Considerados e não adicionados
 - **Bateria NIST SP 800-22 / Diehard:** projetada para bits de geradores
