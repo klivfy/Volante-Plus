@@ -172,17 +172,35 @@
     "needMore": "Marque pelo menos {{min}} dezenas para montar o fechamento.",
     "generate": "Gerar fechamento",
     "closureResult": "Fechamento com garantia de {{t}} acertos",
-    "costNote": "Custo calculado ao preço de referência de R$ {{price}} por aposta; confira o valor vigente."
+    "costNote": "Custo calculado ao preço de referência de R$ {{price}} por aposta; confira o valor vigente.",
+    "odds": "Chance de a garantia valer: {{percent}}% por concurso (1 em {{oneIn}}) — o sorteio precisa trazer {{t}} ou mais das suas {{pool}} dezenas."
   },
   "evidence": {
     "title": "O histórico favorece alguma dezena?",
     "verdict": {
       "COMPATIVEL_COM_ACASO": "Não. Em {{draws}} concursos nenhuma dezena se afasta do acaso após correção de múltiplas comparações. Quem saiu mais não tem mais chance de sair.",
       "DESVIO_SIGNIFICATIVO": "{{count}} dezena(s) se afasta(m) do acaso em {{draws}} concursos. Confira a fonte dos dados antes de tirar conclusões: um desvio real num sorteio honesto seria muito raro.",
-      "AMOSTRA_INSUFICIENTE": "Histórico curto demais para concluir ({{draws}} concursos; o teste exige {{minimum}})."
+      "AMOSTRA_INSUFICIENTE": "Histórico curto demais para concluir ({{draws}} concursos; o teste exige {{minimum}}).",
+      "COMPATIVEL_POUCO_PODER": "Nenhuma dezena se afasta do acaso em {{draws}} concursos, mas o histórico é curto: só um viés muito grande seria detectado. Isso não prova que o acaso vale — falta dado para afirmar."
     },
     "hottest": "A mais frequente foi a {{number}}: {{hits}} vezes contra {{expected}} esperadas (z = {{z}}).",
     "power": "Com este histórico, só um viés acima de {{bias}}% numa dezena seria detectado (poder de 80%).",
-    "footnote": "O ranking por frequência ordena as dezenas, mas ordenar sempre produz um primeiro lugar. O teste ao lado diz se a diferença é maior que a do acaso."
+    "footnote": "O ranking por frequência ordena as dezenas, mas ordenar sempre produz um primeiro lugar. O teste ao lado diz se a diferença é maior que a do acaso.",
+    "bayesTitle": "Fator de Bayes",
+    "omnibus": {
+      "FORTE_PRO_ACASO": "Uniformidade global: evidência forte a favor do acaso (10^{{exp}} vezes mais provável que um viés difuso).",
+      "MODERADA_PRO_ACASO": "Uniformidade global: evidência moderada a favor do acaso ({{ratio}} vezes mais provável que um viés difuso).",
+      "INCONCLUSIVO": "Uniformidade global: inconclusivo (fator de Bayes {{bf}}).",
+      "MODERADA_CONTRA_ACASO": "Uniformidade global: evidência moderada de viés difuso (fator de Bayes {{bf}}).",
+      "FORTE_CONTRA_ACASO": "Uniformidade global: evidência forte de viés difuso (fator de Bayes {{bf}})."
+    },
+    "sparse": {
+      "FORTE_PRO_ACASO": "Uma dezena isolada viciada: evidência forte contra.",
+      "MODERADA_PRO_ACASO": "Uma dezena isolada viciada: evidência moderada contra.",
+      "INCONCLUSIVO": "Uma dezena isolada viciada: inconclusivo — nenhuma se destaca o bastante para afirmar viés (fator de Bayes {{bf}}).",
+      "MODERADA_CONTRA_ACASO": "Uma dezena isolada viciada: evidência moderada a favor (fator de Bayes {{bf}}).",
+      "FORTE_CONTRA_ACASO": "Uma dezena isolada viciada: evidência forte a favor (fator de Bayes {{bf}})."
+    },
+    "shrunk": "A dezena mais frequente saiu em {{raw}}% dos concursos; a estimativa com encolhimento (Bayes empírico) é {{shrunk}}% — o esperado sob acaso é {{expected}}%. A diferença é o quanto do desvio é ruído."
   }
 }

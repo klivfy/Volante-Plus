@@ -1,5 +1,6 @@
 import { Draw, GameBatch, GeneratedGame, Lottery } from '../types/domain';
 import { hasTrevos, isPrized, lotteryRules } from './prizeRules';
+import { CLOSURE_TABLES } from './closureTables';
 import { defaultRandom, RandomSource } from './random';
 import { unpopularityPenalty } from './unpopularity';
 
@@ -95,6 +96,75 @@ function seededUnit(seed: number): () => number {
   };
 }
 
+/** Permutação aleatória de `0..n-1` (Fisher-Yates). */
+function randomPermutation(n: number, random: () => number): number[] {
+  const perm = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [perm[i], perm[j]] = [perm[j], perm[i]];
+  }
+  return perm;
+}
+
+/**
+ * Desenho vindo das tabelas pré-computadas (`closureTables.ts`), ou `null` se
+ * não houver entrada ou ela não passar na verificação exaustiva.
+ *
+ * Um covering design continua válido sob qualquer renomeação das posições, então
+ * a atribuição posição → dezena é livre: escolhemos, entre `relabelings`
+ * permutações (semente fixa), a de menor penalidade total — a estratégia de
+ * baixa popularidade sem custo algum na garantia nem no número de jogos.
+ */
+function designFromTable(
+  sortedPool: readonly number[],
+  gameSize: number,
+  guarantee: number,
+  penalty: (numbers: readonly number[]) => number,
+): ClosureDesign | null {
+  const v = sortedPool.length;
+  const table = gameSize === 6 ? CLOSURE_TABLES[`${v}:${guarantee}`] : undefined;
+  if (!table) return null;
+
+  const positions = Array.from({ length: v }, (_, i) => i);
+  const identity: ClosureDesign = {
+    games: table.map((block) => [...block]),
+    guarantee,
+    poolSize: v,
+  };
+  if (!verifyClosure(identity, positions)) return null;
+
+  const relabelings = Math.max(50, Math.min(600, Math.floor(30000 / table.length)));
+  const random = seededUnit(sortedPool.reduce((h, n) => (Math.imul(h, 31) + n) | 0, 91 + guarantee));
+  const games = (perm: readonly number[]): number[][] =>
+    table.map((block) => block.map((p) => sortedPool[perm[p]]).sort((a, b) => a - b));
+  const total = (rows: number[][]): number => rows.reduce((sum, g) => sum + penalty(g), 0);
+
+  let best = games(positions);
+  let bestPenalty = total(best);
+  for (let i = 0; i < relabelings; i++) {
+    const candidate = games(randomPermutation(v, random));
+    const candidatePenalty = total(candidate);
+    if (candidatePenalty < bestPenalty) {
+      best = candidate;
+      bestPenalty = candidatePenalty;
+    }
+  }
+  return { games: best.sort(compareGames), guarantee, poolSize: v };
+}
+
+/**
+ * Limite inferior de Schönheim para C(v, k, t): nenhum fechamento pode ter
+ * menos jogos que isto. `ceil(v/k · ceil((v−1)/(k−1) · … ))`.
+ */
+export function schonheimBound(v: number, k: number, t: number): number {
+  // L_0 = 1; L_i = ⌈(v−t+i)/(k−t+i) · L_{i−1}⌉ para i = 1..t (do t=1 para cima).
+  let bound = 1;
+  for (let i = 1; i <= t; i++) {
+    bound = Math.ceil(((v - t + i) * bound) / (k - t + i));
+  }
+  return bound;
+}
+
 /**
  * Projeta o fechamento.
  *
@@ -102,6 +172,9 @@ function seededUnit(seed: number): () => number {
  * @param gameSize dezenas por jogo (k).
  * @param guarantee acertos garantidos (t), `2 <= t < gameSize`.
  * @param penalty desempate entre fechamentos igualmente pequenos (menor = preferido).
+ *
+ * Para pools de 7..15 dezenas com jogos de 6 usa as coberturas pré-computadas
+ * (menores que as do guloso); fora disso, o guloso com reinícios.
  */
 export function designClosure(
   pool: readonly number[],
@@ -118,6 +191,9 @@ export function designClosure(
   }
 
   const sorted = [...pool].sort((a, b) => a - b);
+  const tabled = designFromTable(sorted, gameSize, guarantee, penalty);
+  if (tabled) return tabled;
+
   const gameMasks = combinationMasks(v, gameSize);
   const targetMasks = combinationMasks(v, guarantee);
   const numbersOf = (mask: number): number[] => sorted.filter((_, i) => mask & (1 << i));

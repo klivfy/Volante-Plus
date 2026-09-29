@@ -28,6 +28,8 @@ import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } fr
 import { reportUserError, addBreadcrumb } from '@/services/errorReporter';
 import { closureCost, generateClosure, offeredGuarantees, SIMPLE_BET_PRICE_BRL } from '@/engine/closureDesigner';
 import { generateGames, maxDistinctGames } from '@/engine/gameGenerator';
+import { bayesEvidenceFromPerformances } from '@/engine/bayesEvidence';
+import { guaranteeProbability } from '@/engine/betPlanning';
 import { numberEvidence } from '@/engine/numberEvidence';
 import { evaluatePayoutBatch } from '@/engine/payoutShare';
 import { hasTrevos, lotteryRules } from '@/engine/prizeRules';
@@ -80,6 +82,10 @@ export default function VolantePage() {
   const { performances, trevoPerformances, loading, error } = usePerformanceCache(lottery);
   const evidence = useMemo(
     () => (performances.length > 0 ? numberEvidence(lottery, performances) : null),
+    [lottery, performances],
+  );
+  const bayes = useMemo(
+    () => (performances.length > 0 ? bayesEvidenceFromPerformances(lottery, performances) : null),
     [lottery, performances],
   );
   const rules = lotteryRules(lottery);
@@ -318,6 +324,20 @@ export default function VolantePage() {
               t: generatedBatch.closure.guarantee,
               pool: generatedBatch.closure.poolSize,
             })}
+            <br />
+            {(() => {
+              const p = guaranteeProbability(
+                lottery,
+                generatedBatch.closure.poolSize,
+                generatedBatch.closure.guarantee,
+              );
+              return t('fechamento.odds', {
+                percent: (p * 100).toFixed(2).replace('.', ','),
+                oneIn: Math.round(1 / p).toLocaleString('pt-BR'),
+                t: generatedBatch.closure.guarantee,
+                pool: generatedBatch.closure.poolSize,
+              });
+            })()}
           </Alert>
         )}
 
@@ -340,7 +360,13 @@ export default function VolantePage() {
 
         {payoutAssessment && <PayoutSharePanel assessment={payoutAssessment} />}
 
-        {evidence && <EvidencePanel summary={evidence} />}
+        {evidence && (
+          <EvidencePanel
+            summary={evidence}
+            bayes={bayes}
+            expectedShare={rules.numbersDrawn / rules.numberUniverse}
+          />
+        )}
       </Stack>
 
       <Snackbar

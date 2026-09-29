@@ -33,7 +33,7 @@ import { lotteryRules } from './prizeRules';
  * ## Dois alternativos, porque a pergunta tem duas formas
  * A Dirichlet simétrica acima presume que TODAS as dezenas se desviam um
  * pouco. Contra uma dezena isolada viciada ela dilui o sinal: com uma dezena a
- * +40% (10 desvios-padrão), o BF10 ainda sai pró-acaso. Por isso há também o
+ * +40% (≈8 desvios-padrão, 3.000 concursos), o BF10 ainda sai pró-acaso. Por isso há também o
  * alternativo **esparso**: "exatamente uma dezena tem probabilidade diferente".
  * Para cada dezena `i`, a inclusão em cada concurso é Bernoulli(`p0 = K/N`)
  * sob H0 — exatamente, sem correção de amostragem —, e com prior

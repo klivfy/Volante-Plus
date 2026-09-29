@@ -19,7 +19,19 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   `AMOSTRA_INSUFICIENTE`). Calibrado por simulação: falso-positivo global de
   5,8% em 400 históricos honestos.
 
+- Métodos estatísticos adicionais (ver `docs/metodos-estatisticos-adicionais.md`):
+  fator de Bayes omnibus e esparso com p-valor sempre válido e encolhimento por
+  Bayes empírico (`bayesEvidence.ts`); testes de colisão e de espectro de
+  sobreposição entre concursos (`drawDependence.ts`); chance de a garantia do
+  fechamento valer e chance acumulada (`betPlanning.ts`).
+- Fechamentos por recozimento simulado (`closureTables.ts`,
+  `web/scripts/covering-search.mjs`): C(12,6,4) cai de 51 para 41 jogos (ótimo
+  provado), C(11,6,4) de 36 para 32, C(14,6,4) de 107 para 80, com verificação
+  exaustiva e o guloso como reserva.
+
 ### Changed
+- O painel de evidência deixa de afirmar "não" quando o histórico é curto demais
+  para detectar viés moderado: passa a dizer que falta dado.
 - A estratégia de sorteio padrão passa a ser `UNPOPULAR`: cada jogo é o menos
   popular entre 64 candidatos uniformes. Não altera a chance de ganhar; reduz a
   divisão do prêmio (pelo modelo do app, cerca de +12% no valor condicional a
