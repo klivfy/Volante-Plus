@@ -50,6 +50,12 @@ public class MainActivity extends Activity {
                 if (url == null) return false;
                 Uri uri = Uri.parse(url);
                 if (ASSET_HOST.equals(uri.getHost())) return false;
+                // Só esquemas inofensivos saem do app: nada de intent:, file:,
+                // content: etc. vindos de conteúdo da página.
+                String scheme = uri.getScheme();
+                if (!"https".equals(scheme) && !"http".equals(scheme) && !"mailto".equals(scheme)) {
+                    return true;
+                }
                 try {
                     startActivity(new Intent(Intent.ACTION_VIEW, uri));
                 } catch (Exception ignored) {}

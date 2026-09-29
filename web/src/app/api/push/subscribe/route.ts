@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { PushSubscription } from 'web-push';
-import { addSubscription, removeSubscription, subscriptionCount } from '@/server/pushStore';
-import { hasValidKeys, isValidPushEndpoint, readJsonBody } from '@/server/pushSecurity';
+import { addSubscription, removeSubscriptionIfAuthMatches, subscriptionCount } from '@/server/pushStore';
+import { clientIp, hasValidKeys, isValidPushEndpoint, rateLimited, readJsonBody } from '@/server/pushSecurity';
 
 // web-push é um pacote Node (usa `crypto`), então esta rota precisa do runtime
 // Node, não do Edge.
@@ -22,6 +22,12 @@ export const runtime = 'nodejs';
  *    volume o derrubariam. O teto de [MAX_SUBSCRIPTIONS] limita o estrago.
  */
 export async function POST(request: Request): Promise<NextResponse> {
+  // Limite por IP (best-effort: o estado é do processo) contra quem tenta
+  // encher o store com inscrições falsas e esgotar as vagas das legítimas.
+  if (rateLimited(`subscribe:${clientIp(request)}`)) {
+    return NextResponse.json({ error: 'Muitas requisições.' }, { status: 429 });
+  }
+
   const subscription = await readJsonBody<PushSubscription>(request);
   if (!subscription) {
     return NextResponse.json({ error: 'JSON inválido ou corpo grande demais.' }, { status: 400 });
@@ -40,9 +46,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   return NextResponse.json({ ok: true, count: subscriptionCount() }, { status: 201 });
 }
 
-/** Cancela uma inscrição pelo seu `endpoint`. */
+/** Cancela uma inscrição; exige o `keys.auth` da própria inscrição além do `endpoint`. */
 export async function DELETE(request: Request): Promise<NextResponse> {
-  const body = await readJsonBody<{ endpoint?: string }>(request);
+  const body = await readJsonBody<{ endpoint?: string; keys?: { auth?: string } }>(request);
   if (!body) {
     return NextResponse.json({ error: 'JSON inválido ou corpo grande demais.' }, { status: 400 });
   }
@@ -50,6 +56,9 @@ export async function DELETE(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'endpoint ausente.' }, { status: 400 });
   }
 
-  removeSubscription(body.endpoint);
+  const auth = body.keys?.auth;
+  if (typeof auth !== 'string' || !removeSubscriptionIfAuthMatches(body.endpoint, auth)) {
+    return NextResponse.json({ error: 'Inscrição não encontrada.' }, { status: 404 });
+  }
   return NextResponse.json({ ok: true, count: subscriptionCount() });
 }

@@ -59,8 +59,29 @@ const withPWA = withPWAInit({
   },
 });
 
+/**
+ * Cabeçalhos de segurança. O CSP é deliberadamente parcial (sem `script-src`):
+ * o Next injeta scripts inline e o service worker do next-pwa/Sentry variam
+ * por deploy, então restringir scripts exigiria nonces. As diretivas abaixo
+ * cobrem clickjacking, `<base>`/`<form>` sequestrados e plugins, sem risco de
+ * quebrar o app.
+ */
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  {
+    key: "Content-Security-Policy",
+    value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'",
+  },
+];
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
 };
 
 // WHY (--webpack no build): a partir do Next 16, Turbopack é o bundler
