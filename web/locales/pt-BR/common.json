@@ -16,7 +16,6 @@
     "generate": "Gerar jogos",
     "analyzing": "Analisando histórico…",
     "generating": "Gerando…",
-    "gameSliderValue": "{{count}} jogos",
     "lotterySelectorLabel": "Escolha a loteria",
     "generatedGamesList": "Jogos gerados",
     "gameLabel": "Jogo {{number}}",
