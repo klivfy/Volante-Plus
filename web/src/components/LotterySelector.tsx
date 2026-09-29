@@ -1,9 +1,8 @@
 'use client';
 
-import Stack from '@mui/material/Stack';
-import Chip from '@mui/material/Chip';
 import { useTranslation } from 'react-i18next';
 import { Lottery } from '../types/domain';
+import SegmentedControl from './SegmentedControl';
 
 export interface LotterySelectorProps {
   value: Lottery;
@@ -11,29 +10,19 @@ export interface LotterySelectorProps {
   disabled?: boolean;
 }
 
-const OPTIONS = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA];
-
-/** Seletor de loteria via `Chip` filtrável do MUI — alternativa compacta às `Tabs`. */
+/** Seletor de modalidade: controle segmentado (mesmo estilo dos demais seletores do app). */
 export default function LotterySelector({ value, onChange, disabled = false }: LotterySelectorProps) {
   const { t } = useTranslation();
-  const label: Record<Lottery, string> = {
-    [Lottery.MEGA_SENA]: t('lottery.megaSena'),
-    [Lottery.MAIS_MILIONARIA]: t('lottery.maisMilionaria'),
-  };
-
   return (
-    <Stack direction="row" spacing={1} role="group" aria-label={t('volante.lotterySelectorLabel')}>
-      {OPTIONS.map((lottery) => (
-        <Chip
-          key={lottery}
-          label={label[lottery]}
-          color={value === lottery ? 'primary' : 'default'}
-          variant={value === lottery ? 'filled' : 'outlined'}
-          onClick={() => onChange(lottery)}
-          disabled={disabled}
-          aria-pressed={value === lottery}
-        />
-      ))}
-    </Stack>
+    <SegmentedControl
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      ariaLabel={t('volante.lotterySelectorLabel')}
+      options={[
+        { value: Lottery.MEGA_SENA, label: t('lottery.megaSena') },
+        { value: Lottery.MAIS_MILIONARIA, label: t('lottery.maisMilionaria') },
+      ]}
+    />
   );
 }

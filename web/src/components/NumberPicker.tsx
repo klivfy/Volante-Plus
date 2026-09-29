@@ -13,7 +13,14 @@ export interface NumberPickerProps {
   disabled?: boolean;
 }
 
-/** Volante para marcar dezenas (modo Fechamento), limitado a `max` marcações. */
+/**
+ * Volante para marcar dezenas (modo Fechamento), limitado a `max` marcações.
+ *
+ * Alvos de 44 pt e 8 pt de folga (antes 29 × 36 com 4 pt). No celular são 5
+ * colunas — cada célula tem ~65 × 44 pt; a partir de telas médias voltam as 10
+ * colunas do volante impresso. O trade-off é perder a semelhança com o volante
+ * físico no celular em troca de alvos que cabem no dedo.
+ */
 export default function NumberPicker({
   universe,
   selected,
@@ -40,7 +47,11 @@ export default function NumberPicker({
       <Box
         role="group"
         aria-label={t('fechamento.pickAria')}
-        sx={{ display: 'grid', gridTemplateColumns: 'repeat(10, minmax(0, 1fr))', gap: 0.5 }}
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(5, minmax(0, 1fr))', sm: 'repeat(10, minmax(0, 1fr))' },
+          gap: 1,
+        }}
       >
         {Array.from({ length: universe }, (_, i) => i + 1).map((n) => {
           const isOn = chosen.has(n);
@@ -49,7 +60,6 @@ export default function NumberPicker({
               key={n}
               value={n}
               selected={isOn}
-              size="small"
               disabled={disabled || (!isOn && selected.length >= max)}
               onChange={() => toggle(n)}
               aria-label={String(n)}
