@@ -188,7 +188,7 @@ regrediu.
 - [X] T018 [P] Adicionar em `docs/historico.md` uma nota curta de
   rastreabilidade: o seed do Android é gerado a partir deste mesmo
   histórico embutido via `scripts/generate-android-seed.mjs`.
-- [ ] T019 Rodar `./gradlew :app:testDebugUnitTest` completo e confirmar
+- [X] T019 Rodar `./gradlew :app:testDebugUnitTest` completo e confirmar
   que nenhum teste existente (incluindo `CsvDrawParserTest.kt`) regrediu.
 - [ ] T020 Rodar os 4 passos de `specs/001-populate-android-seed/quickstart.md`
   de ponta a ponta como validação final de aceite.
