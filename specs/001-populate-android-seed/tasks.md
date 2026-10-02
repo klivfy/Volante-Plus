@@ -30,7 +30,7 @@ conforme `plan.md` → Project Structure.
 **Purpose**: Criar o arquivo do script gerador, vazio de lógica, com o
 cabeçalho de documentação no mesmo estilo do script web equivalente.
 
-- [ ] T001 Criar `scripts/generate-android-seed.mjs` com comentário de
+- [X] T001 Criar `scripts/generate-android-seed.mjs` com comentário de
   cabeçalho (uso: `node scripts/generate-android-seed.mjs`) e import dos
   módulos Node built-in (`node:fs`, `node:path`) — sem lógica ainda,
   mesmo estilo de cabeçalho de `web/scripts/update-history-seed.mjs`.
@@ -45,12 +45,12 @@ história de usuário pode ser entregue sem isto.
 
 **⚠️ CRITICAL**: Nenhuma tarefa de história de usuário começa antes desta fase.
 
-- [ ] T002 Implementar em `scripts/generate-android-seed.mjs` a leitura de
+- [X] T002 Implementar em `scripts/generate-android-seed.mjs` a leitura de
   `web/src/data/history/megasena.json`, `web/src/data/history/maismilionaria.json`
   e `web/src/data/history/meta.json` — sem nenhuma chamada de rede (Constitution,
   Princípio V; `research.md` Decisão 1). Erro descritivo e saída sem gravar
   nada se qualquer arquivo estiver ausente.
-- [ ] T003 Implementar em `scripts/generate-android-seed.mjs` a validação por
+- [X] T003 Implementar em `scripts/generate-android-seed.mjs` a validação por
   modalidade, abortando sem gravar nada (fail-closed) se qualquer uma
   falhar (`data-model.md`, `research.md` Decisão 4; FR-004, FR-006):
   sequência de `contestNumber` contígua de 1 até o último, sem lacuna nem
@@ -58,7 +58,7 @@ história de usuário pode ser entregue sem isto.
   universo da modalidade (1–60 Mega-Sena, 1–50 +Milionária); `trevos`
   vazio na Mega-Sena e exatamente 2 valores distintos dentro de 1–6 na
   +Milionária; `date` parseável como ISO-8601.
-- [ ] T004 Implementar em `scripts/generate-android-seed.mjs` a serialização
+- [X] T004 Implementar em `scripts/generate-android-seed.mjs` a serialização
   para o formato documentado em `contracts/csv-seed-format.md`: linha de
   cabeçalho `# concurso;data;dezenas;trevos`, colunas separadas por `;`,
   dezenas/trevos separados por espaço em ordem crescente, coluna de trevos
@@ -81,14 +81,14 @@ concurso de cada modalidade até o último do seed.
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] Rodar `node scripts/generate-android-seed.mjs` e commitar o
+- [X] T005 [US1] Rodar `node scripts/generate-android-seed.mjs` e commitar o
   resultado em `app/src/main/assets/seed/megasena.csv` e
   `app/src/main/assets/seed/maismilionaria.csv`.
-- [ ] T006 [P] [US1] Conferir que `app/src/main/assets/seed/megasena.csv`
+- [X] T006 [P] [US1] Conferir que `app/src/main/assets/seed/megasena.csv`
   cobre `contestNumber` de 1 até `web/src/data/history/meta.json` →
   `lotteries.megasena.lastContest`, com contagem de linhas igual a
   `lotteries.megasena.count` (SC-002).
-- [ ] T007 [P] [US1] Conferir que
+- [X] T007 [P] [US1] Conferir que
   `app/src/main/assets/seed/maismilionaria.csv` cobre `contestNumber` de 1
   até `meta.json` → `lotteries.maismilionaria.lastContest`, com contagem
   igual a `lotteries.maismilionaria.count` (SC-002).
@@ -119,16 +119,16 @@ web.
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Implementar em `scripts/generate-android-seed.mjs` o
+- [X] T010 [US2] Implementar em `scripts/generate-android-seed.mjs` o
   resumo impresso ao final (FR-005): quantidade de concursos incluídos e
   data do último concurso coberto, por modalidade.
-- [ ] T011 [P] [US2] Atualizar `app/src/main/assets/seed/README.md`: trocar
+- [X] T011 [P] [US2] Atualizar `app/src/main/assets/seed/README.md`: trocar
   a instrução "coloque aqui manualmente" pelo comando de geração
   (`node scripts/generate-android-seed.mjs`) e manter a ressalva de
   procedência (Constitution, Princípio IV — fonte é agregação de
   terceiros, não a exportação direta da Caixa, mesma nota já em
   `docs/historico.md`).
-- [ ] T012 [US2] Confirmar o determinismo (`research.md` Decisão 5;
+- [X] T012 [US2] Confirmar o determinismo (`research.md` Decisão 5;
   `contracts/csv-seed-format.md`): rodar o script duas vezes seguidas sem
   mudar a fonte e comparar que `megasena.csv`/`maismilionaria.csv` saem
   byte a byte idênticos nas duas rodadas.
@@ -151,7 +151,7 @@ sobre uma versão deliberadamente corrompida (falha, apontando o problema).
 > Controles negativo/positivo são o próprio objeto desta história —
 > Constitution, Princípio III (NÃO NEGOCIÁVEL).
 
-- [ ] T013 [US3] Criar
+- [X] T013 [US3] Criar
   `app/src/test/java/com/volanteplus/loterias/data/seed/SeedHistoryIntegrityTest.kt`
   (JUnit4, mesmo estilo de `CsvDrawParserTest.kt` já existente no mesmo
   pacote): carregar os dois CSVs commitados em
@@ -159,15 +159,15 @@ sobre uma versão deliberadamente corrompida (falha, apontando o problema).
   lança erro para nenhum dos dois, e que a sequência de `contestNumber` é
   contígua de 1 até o último, sem lacuna nem duplicata, em cada
   modalidade.
-- [ ] T014 [US3] No mesmo arquivo de teste, confirmar que a contagem e o
+- [X] T014 [US3] No mesmo arquivo de teste, confirmar que a contagem e o
   último `contestNumber` parseados de cada CSV batem exatamente com
   `web/src/data/history/meta.json` (SC-002).
-- [ ] T015 [US3] No mesmo arquivo de teste, adicionar o controle positivo
+- [X] T015 [US3] No mesmo arquivo de teste, adicionar o controle positivo
   exigido pela Constituição: uma fixture deliberadamente corrompida (ex.:
   uma linha de Mega-Sena com uma dezena 61, fora do universo 1–60) MUST
   falhar em `CsvDrawParser.parse` com um erro claro e localizável (número
   da linha).
-- [ ] T016 [US3] No mesmo arquivo de teste, adicionar um segundo caso de
+- [X] T016 [US3] No mesmo arquivo de teste, adicionar um segundo caso de
   controle positivo: uma fixture com lacuna na sequência de concursos
   (ex.: concurso 2 ausente entre 1 e 3) MUST ser rejeitada pela checagem de
   contiguidade de T013 — `CsvDrawParser` sozinho não detecta lacunas entre
@@ -183,12 +183,12 @@ sobre uma versão deliberadamente corrompida (falha, apontando o problema).
 **Purpose**: Fechar a rastreabilidade documental e confirmar que nada
 regrediu.
 
-- [ ] T017 [P] Marcar como concluído, em `README.md` (raiz), o item do
+- [X] T017 [P] Marcar como concluído, em `README.md` (raiz), o item do
   Roadmap "Popular `assets/seed/` com o histórico oficial".
-- [ ] T018 [P] Adicionar em `docs/historico.md` uma nota curta de
+- [X] T018 [P] Adicionar em `docs/historico.md` uma nota curta de
   rastreabilidade: o seed do Android é gerado a partir deste mesmo
   histórico embutido via `scripts/generate-android-seed.mjs`.
-- [ ] T019 Rodar `./gradlew :app:testDebugUnitTest` completo e confirmar
+- [X] T019 Rodar `./gradlew :app:testDebugUnitTest` completo e confirmar
   que nenhum teste existente (incluindo `CsvDrawParserTest.kt`) regrediu.
 - [ ] T020 Rodar os 4 passos de `specs/001-populate-android-seed/quickstart.md`
   de ponta a ponta como validação final de aceite.

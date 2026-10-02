@@ -78,5 +78,11 @@ do banco (só linhas idênticas à fixture; dado real nunca é tocado).
 - A extensão de navegador só acessa o host da fonte principal
   (`host_permissions`). Ampliar isso desativaria a extensão até o usuário
   reaprovar, então as fontes de reserva ficam inertes nela.
-- Os apps Android e desktop (Kotlin) têm seed e sincronização próprios e **não**
-  foram alterados aqui.
+- O app desktop (Kotlin) tem seed e sincronização próprios e **não** foi
+  alterado aqui.
+- O app Android também tem sincronização própria (inalterada), mas o seed
+  embarcado dele (`app/src/main/assets/seed/*.csv`) deixou de ser
+  independente: é gerado a partir deste mesmo histórico (`scripts/generate-
+  android-seed.mjs`, a partir da raiz do repositório) — nunca uma segunda
+  busca/validação separada, para as duas plataformas nunca divergirem
+  silenciosamente uma da outra. Ver `app/src/main/assets/seed/README.md`.
