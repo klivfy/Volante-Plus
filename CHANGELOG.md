@@ -4,6 +4,12 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-06
+
+Laboratório web (`web/`): consolida segurança, precisão das sugestões, métodos
+estatísticos adicionais, histórico completo e a revisão de design. Não altera
+app Android, desktop nem extensão.
+
 ### Added
 - Fechamento por cobertura combinatória (`web/src/engine/closureDesigner.ts`):
   o modo Fechamento agora existe na tela principal, com seletor de dezenas e
