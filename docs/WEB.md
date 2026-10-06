@@ -170,3 +170,9 @@ npm run test:e2e       # Playwright — fluxo completo + offline (ver docs/PWA.m
 
 `test:e2e` precisa de um build de produção (`npm run build`) antes — os
 testes offline dependem do service worker gerado nesse build.
+
+## Design e acessibilidade
+
+A revisão de design mais recente, com os achados medidos nas telas
+renderizadas e o plano de correção em fases, está em
+[`docs/revisao-de-design-2026-10.md`](./revisao-de-design-2026-10.md).
