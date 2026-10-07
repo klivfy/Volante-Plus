@@ -28,6 +28,12 @@ export interface NextDrawInfo {
   contestNumber: number;
   drawDate: string;
   estimatedPrize: number;
+  /**
+   * O último concurso acumulou (ninguém acertou a faixa principal), segundo a
+   * própria API (`acumulou` na de terceiros, `acumulado` na oficial). Ausente
+   * quando a API não informa — e então a tela não afirma nada.
+   */
+  accumulated?: boolean;
 }
 
 /**

@@ -11,10 +11,12 @@ import { bonferroniCorrection, benjaminiHochberg } from './multipleComparisons';
 /**
  * Benchmark comparativo de estratégias de geração de jogos.
  *
- * O gerador atual (`gameGenerator.ts`) usa exclusivamente o tier-weighted
- * 70/20/10 sobre o desempenho medido em `backtestAnalyzer.ts` — não há como,
- * dentro do app, comparar esse método contra alternativas (frequência pura,
- * números frios, sorteio uniforme). Este módulo roda todas elas contra o
+ * Até a versão 2.2 o gerador (`gameGenerator.ts`) usava o tier-weighted
+ * 70/20/10 sobre o desempenho medido em `backtestAnalyzer.ts`; desde a 2.3.0 o
+ * padrão é `UNPOPULAR` (sorteio uniforme, ficando com o jogo menos popular), e
+ * as faixas seguem disponíveis como `FREQUENCY_TIERS` — o método que o
+ * backtest e este benchmark existem para medir. Este módulo roda as faixas e
+ * as alternativas (frequência pura, números frios, sorteio uniforme) contra o
  * mesmo histórico de validação e aplica correção de múltiplas comparações,
  * para responder honestamente: "70/20/10 é melhor, ou só parece melhor
  * porque testamos só ele?"
@@ -49,7 +51,7 @@ export interface BenchmarkResult {
 }
 
 const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
-  'tier-weighted': 'Método do app: 70% top / 20% mid / 10% low, ponderado por desempenho',
+  'tier-weighted': 'Faixas de frequência, o método do app até a versão 2.2: 70% top / 20% mid / 10% low, ponderado por desempenho',
   'frequency-pure': 'Sempre as 6 dezenas historicamente mais frequentes',
   'cold-numbers': 'Favorece as dezenas menos frequentes ("atrasadas")',
   'random-uniform': 'Baseline: 6 dezenas uniformemente aleatórias (sem uso do histórico)',

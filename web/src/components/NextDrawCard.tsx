@@ -75,7 +75,10 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
   }
 
   const { date, time } = formatDrawMoment(nextDraw.drawDate);
-  const isAccumulated = nextDraw.estimatedPrize > 0;
+  // Só quando a API diz que acumulou. Antes valia `estimatedPrize > 0`, que é
+  // verdade em todo concurso: depois de um concurso com ganhador (prêmio
+  // estimado de R$ 3,5 milhões) a tela mostrava "ACUMULADA!" do mesmo jeito.
+  const isAccumulated = nextDraw.accumulated === true;
 
   return (
     <Card variant="outlined">
@@ -90,13 +93,9 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
                 {t('nextDraw.contest', { number: nextDraw.contestNumber })}
               </Typography>
               {isAccumulated && (
-                <Chip
-                  label={t('nextDraw.accumulated')}
-                  size="small"
-                  color="error"
-                  variant="filled"
-                  sx={{ fontWeight: 700, fontSize: '0.75rem' }}
-                />
+                // Neutro: é um fato sobre o concurso, não um alerta nem um
+                // convite — vermelho é a cor de erro no resto do app.
+                <Chip label={t('nextDraw.accumulated')} size="small" variant="outlined" />
               )}
             </Stack>
             <Typography variant="body2" color="text.secondary">

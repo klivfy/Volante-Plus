@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { BayesEvidence, bayesVerdict } from '@/engine/bayesEvidence';
 import { EvidenceSummary } from '@/engine/numberEvidence';
 import { DrawSpace } from '@/engine/prizeRules';
+import { formatDecimal, formatInteger, formatPowerOfTen, formatSignificant } from '@/lib/format';
 
 export interface EvidencePanelProps {
   summary: EvidenceSummary;
@@ -22,11 +23,10 @@ export interface EvidencePanelProps {
   space?: DrawSpace;
 }
 
-/** Fator de Bayes legível: `10^x` só quando o expoente é grande. */
+/** Fator de Bayes legível: potência de dez só quando o expoente é grande. */
 function formatBayes(log10: number): string {
-  const abs = Math.abs(log10);
-  if (abs >= 3) return `10^${log10 > 0 ? '' : '−'}${abs.toFixed(0)}`;
-  return Math.pow(10, log10).toPrecision(2).replace('.', ',');
+  if (Math.abs(log10) >= 3) return formatPowerOfTen(log10);
+  return formatSignificant(Math.pow(10, log10));
 }
 
 const SEVERITY = {
@@ -35,7 +35,8 @@ const SEVERITY = {
   AMOSTRA_INSUFICIENTE: 'info',
 } as const;
 
-const percent = (fraction: number): string => (fraction * 100).toFixed(1).replace('.', ',');
+/** Porcentagem sem o símbolo (o texto traduzido já traz o "%"). */
+const percent = (fraction: number): string => formatDecimal(fraction * 100, 1);
 
 /**
  * Responde, com teste de hipótese, à pergunta que o ranking de frequência não
@@ -87,7 +88,7 @@ export default function EvidencePanel({
               list: flagged
                 .map(
                   (r) =>
-                    `${r.number} (${r.z > 0 ? t('evidence.above') : t('evidence.below')}, ${r.hitCount} vs ${r.expected.toFixed(0)})`,
+                    `${r.number} (${r.z > 0 ? t('evidence.above') : t('evidence.below')}, ${formatInteger(r.hitCount)} vs ${formatInteger(r.expected)})`,
                 )
                 .join('; '),
             })}
@@ -114,15 +115,15 @@ export default function EvidencePanel({
                 <Typography variant="body2" color="text.secondary">
                   {t(k('evidence.hottest'), {
                     number: hottest.number,
-                    hits: hottest.hitCount,
-                    expected: hottest.expected.toFixed(0),
+                    hits: formatInteger(hottest.hitCount),
+                    expected: formatInteger(hottest.expected),
                   })}
                 </Typography>
               )}
               {summary.minimumDetectableRelativeBias !== null && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   {t(k('evidence.power'), {
-                    bias: (summary.minimumDetectableRelativeBias * 100).toFixed(0),
+                    bias: formatInteger(summary.minimumDetectableRelativeBias * 100),
                   })}
                 </Typography>
               )}
@@ -133,8 +134,8 @@ export default function EvidencePanel({
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {t(k(`evidence.omnibus.${bayesVerdict(bayes.log10BfOmnibus)}`), {
-                      exp: Math.abs(bayes.log10BfOmnibus).toFixed(0),
-                      ratio: Math.pow(10, -bayes.log10BfOmnibus).toFixed(0),
+                      power: formatPowerOfTen(Math.abs(bayes.log10BfOmnibus)),
+                      ratio: formatInteger(Math.pow(10, -bayes.log10BfOmnibus)),
                       bf: formatBayes(bayes.log10BfOmnibus),
                     })}
                   </Typography>

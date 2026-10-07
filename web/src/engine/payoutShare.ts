@@ -3,6 +3,7 @@ import { binomial } from './hypergeometric';
 import { hasTrevos, lotteryRules } from './prizeRules';
 import { createSeededRandom, RandomSource } from './random';
 import { unpopularityPenalty } from './unpopularity';
+import { formatPercent } from '../lib/format';
 
 /**
  * A única alavanca que a matemática deixa de pé numa loteria — e a sua
@@ -222,9 +223,9 @@ export function isBetterThanAverage(assessment: PayoutAssessment): boolean {
  * número vira promessa, que é o que este app existe para não fazer.
  */
 export function payoutSummary(assessment: PayoutAssessment): string {
-  const pct = assessment.conditionalGain * 100;
-  const direction = pct >= 0 ? 'a mais' : 'a menos';
-  return `${Math.abs(pct).toFixed(1)}% ${direction} de prêmio se ganhar, pela mesma chance de ganhar.`;
+  const gain = assessment.conditionalGain;
+  const direction = gain >= 0 ? 'a mais' : 'a menos';
+  return `${formatPercent(Math.abs(gain))} ${direction} de prêmio se ganhar, pela mesma chance de ganhar.`;
 }
 
 /**

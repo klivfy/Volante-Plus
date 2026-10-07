@@ -55,6 +55,55 @@ describe('fetchNextDraw — número do PRÓXIMO concurso', () => {
   });
 });
 
+describe('fetchNextDraw — acumulou', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const base = {
+    concurso: 3048,
+    proximoConcurso: 3049,
+    dataProximoConcurso: '18/09/2026',
+    valorEstimadoProximoConcurso: 3_500_000,
+  };
+
+  it('não afirma acúmulo quando o concurso teve ganhador, mesmo com prêmio estimado', async () => {
+    // Regressão: o selo era inferido de `estimatedPrize > 0`, que vale para
+    // todo concurso — inclusive o 3.049, que veio depois de um ganhador.
+    mockFetchOnce({ json: async () => ({ ...base, acumulou: false }) });
+
+    const next = await fetchNextDraw(Lottery.MEGA_SENA);
+
+    expect(next?.accumulated).toBe(false);
+    expect(next?.estimatedPrize).toBe(3_500_000);
+  });
+
+  it('lê `acumulou` da API de terceiros', async () => {
+    mockFetchOnce({ json: async () => ({ ...base, acumulou: true }) });
+
+    expect((await fetchNextDraw(Lottery.MEGA_SENA))?.accumulated).toBe(true);
+  });
+
+  it('lê `acumulado` da API oficial', async () => {
+    mockFetchOnce({ json: async () => ({ ...base, acumulado: true }) });
+
+    expect((await fetchNextDraw(Lottery.MEGA_SENA))?.accumulated).toBe(true);
+  });
+
+  it('não inventa o campo quando a API não informa', async () => {
+    mockFetchOnce({ json: async () => base });
+
+    const next = await fetchNextDraw(Lottery.MEGA_SENA);
+
+    expect(next).not.toBeNull();
+    expect(next).not.toHaveProperty('accumulated');
+  });
+
+  it('ignora valores que não são booleanos', async () => {
+    mockFetchOnce({ json: async () => ({ ...base, acumulou: 'sim' }) });
+
+    expect(await fetchNextDraw(Lottery.MEGA_SENA)).not.toHaveProperty('accumulated');
+  });
+});
+
 describe('fetchNextDraw', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_CAIXA_API_BASE_URL', BASE_URL);

@@ -7,6 +7,8 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
@@ -18,17 +20,20 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
+import Link from 'next/link';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import LabeledTextField from '@/components/LabeledTextField';
 import LotterySelector from '@/components/LotterySelector';
+import { useLotteryTheme } from '@/context/LotteryThemeContext';
+import { formatDecimal, formatInteger } from '@/lib/format';
 import { getDraws } from '@/services/db';
 import { Draw, Lottery } from '@/types/domain';
+import { SIMPLE_BET_PRICE_BRL } from '@/engine/closureDesigner';
 import { calculateEV, kellySimulation, PrizeAverage } from '@/engine/expectedValue';
 import { frequencyFairnessTest, gapTest, serialCorrelationTest } from '@/engine/fairnessTests';
 import { expectedHitsFor, powerTable } from '@/engine/powerAnalysis';
 import { BenchmarkResult, runStrategyBenchmark } from '@/engine/strategyBenchmark';
-import { applyWheel, WHEEL_10_6_4 } from '@/engine/wheelingSystems';
 import { StabilityAnalysis, WalkForwardCutResult, multiCutWalkForward, stabilityAnalysis } from '@/engine/walkForwardMulti';
 
 const percent = new Intl.NumberFormat('pt-BR', {
@@ -44,7 +49,8 @@ const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
  * módulos de validação estatística mais rigorosa descritos no documento de
  * extensão (poder estatístico, walk-forward multi-corte, benchmark de
  * estratégias com correção de múltiplas comparações, testes de fairness do
- * próprio sorteio, wheeling systems e EV/Kelly).
+ * próprio sorteio e EV/Kelly). A cobertura combinatória fica no modo
+ * Fechamento do Volante.
  *
  * Cada seção computa sob demanda (botão próprio) — o histórico completo de
  * uma loteria já é leve o bastante para rodar no thread principal, mas o
@@ -54,7 +60,9 @@ const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
  */
 export default function AnaliseAvancadaPage() {
   const { t } = useTranslation();
-  const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
+  // A modalidade é global (contexto): a mesma em todas as abas e no tema.
+  // Antes era local desta tela, que nem trocava a cor ao escolher +Milionária.
+  const { lottery, setLottery } = useLotteryTheme();
 
   return (
     <Container component="main" maxWidth="md" sx={{ py: 3, pb: 10 }}>
@@ -73,7 +81,7 @@ export default function AnaliseAvancadaPage() {
         <PowerAnalysisSection lottery={lottery} />
         <FairnessSection lottery={lottery} />
         <BenchmarkSection lottery={lottery} />
-        <WheelingSection />
+        <ClosurePointer />
         <ExpectedValueSection lottery={lottery} />
       </Stack>
     </Container>
@@ -142,7 +150,7 @@ function PowerAnalysisSection({ lottery }: { lottery: Lottery }) {
                 <TableCell>{t('advanced.power.effect')}</TableCell>
                 {sampleSizes.map((n) => (
                   <TableCell key={n} align="right">
-                    {n.toLocaleString('pt-BR')}
+                    {formatInteger(n)}
                   </TableCell>
                 ))}
               </TableRow>
@@ -366,71 +374,37 @@ function BenchmarkSection({ lottery }: { lottery: Lottery }) {
   );
 }
 
-/** Wheeling system fixo C(10,6,4) aplicado às dezenas informadas pelo usuário. */
-function WheelingSection() {
+/**
+ * Esta tela tinha uma segunda cobertura combinatória (um wheel fixo C(10,6,4)
+ * com as dezenas digitadas), que dava 23 jogos para as mesmas 10 dezenas com
+ * que o modo Fechamento do Volante dá 20, verificados. Duas ferramentas para a
+ * mesma coisa, com resultados diferentes (`docs/revisao-de-design-2026-10.md`,
+ * achado A4): ficou só o Fechamento, e aqui um caminho até ele.
+ */
+function ClosurePointer() {
   const { t } = useTranslation();
-  const [input, setInput] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [games, setGames] = useState<number[][] | null>(null);
-
-  function handleApply(): void {
-    setError(null);
-    setGames(null);
-    const numbers = input
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .map(Number);
-
-    if (numbers.some((n) => !Number.isInteger(n))) {
-      setError(t('advanced.wheeling.invalidInput'));
-      return;
-    }
-    try {
-      setGames(applyWheel(WHEEL_10_6_4, numbers));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('advanced.runError'));
-    }
-  }
-
   return (
-    <SectionAccordion title={t('advanced.wheeling.title')} subtitle={t('advanced.wheeling.subtitle')}>
-      <Stack spacing={2}>
-        <Typography variant="body2" color="text.secondary">
-          {t('advanced.wheeling.explanation')}
+    <Card variant="outlined">
+      <CardContent>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }}>
+          {t('advanced.closure.title')}
         </Typography>
-        <LabeledTextField
-          label={t('advanced.wheeling.inputLabel')}
-          placeholder="1, 5, 9, 12, 18, 22, 30, 41, 47, 55"
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-        />
-        <Button variant="outlined" onClick={handleApply}>
-          {t('advanced.wheeling.apply')}
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
+          {t('advanced.closure.body')}
+        </Typography>
+        <Button variant="outlined" component={Link} href="/">
+          {t('advanced.closure.open')}
         </Button>
-
-        {error && <Alert severity="error">{error}</Alert>}
-
-        {games && (
-          <Stack spacing={1}>
-            <Typography variant="body2" color="text.secondary">
-              {t('advanced.wheeling.gamesCount', { count: games.length })}
-            </Typography>
-            {games.map((game, index) => (
-              <Typography key={index} variant="body2" sx={{ fontFamily: 'monospace' }}>
-                {game.map((n) => String(n).padStart(2, '0')).join(' · ')}
-              </Typography>
-            ))}
-          </Stack>
-        )}
-      </Stack>
-    </SectionAccordion>
+      </CardContent>
+    </Card>
   );
 }
 
 /** Valor esperado e Kelly Criterion, com entrada manual de prêmios médios. */
 function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
   const { t } = useTranslation();
-  const [ticketCost, setTicketCost] = useState('5');
+  // Mesmo preço de referência do fechamento (antes R$ 5 aqui e R$ 6 lá).
+  const [ticketCost, setTicketCost] = useState(String(SIMPLE_BET_PRICE_BRL));
   const [accumulated, setAccumulated] = useState('0');
   const [bankroll, setBankroll] = useState('1000');
   // Apostas do concurso. Sem esse número o acumulado entra como se fosse pago
@@ -499,7 +473,7 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
         <Alert severity={ev.ev > 0 ? 'success' : 'info'}>
           {t('advanced.ev.result', {
             ev: currency.format(ev.ev),
-            percent: decimal.format(ev.evPercent),
+            percent: formatDecimal(ev.evPercent, 1),
           })}
         </Alert>
 

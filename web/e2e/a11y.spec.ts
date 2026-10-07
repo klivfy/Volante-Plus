@@ -322,7 +322,6 @@ for (const scheme of ['light', 'dark'] as const) {
 
 test('nenhum decimal com ponto nas telas com números', async ({ page }) => {
   test.setTimeout(300_000);
-  test.fail(true, 'M1: "15.6%" e "0.53×" em `payoutShare.ts` e `PayoutSharePanel.tsx`');
   const offenders: string[] = [];
   for (const open of [(p: Page) => generateGames(p, 'mega'), runBacktest, runAdvanced]) {
     await open(page);

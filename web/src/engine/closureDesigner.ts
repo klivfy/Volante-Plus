@@ -29,7 +29,8 @@ import { unpopularityPenalty } from './unpopularity';
  * `UNPOPULAR`, sem custo algum na garantia. Não é ótimo (o problema é
  * NP-difícil), mas a cobertura é completa por construção e verificada por
  * `verifyClosure`. A contagem de cobertura incremental deixa pools de 15
- * dezenas rápidos (o guloso de `wheelingSystems.ts` explodia acima de 12).
+ * dezenas rápidos (o guloso do antigo `wheelingSystems.ts`, removido na 2.3.1,
+ * explodia acima de 12).
  */
 
 /** Preço da aposta simples, em reais. Valor de referência; a Caixa pode reajustá-lo. */

@@ -17,15 +17,15 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import LabeledTextField from '@/components/LabeledTextField';
 import LotterySelector from '@/components/LotterySelector';
+import { formatInteger } from '@/lib/format';
 import { useBacktestWorker } from '@/hooks/useBacktestWorker';
 import { useLotteryTheme } from '@/context/LotteryThemeContext';
 import { trackLotterySelection } from '@/services/analytics';
-import { getDrawsAfter, getDrawsUpTo, savePerformances } from '@/services/db';
+import { getDrawsAfter, getDrawsUpTo } from '@/services/db';
 import { Lottery, MAX_GAMES, MIN_GAMES } from '@/types/domain';
 
 const percentFormatter = new Intl.NumberFormat('pt-BR', {
@@ -66,9 +66,8 @@ function formatHitDistribution(distribution: Record<number, number>): string {
 
 export default function BacktestingPage() {
   const { t } = useTranslation();
-  const router = useRouter();
-  const { setLottery: setThemeLottery } = useLotteryTheme();
-  const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
+  // A modalidade é global (contexto): a mesma em todas as abas e no tema.
+  const { lottery, setLottery } = useLotteryTheme();
   const [cutoffDate, setCutoffDate] = useState('');
   const [gamesPerContest, setGamesPerContest] = useState(MIN_GAMES);
   const [submitting, setSubmitting] = useState(false);
@@ -76,10 +75,8 @@ export default function BacktestingPage() {
 
   const { report, loading: workerLoading, error: workerError, run } = useBacktestWorker();
 
-  // Sincroniza a modalidade com o tema global
   const handleLotteryChange = (newLottery: Lottery) => {
     setLottery(newLottery);
-    setThemeLottery(newLottery);
     trackLotterySelection(newLottery);
   };
 
@@ -134,17 +131,6 @@ export default function BacktestingPage() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  async function handleUseForGeneration(): Promise<void> {
-    if (!report || reportStale) return;
-    // Cache `manual`: tem prioridade sobre a análise automática e expira
-    // sozinho após `MANUAL_CACHE_TTL_MS` (ver `savePerformances`).
-    await savePerformances(lottery, report.performances, report.trevoPerformances, {
-      source: 'manual',
-      force: true,
-    });
-    router.push('/');
   }
 
   return (
@@ -218,8 +204,8 @@ export default function BacktestingPage() {
                     <TableCell>{t('backtesting.contests')}</TableCell>
                     <TableCell align="right">
                       {t('backtesting.contestsValue', {
-                        training: report.trainingDraws,
-                        validation: report.validationDraws,
+                        training: formatInteger(report.trainingDraws),
+                        validation: formatInteger(report.validationDraws),
                       })}
                     </TableCell>
                   </TableRow>
@@ -227,8 +213,8 @@ export default function BacktestingPage() {
                     <TableCell>{t('backtesting.gamesBets')}</TableCell>
                     <TableCell align="right">
                       {t('backtesting.gamesBetsValue', {
-                        games: report.totalGames,
-                        bets: report.totalBets,
+                        games: formatInteger(report.totalGames),
+                        bets: formatInteger(report.totalBets),
                       })}
                     </TableCell>
                   </TableRow>
@@ -273,9 +259,6 @@ export default function BacktestingPage() {
               {t('backtesting.footnote')}
             </Typography>
 
-            <Button variant="outlined" size="large" onClick={handleUseForGeneration}>
-              {t('backtesting.useForGeneration')}
-            </Button>
           </>
         )}
       </Stack>

@@ -18,6 +18,7 @@ import GameCard from '@/components/GameCard';
 import GameCountControl from '@/components/GameCountControl';
 import HistoryStatus from '@/components/HistoryStatus';
 import LabeledTextField from '@/components/LabeledTextField';
+import { formatDecimal, formatInteger } from '@/lib/format';
 import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
 import NumberPicker from '@/components/NumberPicker';
@@ -63,8 +64,8 @@ function gameToText(lottery: Lottery, game: GeneratedGame): string {
 
 export default function VolantePage() {
   const { t } = useTranslation();
-  const { setLottery: setThemeLottery } = useLotteryTheme();
-  const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
+  // A modalidade é global (contexto): a mesma em todas as abas e no tema.
+  const { lottery, setLottery } = useLotteryTheme();
   const [generating, setGenerating] = useState(false);
   const [batchCount, setBatchCount] = useState<number>(MIN_GAMES);
   const [generatedBatch, setGeneratedBatch] = useState<GameBatch | null>(null);
@@ -108,10 +109,8 @@ export default function VolantePage() {
   const closureMode = mode === GameMode.FECHAMENTO;
   const minPool = rules.numbersPerBet + 1;
 
-  // Sincroniza a modalidade com o tema global
   const handleLotteryChange = (newLottery: Lottery) => {
     setLottery(newLottery);
-    setThemeLottery(newLottery);
     trackLotterySelection(newLottery);
   };
 
@@ -330,7 +329,7 @@ export default function VolantePage() {
             <br />
             {t('fechamento.contract', {
               games: generatedBatch.games.length,
-              cost: closureCost(generatedBatch.games.length).toFixed(2).replace('.', ','),
+              cost: formatDecimal(closureCost(generatedBatch.games.length), 2),
               t: generatedBatch.closure.guarantee,
               pool: generatedBatch.closure.poolSize,
             })}
@@ -342,8 +341,8 @@ export default function VolantePage() {
                 generatedBatch.closure.guarantee,
               );
               return t('fechamento.odds', {
-                percent: (p * 100).toFixed(2).replace('.', ','),
-                oneIn: Math.round(1 / p).toLocaleString('pt-BR'),
+                percent: formatDecimal(p * 100, 2),
+                oneIn: formatInteger(1 / p),
                 t: generatedBatch.closure.guarantee,
                 pool: generatedBatch.closure.poolSize,
               });

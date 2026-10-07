@@ -42,6 +42,10 @@ interface RawNextDrawResponse {
   valor_estimado_proximo_concurso?: number;
   valorAcumuladoProximoConcurso?: number;
   valorEstimado?: number;
+  /** API de terceiros (loteriascaixa-api). */
+  acumulou?: boolean;
+  /** API oficial da Caixa. */
+  acumulado?: boolean;
 }
 
 function firstDefined<T>(...values: Array<T | undefined>): T | undefined {
@@ -110,11 +114,16 @@ export async function fetchNextDraw(lottery: Lottery): Promise<NextDrawInfo | nu
       return null;
     }
 
+    // Só um booleano de verdade conta: o selo "Acumulou" depende disto, e antes
+    // era inferido de `estimatedPrize > 0`, que vale para todo concurso.
+    const accumulated = [raw.acumulou, raw.acumulado].find((value) => typeof value === 'boolean');
+
     return {
       lottery,
       contestNumber,
       drawDate: parseDrawDate(rawDate),
       estimatedPrize,
+      ...(accumulated !== undefined ? { accumulated } : {}),
     };
   } catch {
     return null;

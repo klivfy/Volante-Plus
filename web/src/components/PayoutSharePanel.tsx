@@ -14,6 +14,7 @@ import {
   averageRelativePopularity,
   betterThanAverageCount,
 } from '../engine/payoutShare';
+import { formatInteger, formatMultiplier, formatPercent } from '../lib/format';
 
 export interface PayoutSharePanelProps {
   assessment: PayoutBatchAssessment;
@@ -33,9 +34,8 @@ export interface PayoutSharePanelProps {
  */
 export default function PayoutSharePanel({ assessment }: PayoutSharePanelProps) {
   const { t } = useTranslation();
-  const gainPercent = averageConditionalGain(assessment) * 100;
-  const positive = gainPercent >= 0;
-  const numberFormat = new Intl.NumberFormat('pt-BR');
+  const gain = averageConditionalGain(assessment);
+  const positive = gain >= 0;
   const games = assessment.games.length;
 
   return (
@@ -54,8 +54,7 @@ export default function PayoutSharePanel({ assessment }: PayoutSharePanelProps) 
           sx={{ fontWeight: 700, mt: 1 }}
           color={positive ? 'primary.main' : 'error.main'}
         >
-          {gainPercent >= 0 ? '+' : ''}
-          {gainPercent.toFixed(1)}%
+          {formatPercent(gain, { signed: true })}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {positive ? t('payoutShare.moreOnWin') : t('payoutShare.lessOnWin')}
@@ -78,7 +77,7 @@ export default function PayoutSharePanel({ assessment }: PayoutSharePanelProps) 
               {t('payoutShare.relativePopularity')}
             </Typography>
             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {averageRelativePopularity(assessment).toFixed(2)}×
+              {formatMultiplier(averageRelativePopularity(assessment))}
             </Typography>
           </Stack>
           <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
@@ -86,7 +85,7 @@ export default function PayoutSharePanel({ assessment }: PayoutSharePanelProps) 
               {t('payoutShare.tickets')}
             </Typography>
             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {numberFormat.format(assessment.tickets)}
+              {formatInteger(assessment.tickets)}
             </Typography>
           </Stack>
         </Stack>

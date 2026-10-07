@@ -55,9 +55,9 @@
     "variance": "Variância",
     "stdDeviation": "Desvio padrão",
     "prizeRate": "Taxa de eficácia",
-    "prizeRateValue": "{{rate}} ({{count}} apostas premiadas)",
-    "footnote": "A seta marca só a direção da diferença — dado o tamanho da amostra, ela costuma caber dentro do ruído estatístico esperado pela hipótese nula.",
-    "useForGeneration": "Usar estes dados para gerar jogos"
+    "prizeRateValue_one": "{{rate}} ({{count}} aposta premiada)",
+    "prizeRateValue_other": "{{rate}} ({{count}} apostas premiadas)",
+    "footnote": "A seta marca só a direção da diferença — dado o tamanho da amostra, ela costuma caber dentro do ruído estatístico esperado pela hipótese nula."
   },
   "notifications": {
     "enable": "Ativar notificações",
@@ -76,7 +76,7 @@
     "contest": "Concurso {{number}}",
     "at": "{{date}} às {{time}}",
     "estimatedPrize": "prêmio estimado",
-    "accumulated": "ACUMULADA!"
+    "accumulated": "Acumulou"
   },
   "sobre": {
     "title": "Sobre o Volante+",
@@ -84,9 +84,9 @@
     "missionTitle": "Missão",
     "missionBody": "Usar o histórico das loterias para testar, validar ou refutar empiricamente modelos matemáticos via backtesting transparente — sem promessas de \"números quentes\". Cada sorteio é um evento independente: nenhuma dezena carrega memória do que saiu antes.",
     "howTitle": "Como os jogos são gerados",
-    "howBody": "O desempenho de cada dezena combina frequência real no histórico com uma simulação de Monte Carlo, e é classificado em três faixas — top, mid e low. A geração sorteia 70% das vagas do jogo na faixa top, 20% na mid e 10% na low, sempre com seleção proporcional ao peso dentro da faixa escolhida.",
+    "howBody": "Cada jogo começa de um sorteio uniforme: todas as combinações têm a mesma chance, e o app não muda isso. Entre 64 combinações sorteadas assim, ele fica com a de baixa popularidade — a que menos se parece com o que as pessoas costumam marcar (datas de aniversário, números primos e o 7, o centro do volante, sequências). Se você ganhar, divide o prêmio com menos gente; a chance de ganhar é a mesma de qualquer outro jogo. Num mesmo lote, as dezenas não se repetem entre os jogos e, na +Milionária, os trevos são sorteados de forma uniforme. O método anterior, por faixas de frequência (top, mid e low), fica só no Backtesting e na comparação de estratégias, que existem para medi-lo.",
     "backtestTitle": "Backtesting",
-    "backtestBody": "A tela de Backtesting mede o desempenho das dezenas apenas na janela de treino (concursos até a data de corte) e valida os jogos gerados contra os concursos reais posteriores. O resultado é comparado ao baseline hipergeométrico — a média de acertos que o acaso puro já entregaria. A expectativa é que o método não o supere de forma consistente: é exatamente essa a hipótese que o app existe para testar."
+    "backtestBody": "A tela de Backtesting mede o desempenho das dezenas apenas na janela de treino (concursos até a data de corte), gera jogos pelo método de faixas de frequência e os confere contra os concursos reais posteriores. O resultado é comparado ao baseline hipergeométrico — a média de acertos que o acaso puro já entregaria. A expectativa é que o método não o supere de forma consistente: é exatamente essa a hipótese que o app existe para testar."
   },
   "advanced": {
     "title": "Análise Avançada",
@@ -129,14 +129,10 @@
       "notSignificant": "não significativo",
       "footnote": "A coluna Bonferroni é a significância corrigida para múltiplas comparações — o critério certo quando 5 estratégias são testadas ao mesmo tempo. Esperado sob a hipótese nula: nenhuma estratégia significativa."
     },
-    "wheeling": {
-      "title": "Cobertura combinatória (wheeling)",
-      "subtitle": "Reparte um pool de 10 dezenas em jogos com garantia matemática de quadra.",
-      "explanation": "Não aumenta a chance de ganhar — só garante que, se 4 das suas 10 dezenas marcadas saírem, pelo menos um dos jogos abaixo acerta a quadra.",
-      "inputLabel": "Digite 10 dezenas separadas por vírgula ou espaço",
-      "apply": "Gerar jogos do wheel",
-      "invalidInput": "Informe apenas números inteiros separados por vírgula ou espaço.",
-      "gamesCount": "{{count}} jogos gerados"
+    "closure": {
+      "title": "Cobertura combinatória",
+      "body": "Para montar jogos com garantia — se t das suas dezenas saírem, algum jogo acerta t —, use o modo Fechamento no Volante. Lá a garantia é verificada jogo a jogo e usa o menor número de jogos que o app conhece para cada caso.",
+      "open": "Abrir o Volante"
     },
     "ev": {
       "title": "Valor esperado e Kelly Criterion",
@@ -195,12 +191,12 @@
     "footnote": "Ordenar por frequência sempre produz um primeiro lugar; por isso os testes usam correção para múltiplas comparações (Bonferroni) e poder de 80%: dizem se a diferença é maior que a do acaso.",
     "bayesTitle": "Fator de Bayes",
     "omnibus": {
-      "FORTE_PRO_ACASO": "Global: os dados sustentam com força que as dezenas saem com a mesma frequência (fator de Bayes de 10^{{exp}} a favor).",
+      "FORTE_PRO_ACASO": "Global: os dados sustentam com força que as dezenas saem com a mesma frequência (fator de Bayes de {{power}} a favor).",
       "MODERADA_PRO_ACASO": "Global: os dados sustentam, com força moderada, que as dezenas saem com a mesma frequência (fator de Bayes de {{ratio}} a favor).",
       "INCONCLUSIVO": "Global: inconclusivo (fator de Bayes {{bf}}).",
       "MODERADA_CONTRA_ACASO": "Global: indício moderado de que as dezenas não saem com a mesma frequência (fator de Bayes {{bf}}).",
       "FORTE_CONTRA_ACASO": "Global: indício forte de que as dezenas não saem com a mesma frequência (fator de Bayes {{bf}}).",
-      "FORTE_PRO_ACASO_trevo": "Global: os dados sustentam com força que os trevos saem com a mesma frequência (fator de Bayes de 10^{{exp}} a favor).",
+      "FORTE_PRO_ACASO_trevo": "Global: os dados sustentam com força que os trevos saem com a mesma frequência (fator de Bayes de {{power}} a favor).",
       "MODERADA_PRO_ACASO_trevo": "Global: os dados sustentam, com força moderada, que os trevos saem com a mesma frequência (fator de Bayes de {{ratio}} a favor).",
       "INCONCLUSIVO_trevo": "Global: inconclusivo (fator de Bayes {{bf}}).",
       "MODERADA_CONTRA_ACASO_trevo": "Global: indício moderado de que os trevos não saem com a mesma frequência (fator de Bayes {{bf}}).",
