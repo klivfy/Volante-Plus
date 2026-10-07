@@ -102,8 +102,9 @@ jobs:
       - name: Build de produção
         run: npm run build
 
+      # O `a11y.spec.ts` roda no job próprio abaixo, que bloqueia o merge.
       - name: Testes e2e
-        run: npm run test:e2e
+        run: npx playwright test flow offline
 
       - name: Relatório do Playwright (em caso de falha)
         if: failure()
@@ -112,6 +113,48 @@ jobs:
           name: playwright-report
           path: web/playwright-report/
           retention-days: 7
+
+  a11y:
+    name: Acessibilidade (axe, texto a 200%, 320 px)
+    # Independente do job de build: as guardas de acessibilidade não podem
+    # ficar puladas quando outro passo do build falha. Sem `continue-on-error`:
+    # uma regressão aqui bloqueia o merge. Ver docs/revisao-de-design-2026-10.md.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: Instala navegadores do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build de produção
+        run: npm run build
+
+      - name: Guardas de acessibilidade
+        run: npx playwright test a11y
+
+      # Retenção curta e sem bloquear: a cota de artefatos é compartilhada
+      # entre todos os workflows (ver a Constituição, "CI e operação").
+      - name: Relatório do Playwright (em caso de falha)
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-a11y
+          path: web/playwright-report/
+          retention-days: 3
 
   deploy:
     name: Deploy (Vercel)
