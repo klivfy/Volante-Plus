@@ -4,6 +4,48 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-10-07
+
+Laboratório web (`web/`): Fases 0 a 2 da revisão de design
+(`docs/revisao-de-design-2026-10.md`). Não altera app Android, desktop nem
+extensão.
+
+### Added
+- Guardas de acessibilidade (`web/e2e/a11y.spec.ts`), com job próprio e
+  bloqueante no CI: axe-core (WCAG 2.2 AA) nas quatro telas, em claro e
+  escuro; texto a 200% e tela de 320 px; contorno dos campos com pelo menos
+  3:1; nenhum decimal com ponto. As APIs externas são simuladas, sem rede.
+- `web/src/lib/format.ts`: toda formatação de número visível em pt-BR.
+
+### Fixed
+- Texto a 200%: o cartão do próximo concurso cortava o selo e a data; o
+  rótulo dos campos ficava por cima do valor ou saía cortado (os campos agora
+  têm rótulo fixo acima); bolinhas e chips crescem com o texto.
+- Leitor de tela: títulos falsos (prêmio como H6, percentual como H4, "Ver
+  detalhes" como H3) e Sobre sem `<main>` nem H1; a barra inferior vira
+  `<nav>` com links e marca a página atual; as dezenas do fechamento têm o
+  nome acessível igual ao texto visível.
+- Teclado: as tabelas roláveis da Análise avançada recebem foco.
+- Contorno dos campos: 3,94:1 no claro e 5,31:1 no escuro (era 1,74:1 e
+  2,11:1).
+- A modalidade escolhida vale em todas as abas e persiste; antes a cor dizia
+  +Milionária e o seletor, Mega-Sena.
+- O selo "Acumulou" vem da API; antes aparecia em todo concurso, mesmo depois
+  de um com ganhador.
+- Números em pt-BR em todas as telas ("15,6%", não "15.6%"); o fator de Bayes
+  entre 100 e 1000 saía como "1,2e+2".
+
+### Changed
+- A página Sobre e a comparação de estratégias descrevem o método de geração
+  atual (baixa popularidade), não mais as faixas 70/20/10 como se fossem o
+  padrão.
+- Sai o botão "Usar estes dados para gerar jogos" do Backtesting: a
+  estratégia padrão não usa esses dados.
+- Sai a cobertura combinatória da Análise avançada (e `wheelingSystems.ts`):
+  dava 23 jogos onde o modo Fechamento dá 20, verificados. Fica um caminho até
+  o Fechamento.
+- Custo padrão do bilhete na Análise avançada: R$ 6, o mesmo do fechamento.
+
 ## [2.3.0] - 2026-10-06
 
 Laboratório web (`web/`): consolida segurança, precisão das sugestões, métodos

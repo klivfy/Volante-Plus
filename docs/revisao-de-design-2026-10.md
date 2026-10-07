@@ -700,15 +700,23 @@ mesmo PR, como pede a Constituição.
 - **Formato**: igual ao `tasks.md` do Spec Kit. `[P]` marca tarefas que podem
   rodar em paralelo.
 
+> **Andamento (2026-10-07)**: Fases 0, 1 e 2 concluídas na versão web 2.3.1
+> (D001–D017). As guardas da Fase 0 acharam um problema que esta revisão não
+> tinha visto: as dezenas do fechamento tinham nome acessível diferente do
+> texto visível (WCAG 2.5.3), corrigido na Fase 1. Ao trocar a formatação
+> (D016) apareceu outro: o fator de Bayes entre 100 e 1000 saía como
+> "1,2e+2". Para os campos (C1), a correção adotada foi o rótulo fixo acima
+> do campo (`LabeledTextField`).
+
 ### Fase 0 — Guardas automáticas (1 PR, P)
 
 Transformar as medições desta revisão em testes antes de corrigir, para que
 nenhuma correção regrida.
 
-- [ ] D001 Adicionar `axe-core` como `devDependency` explícita em
+- [x] D001 Adicionar `axe-core` como `devDependency` explícita em
   `web/package.json`. Hoje ele só existe como dependência transitiva do
   `eslint-plugin-jsx-a11y`.
-- [ ] D002 Criar `web/e2e/a11y.spec.ts`:
+- [x] D002 Criar `web/e2e/a11y.spec.ts`:
   - **O quê**: o axe com as tags `wcag2a`, `wcag2aa`, `wcag21aa` e `wcag22aa`
     nas quatro páginas e nos estados desta revisão (lote gerado nas duas
     modalidades, fechamento, backtest rodado, Análise avançada com as seções
@@ -717,16 +725,16 @@ nenhuma correção regrida.
     (`heading-order`, `landmark-one-main`, `page-has-heading-one`, `region`,
     `landmark-unique` e `scrollable-region-focusable`). A Fase 1 esvazia a
     lista.
-- [ ] D003 No mesmo arquivo, testes com texto a 200% (`html { font-size: 200%
+- [x] D003 No mesmo arquivo, testes com texto a 200% (`html { font-size: 200%
   }`) e em 320 × 640. Falham se houver:
   - texto cortado (elemento com `overflow` oculto e `scrollWidth >
     clientWidth`);
   - rótulo de campo cruzando o valor (caixas que se sobrepõem);
   - rolagem horizontal da página;
   - borda de campo abaixo de 3:1 (cor calculada da borda do `fieldset`).
-- [ ] D004 [P] No mesmo arquivo: falha se algum texto visível tiver número
+- [x] D004 [P] No mesmo arquivo: falha se algum texto visível tiver número
   decimal com ponto (`/\d\.\d+\s?[%×]/`).
-- [ ] D005 Tornar o `a11y.spec.ts` bloqueante em `.github/workflows/web-ci.yml`.
+- [x] D005 Tornar o `a11y.spec.ts` bloqueante em `.github/workflows/web-ci.yml`.
   - Hoje o job de e2e roda com `continue-on-error: true` e depende do build.
   - O build do CI está falhando no upload de artefatos por cota esgotada (ver
     PR #16). Sem resolver isso, o e2e nem roda.
@@ -736,13 +744,13 @@ C1, C2, C3 e A10.
 
 ### Fase 1 — Acessibilidade crítica (1 PR, P–M) — C1, C2, C3, A10
 
-- [ ] D006 `web/src/theme.ts`:
+- [x] D006 `web/src/theme.ts`:
   - `MuiTypography.defaultProps.variantMapping` com `subtitle1` e `subtitle2`
     virando `'p'`.
   - Borda do `MuiOutlinedInput` em #7A807B (claro) e #8A918C (escuro).
   - `transform` do `MuiInputLabel` em rem, ou rótulo estático acima do campo.
     Validar pelo D003.
-- [ ] D007 Títulos:
+- [x] D007 Títulos:
   - Um H1 por página: em `app/sobre/page.tsx:16`, `component="h1"`.
   - Painéis com `component="h2"`: `EvidencePanel`, `PayoutSharePanel`,
     `NextDrawCard` e as seções de `analise-avancada`.
@@ -750,20 +758,20 @@ C1, C2, C3 e A10.
     (`PayoutSharePanel.tsx:52`).
   - `slotProps={{ heading: { component: 'div' } }}` no "Ver detalhes" do
     `EvidencePanel`.
-- [ ] D008 Marcos e navegação:
+- [x] D008 Marcos e navegação:
   - `app/sobre/page.tsx` com `Container component="main"`.
   - Em `components/BottomNav.tsx`, `Paper component="nav"
     aria-label="Seções do app"`.
   - Itens com `component={Link}` e `href`, com `aria-current="page"` no item
     atual.
-- [ ] D009 Texto a 200%:
+- [x] D009 Texto a 200%:
   - `components/NextDrawCard.tsx:83` com `useFlexGap` e `flexWrap: 'wrap'`.
   - `components/NumberBall.tsx` com tamanho em rem e fonte proporcional.
   - Campos de `app/analise-avancada/page.tsx` em coluna única abaixo de `sm`.
-- [ ] D010 Em `app/analise-avancada/page.tsx`, `TableContainer` com
+- [x] D010 Em `app/analise-avancada/page.tsx`, `TableContainer` com
   `tabIndex={0}`, `role="region"` e `aria-labelledby` apontando para o título
   da seção.
-- [ ] D011 Esvaziar a lista de exceções do `a11y.spec.ts`.
+- [x] D011 Esvaziar a lista de exceções do `a11y.spec.ts`.
 
 **Aceite**:
 
@@ -773,40 +781,40 @@ C1, C2, C3 e A10.
 
 ### Fase 2 — Verdade e estado (1 PR, M) — A1, A2, A3, A4, M1 e parte de M6
 
-- [ ] D012 Modalidade única:
+- [x] D012 Modalidade única:
   - `context/LotteryThemeContext.tsx` passa a guardar a modalidade
     selecionada, persistida em `localStorage` dentro de `try/catch`.
   - `app/page.tsx:67`, `app/backtesting/page.tsx:71` e
     `app/analise-avancada/page.tsx:57` leem dali.
   - Teste e2e: escolher +Milionária e percorrer as quatro abas; recarregar a
     página mantém a escolha.
-- [ ] D013 "Acumulou" verdadeiro:
+- [x] D013 "Acumulou" verdadeiro:
   - `services/caixaApi.ts` lê `acumulou` (API de terceiros) e o campo
     equivalente da oficial (conferir o nome).
   - `NextDrawInfo` ganha `accumulated?: boolean`.
   - `NextDrawCard` mostra "Acumulou", neutro, só quando o valor for `true`;
     sem o campo, não mostra nada.
   - Teste com fixture de concurso não acumulado (por exemplo, o 3.048).
-- [ ] D014 [P] Conteúdo do método:
+- [x] D014 [P] Conteúdo do método:
   - Reescrever `sobre.howBody` com a estratégia ativa.
   - Em Análise avançada, renomear `tier-weighted` para "Faixas de frequência
     (método anterior)".
   - Remover `backtesting.useForGeneration` e `handleUseForGeneration`
     (`app/backtesting/page.tsx`, linhas 138 a 147 e 278 a 280).
   - Teste: o texto de Sobre contém `UNPOPULAR_STRATEGY_LABEL`.
-- [ ] D015 [P] Um só fechamento:
+- [x] D015 [P] Um só fechamento:
   - Retirar a seção "Cobertura combinatória" de `app/analise-avancada/page.tsx`
     e pôr no lugar um link para Volante › Fechamento.
   - Remover `engine/wheelingSystems.ts` e o teste dele se ficarem sem uso
     (conferir com `grep`).
-- [ ] D016 [P] Formatação:
+- [x] D016 [P] Formatação:
   - Criar `web/src/lib/format.ts`, tudo com `Intl` em pt-BR: porcentagem,
     decimal, inteiro, moeda e potência de 10 com sobrescrito.
   - Usar em `engine/payoutShare.ts:227`, `components/PayoutSharePanel.tsx`,
     `components/EvidencePanel.tsx`, `app/backtesting/page.tsx` e
     `app/analise-avancada/page.tsx`.
   - Plural de "apostas premiadas" pelo i18n (`_one` e `_other`).
-- [ ] D017 [P] Preço único: o custo padrão em Análise avançada vem de
+- [x] D017 [P] Preço único: o custo padrão em Análise avançada vem de
   `SIMPLE_BET_PRICE_BRL`, até o `official-rules.json` (T009 da feature 002)
   assumir esse papel.
 
