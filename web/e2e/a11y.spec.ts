@@ -148,20 +148,11 @@ const STATES: Record<string, (page: Page) => Promise<void>> = {
 // ---------------------------------------------------------------- axe
 
 /**
- * Regras ainda violadas — achados C2 e C3 da revisão, mais o
- * `label-content-name-mismatch` das dezenas do fechamento, que estas guardas
- * acharam (o nome acessível não contém o texto visível, WCAG 2.5.3). A Fase 1
- * corrige e esvazia esta lista; nada novo entra nela.
+ * Regras do axe que ainda podem falhar. Vazia desde a Fase 1 da revisão de
+ * design (achados C2 e C3 corrigidos): nada entra aqui sem um achado
+ * registrado em `docs/revisao-de-design-2026-10.md` e uma tarefa para tirá-lo.
  */
-const KNOWN_VIOLATIONS = new Set([
-  'heading-order',
-  'landmark-one-main',
-  'page-has-heading-one',
-  'region',
-  'landmark-unique',
-  'scrollable-region-focusable',
-  'label-content-name-mismatch',
-]);
+const KNOWN_VIOLATIONS = new Set<string>();
 
 async function axeViolations(page: Page) {
   await page.addScriptTag({ content: axe.source });
@@ -244,26 +235,25 @@ function expectReadable(problems: LayoutProblems): void {
 }
 
 /**
- * Falhas conhecidas por estado, com o achado da revisão. Um estado que passa a
- * passar sem sair daqui faz o teste falhar ("Expected to fail, but passed"):
- * a lista só encolhe.
+ * Falhas conhecidas por estado, com o achado da revisão. Vazias desde a Fase 1
+ * (achado C1). Um estado listado aqui que passa a passar faz o teste falhar
+ * ("Expected to fail, but passed"): a lista só encolhe.
  */
-const KNOWN_200_PERCENT: Record<string, string> = {
-  'Volante com jogos gerados (Mega-Sena)': 'C1: cartão do concurso e rótulo do campo de apostas cortados',
-  'Volante com jogos gerados (+Milionária)': 'C1: cartão do concurso, rótulo do campo e chips dos trevos cortados',
-  'Volante › Fechamento gerado': 'C1: cartão do concurso e rótulo do campo de apostas cortados',
-  'Backtesting executado': 'C1: rótulo da data de corte por cima do valor',
-  'Análise avançada com as seções abertas': 'C1: rótulos dos campos cortados',
-};
+const KNOWN_200_PERCENT: Record<string, string> = {};
+const KNOWN_320_PX: Record<string, string> = {};
 
-const KNOWN_320_PX: Record<string, string> = {
-  'Análise avançada com as seções abertas': 'C1: rótulos dos campos em meia largura, cortados',
-};
+const READABILITY_STATES = [
+  'Volante com jogos gerados (Mega-Sena)',
+  'Volante com jogos gerados (+Milionária)',
+  'Volante › Fechamento gerado',
+  'Backtesting executado',
+  'Análise avançada com as seções abertas',
+  'Sobre',
+];
 
 test.describe('texto a 200%', () => {
   test.use({ viewport: { width: 390, height: 844 } });
-  const states = [...Object.keys(KNOWN_200_PERCENT), 'Sobre'];
-  for (const name of states) {
+  for (const name of READABILITY_STATES) {
     test(name, async ({ page }) => {
       test.setTimeout(240_000);
       test.fail(name in KNOWN_200_PERCENT, KNOWN_200_PERCENT[name]);
@@ -292,7 +282,6 @@ test.describe('tela de 320 px', () => {
 for (const scheme of ['light', 'dark'] as const) {
   test(`contorno dos campos com pelo menos 3:1 — ${scheme === 'light' ? 'claro' : 'escuro'}`, async ({ browser }) => {
     test.setTimeout(120_000);
-    test.fail(true, 'A10: contorno de 1,74:1 (claro) e 2,11:1 (escuro)');
     const context = await browser.newContext({ colorScheme: scheme, reducedMotion: 'reduce' });
     const page = await context.newPage();
     await openVolante(page);

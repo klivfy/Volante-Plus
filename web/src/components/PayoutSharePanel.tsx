@@ -43,13 +43,14 @@ export default function PayoutSharePanel({ assessment }: PayoutSharePanelProps) 
       <CardContent>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <GroupsIcon fontSize="small" color="primary" />
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+          <Typography variant="subtitle2" component="h2" sx={{ fontWeight: 700 }}>
             {t('payoutShare.title')}
           </Typography>
         </Stack>
 
         <Typography
           variant="h4"
+          component="p"
           sx={{ fontWeight: 700, mt: 1 }}
           color={positive ? 'primary.main' : 'error.main'}
         >

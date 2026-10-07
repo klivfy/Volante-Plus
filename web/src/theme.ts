@@ -85,7 +85,24 @@ const typographyOptions: ThemeOptions['typography'] = {
 /** Área de toque mínima recomendada: 44 × 44 pt. */
 const TOUCH_TARGET = 44;
 
+/**
+ * Contorno dos campos (WCAG 1.4.11: 3:1 contra o fundo). O padrão do MUI,
+ * `rgba(0,0,0,.23)`, dava 1,74:1 no claro e 2,11:1 no escuro — com o campo
+ * vazio, o contorno é o que mostra onde tocar.
+ */
+const FIELD_OUTLINE_LIGHT = '#7A807B'; // 3,94:1 sobre #FFFBFE
+const FIELD_OUTLINE_DARK = '#8A918C'; // 5,31:1 sobre #1C1B1F
+
 const componentOverrides: ThemeOptions['components'] = {
+  // Estilo não é estrutura: por padrão o MUI renderiza `subtitle1`/`subtitle2`
+  // como <h6>, o que enchia as telas de títulos falsos para o leitor de tela
+  // ("Quantos jogos", "Rateio do prêmio" como H6). Título de verdade declara
+  // `component="h1"`/`"h2"` onde é usado.
+  MuiTypography: {
+    defaultProps: {
+      variantMapping: { subtitle1: 'p', subtitle2: 'p' },
+    },
+  },
   // Indicador de foco do teclado: contorno de 2 px, visível em qualquer controle
   // (antes só o fundo mudava 8%, sem contorno).
   MuiButtonBase: {
@@ -141,14 +158,35 @@ const componentOverrides: ThemeOptions['components'] = {
     defaultProps: { variant: 'outlined' },
     styleOverrides: { root: { borderRadius: '12px' } },
   },
+  // Altura fixa (24/32 px) cortava o rótulo com o texto a 200%: o chip cresce
+  // com o texto e quebra linha em vez de cortar com reticências.
   MuiChip: {
-    styleOverrides: { root: { borderRadius: '8px', fontWeight: 500 } },
+    styleOverrides: {
+      root: { borderRadius: '8px', fontWeight: 500, height: 'auto', minHeight: '2rem' },
+      sizeSmall: { minHeight: '1.5rem' },
+      label: { whiteSpace: 'normal', paddingTop: '0.125rem', paddingBottom: '0.125rem' },
+    },
   },
   MuiOutlinedInput: {
     styleOverrides: {
-      root: { borderRadius: '4px', minHeight: TOUCH_TARGET },
+      root: ({ theme }) => ({
+        borderRadius: '4px',
+        minHeight: TOUCH_TARGET,
+        // Em telas de toque o MUI "desfaz" o hover voltando ao contorno
+        // padrão de baixo contraste; aqui ele volta ao contorno acessível.
+        '@media (hover: none)': {
+          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: FIELD_OUTLINE_LIGHT },
+          ...theme.applyStyles('dark', {
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: FIELD_OUTLINE_DARK },
+          }),
+        },
+      }),
       // O <input> em si também ocupa os 44 pt (antes só a caixa: o campo interno tinha 40).
       input: { boxSizing: 'border-box' as const, minHeight: TOUCH_TARGET },
+      notchedOutline: ({ theme }) => ({
+        borderColor: FIELD_OUTLINE_LIGHT,
+        ...theme.applyStyles('dark', { borderColor: FIELD_OUTLINE_DARK }),
+      }),
     },
   },
   // Rótulos da barra inferior com tamanho FIXO (px de propósito). Quem aumenta o

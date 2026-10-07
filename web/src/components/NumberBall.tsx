@@ -5,13 +5,21 @@ export interface NumberBallProps {
   size?: number;
 }
 
-/** Círculo com a dezena, no estilo das bolinhas de sorteio de loteria. */
+/**
+ * Círculo com a dezena, no estilo das bolinhas de sorteio de loteria.
+ *
+ * `size` é dado em px de referência (16 px = 1rem) e vira rem: a bola cresce
+ * junto com a preferência de tamanho de texto. Em px fixos, com o texto a 200%
+ * os dígitos enchiam a bola de borda a borda.
+ */
 export default function NumberBall({ number, size = 36 }: NumberBallProps) {
+  const diameter = `${size / 16}rem`;
   return (
     <Box
       sx={{
-        width: size,
-        height: size,
+        width: diameter,
+        height: diameter,
+        flexShrink: 0,
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',

@@ -10,10 +10,10 @@ export default function SobrePage() {
   const { t } = useTranslation();
 
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
+    <Container component="main" maxWidth="md" sx={{ py: 3 }}>
       <Stack spacing={3}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
             {t('sobre.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -22,7 +22,7 @@ export default function SobrePage() {
         </Box>
 
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }} gutterBottom>
             {t('sobre.missionTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -31,7 +31,7 @@ export default function SobrePage() {
         </Box>
 
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }} gutterBottom>
             {t('sobre.howTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -40,7 +40,7 @@ export default function SobrePage() {
         </Box>
 
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }} gutterBottom>
             {t('sobre.backtestTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary">

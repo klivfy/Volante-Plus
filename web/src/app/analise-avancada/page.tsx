@@ -17,10 +17,10 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import LabeledTextField from '@/components/LabeledTextField';
 import LotterySelector from '@/components/LotterySelector';
 import { getDraws } from '@/services/db';
 import { Draw, Lottery } from '@/types/domain';
@@ -89,9 +89,13 @@ function SectionAccordion({
   subtitle: string;
   children: React.ReactNode;
 }) {
+  // Sem `id`/`aria-controls` no resumo, o MUI cria regiões (`role="region"`)
+  // sem nome — e várias regiões sem nome são indistinguíveis para o leitor de
+  // tela (axe `landmark-unique`). As seções são o nível logo abaixo do H1.
+  const id = useId();
   return (
-    <Accordion variant="outlined" disableGutters>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+    <Accordion variant="outlined" disableGutters slotProps={{ heading: { component: 'h2' } }}>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />} id={`${id}-header`} aria-controls={`${id}-content`}>
         <Box>
           <Typography sx={{ fontWeight: 600 }}>{title}</Typography>
           <Typography variant="caption" color="text.secondary">
@@ -101,6 +105,19 @@ function SectionAccordion({
       </AccordionSummary>
       <AccordionDetails>{children}</AccordionDetails>
     </Accordion>
+  );
+}
+
+/**
+ * Tabela que pode ser mais larga que a tela: a região rolável recebe foco
+ * (`tabIndex`) e nome, senão quem usa só o teclado não alcança as colunas
+ * escondidas (WCAG 2.1.1; axe `scrollable-region-focusable`).
+ */
+function ScrollRegion({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <TableContainer tabIndex={0} role="region" aria-label={label}>
+      {children}
+    </TableContainer>
   );
 }
 
@@ -118,7 +135,7 @@ function PowerAnalysisSection({ lottery }: { lottery: Lottery }) {
             expected: decimal.format(expectedHitsFor(lottery)),
           })}
         </Typography>
-        <TableContainer>
+        <ScrollRegion label={t('advanced.power.title')}>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -143,7 +160,7 @@ function PowerAnalysisSection({ lottery }: { lottery: Lottery }) {
               ))}
             </TableBody>
           </Table>
-        </TableContainer>
+        </ScrollRegion>
       </Stack>
     </SectionAccordion>
   );
@@ -209,8 +226,8 @@ function FairnessSection({ lottery }: { lottery: Lottery }) {
               })}
             </Alert>
 
-            <Typography variant="subtitle2">{t('advanced.fairness.gapTitle')}</Typography>
-            <TableContainer>
+            <Typography variant="subtitle2" component="h3">{t('advanced.fairness.gapTitle')}</Typography>
+            <ScrollRegion label={t('advanced.fairness.gapTitle')}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -231,13 +248,13 @@ function FairnessSection({ lottery }: { lottery: Lottery }) {
                   ))}
                 </TableBody>
               </Table>
-            </TableContainer>
+            </ScrollRegion>
           </>
         )}
 
         {stability && (
           <>
-            <Typography variant="subtitle2">{t('advanced.fairness.walkForwardTitle')}</Typography>
+            <Typography variant="subtitle2" component="h3">{t('advanced.fairness.walkForwardTitle')}</Typography>
             <Typography variant="body2" color="text.secondary">
               {t('advanced.fairness.walkForwardSummary', {
                 cuts: stability.totalCuts,
@@ -299,7 +316,7 @@ function BenchmarkSection({ lottery }: { lottery: Lottery }) {
         {error && <Alert severity="error">{error}</Alert>}
 
         {result && (
-          <TableContainer>
+          <ScrollRegion label={t('advanced.benchmark.title')}>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -338,7 +355,7 @@ function BenchmarkSection({ lottery }: { lottery: Lottery }) {
                 ))}
               </TableBody>
             </Table>
-          </TableContainer>
+          </ScrollRegion>
         )}
 
         <Typography variant="caption" color="text.secondary">
@@ -381,12 +398,11 @@ function WheelingSection() {
         <Typography variant="body2" color="text.secondary">
           {t('advanced.wheeling.explanation')}
         </Typography>
-        <TextField
+        <LabeledTextField
           label={t('advanced.wheeling.inputLabel')}
           placeholder="1, 5, 9, 12, 18, 22, 30, 41, 47, 55"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          fullWidth
         />
         <Button variant="outlined" onClick={handleApply}>
           {t('advanced.wheeling.apply')}
@@ -445,37 +461,38 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
   return (
     <SectionAccordion title={t('advanced.ev.title')} subtitle={t('advanced.ev.subtitle')}>
       <Stack spacing={2}>
-        <Stack direction="row" spacing={2}>
-          <TextField
+        {/* Uma coluna no celular: em meia largura os rótulos não cabiam. */}
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <LabeledTextField
             label={t('advanced.ev.ticketCost')}
             type="number"
             value={ticketCost}
             onChange={(event) => setTicketCost(event.target.value)}
-            fullWidth
+            sx={{ flex: 1 }}
           />
-          <TextField
+          <LabeledTextField
             label={t('advanced.ev.accumulated')}
             type="number"
             value={accumulated}
             onChange={(event) => setAccumulated(event.target.value)}
-            fullWidth
+            sx={{ flex: 1 }}
           />
         </Stack>
-        <Stack direction="row" spacing={2}>
-          <TextField
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <LabeledTextField
             label={t('advanced.ev.bankroll')}
             type="number"
             value={bankroll}
             onChange={(event) => setBankroll(event.target.value)}
-            fullWidth
+            sx={{ flex: 1 }}
           />
-          <TextField
+          <LabeledTextField
             label={t('advanced.ev.tickets')}
             type="number"
             value={tickets}
             onChange={(event) => setTickets(event.target.value)}
             helperText={t('advanced.ev.ticketsHelp')}
-            fullWidth
+            sx={{ flex: 1 }}
           />
         </Stack>
 

@@ -16,11 +16,11 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import LabeledTextField from '@/components/LabeledTextField';
 import LotterySelector from '@/components/LotterySelector';
 import { useBacktestWorker } from '@/hooks/useBacktestWorker';
 import { useLotteryTheme } from '@/context/LotteryThemeContext';
@@ -164,15 +164,13 @@ export default function BacktestingPage() {
         <Card variant="outlined">
           <CardContent>
             <Stack spacing={2}>
-              <TextField
+              <LabeledTextField
                 label={t('backtesting.cutoffDate')}
                 type="date"
                 value={cutoffDate}
                 onChange={(event) => setCutoffDate(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
                 helperText={t('backtesting.cutoffHelper')}
                 disabled={running}
-                fullWidth
               />
 
               <Box>

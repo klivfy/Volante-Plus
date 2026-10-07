@@ -82,9 +82,11 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
       <CardContent>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
           <CalendarMonthIcon color="primary" sx={{ mt: 0.5 }} />
-          <Stack spacing={0.25} sx={{ flex: 1 }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+          {/* `minWidth: 0` e a quebra de linha: com o texto a 200% a linha
+              "Concurso N + selo" passava da borda do cartão e era cortada. */}
+          <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+              <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
                 {t('nextDraw.contest', { number: nextDraw.contestNumber })}
               </Typography>
               {isAccumulated && (
@@ -100,7 +102,7 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
             <Typography variant="body2" color="text.secondary">
               {time ? t('nextDraw.at', { date, time }) : date}
             </Typography>
-            <Typography variant="h6" color="primary" sx={{ mt: 0.5 }}>
+            <Typography variant="h6" component="p" color="primary" sx={{ mt: 0.5 }}>
               {currencyFormatter.format(nextDraw.estimatedPrize)}
             </Typography>
             <Typography variant="caption" color="text.secondary">

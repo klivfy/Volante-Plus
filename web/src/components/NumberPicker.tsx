@@ -62,7 +62,6 @@ export default function NumberPicker({
               selected={isOn}
               disabled={disabled || (!isOn && selected.length >= max)}
               onChange={() => toggle(n)}
-              aria-label={String(n)}
               sx={{ px: 0, minWidth: 0, fontVariantNumeric: 'tabular-nums' }}
             >
               {String(n).padStart(2, '0')}

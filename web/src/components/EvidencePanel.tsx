@@ -70,7 +70,7 @@ export default function EvidencePanel({
   return (
     <Card>
       <CardContent>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }} gutterBottom>
           {t(k('evidence.title'))}
         </Typography>
         <Alert severity={weak ? 'info' : SEVERITY[summary.verdict]} sx={{ mb: 1 }}>
@@ -99,6 +99,9 @@ export default function EvidencePanel({
             disableGutters
             elevation={0}
             square
+            // "Ver detalhes" é um controle, não um título: sem isto o MUI o
+            // envolve num <h3> e ele aparece no esboço de títulos da tela.
+            slotProps={{ heading: { component: 'div' } }}
             sx={{ mt: 1, bgcolor: 'transparent', '&::before': { display: 'none' } }}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0 }}>

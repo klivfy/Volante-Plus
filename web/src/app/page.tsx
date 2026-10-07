@@ -7,7 +7,6 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
-import TextField from '@mui/material/TextField';
 import Grid from '@mui/material/Grid';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
@@ -18,6 +17,7 @@ import EvidencePanel from '@/components/EvidencePanel';
 import GameCard from '@/components/GameCard';
 import GameCountControl from '@/components/GameCountControl';
 import HistoryStatus from '@/components/HistoryStatus';
+import LabeledTextField from '@/components/LabeledTextField';
 import LotterySelector from '@/components/LotterySelector';
 import NextDrawCard from '@/components/NextDrawCard';
 import NumberPicker from '@/components/NumberPicker';
@@ -293,12 +293,11 @@ export default function VolantePage() {
                 })}
               </Alert>
             )}
-            <TextField
+            <LabeledTextField
               label={t('payoutShare.ticketsInput')}
               helperText={t('payoutShare.ticketsInputHelp')}
               type="number"
               size="small"
-              fullWidth
               value={ticketsInput}
               onChange={(event) => setTicketsInput(event.target.value)}
               disabled={isBusy}
