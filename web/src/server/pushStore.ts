@@ -1,4 +1,5 @@
 import webpush, { PushSubscription, WebPushError } from 'web-push';
+import { mapLimited } from '../services/mapLimited';
 
 /**
  * Backend de push minimalista para rodar como função serverless (Vercel).
@@ -79,9 +80,32 @@ export interface PushMessage {
 }
 
 /**
- * Envia `message` para todas as inscrições. Inscrições rejeitadas com 404/410
- * (o navegador cancelou/expirou) são removidas do store. Retorna quantas foram
- * entregues com sucesso.
+ * Envios simultâneos em `sendToAll`.
+ *
+ * WHY: com até `MAX_SUBSCRIPTIONS` inscrições, disparar todas de uma vez
+ * esgota sockets e memória da função serverless. Um teto fixo mantém o uso de
+ * recursos constante, e o tempo total cresce só linearmente.
+ */
+export const PUSH_SEND_CONCURRENCY = 32;
+
+/** Tempo máximo de cada envio; um serviço de push pendurado não prende a vaga. */
+export const PUSH_SEND_TIMEOUT_MS = 10_000;
+
+/** Rejeita se `promise` não resolver em `ms`. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Envio de push excedeu ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Envia `message` para todas as inscrições, com no máximo
+ * `PUSH_SEND_CONCURRENCY` envios em voo e `PUSH_SEND_TIMEOUT_MS` por envio.
+ * Inscrições rejeitadas com 404/410 (o navegador cancelou/expirou) são
+ * removidas do store; as demais falhas são contadas por código no log.
+ * Retorna quantas foram entregues com sucesso.
  */
 export async function sendToAll(message: PushMessage): Promise<number> {
   if (!configureWebPush()) {
@@ -89,21 +113,29 @@ export async function sendToAll(message: PushMessage): Promise<number> {
   }
 
   const payload = JSON.stringify(message);
-  let delivered = 0;
+  const failures = new Map<string, number>();
 
-  await Promise.all(
-    [...store.values()].map(async (subscription) => {
-      try {
-        await webpush.sendNotification(subscription, payload);
-        delivered++;
-      } catch (error) {
-        const statusCode = error instanceof WebPushError ? error.statusCode : undefined;
-        if (statusCode === 404 || statusCode === 410) {
-          store.delete(subscription.endpoint);
-        }
+  const results = await mapLimited([...store.values()], PUSH_SEND_CONCURRENCY, async (subscription) => {
+    try {
+      await withTimeout(
+        webpush.sendNotification(subscription, payload, { timeout: PUSH_SEND_TIMEOUT_MS }),
+        PUSH_SEND_TIMEOUT_MS,
+      );
+      return true;
+    } catch (error) {
+      const statusCode = error instanceof WebPushError ? error.statusCode : undefined;
+      if (statusCode === 404 || statusCode === 410) {
+        store.delete(subscription.endpoint);
+      } else {
+        const key = statusCode === undefined ? 'rede/timeout' : String(statusCode);
+        failures.set(key, (failures.get(key) ?? 0) + 1);
       }
-    }),
-  );
+      return false;
+    }
+  });
 
-  return delivered;
+  if (failures.size > 0) {
+    console.warn('Falhas no envio de push por código:', Object.fromEntries(failures));
+  }
+  return results.filter(Boolean).length;
 }
