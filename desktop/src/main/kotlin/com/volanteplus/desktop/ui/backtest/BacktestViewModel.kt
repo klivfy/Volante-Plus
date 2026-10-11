@@ -10,6 +10,7 @@ import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
+import java.util.logging.Level
+import java.util.logging.Logger
 
 data class BacktestUiState(
     val lottery: Lottery = Lottery.MEGA_SENA,
@@ -99,8 +102,10 @@ class BacktestViewModel(
             return
         }
         backtestJob?.cancel()
+        // Antes do launch: o corpo roda em outra thread, e dois cliques rápidos
+        // passariam pelo canRun antes de o primeiro marcar running.
+        _uiState.update { it.copy(running = true, report = null, message = null) }
         backtestJob = scope.launch {
-            _uiState.update { it.copy(running = true, report = null, message = null) }
             try {
                 val report = engine.run(
                     BacktestConfig(
@@ -113,10 +118,24 @@ class BacktestViewModel(
                 // Publica só na loteria que pediu o relatório: se a aba mudou no
                 // meio, o resultado é de outra loteria e não pode aparecer aqui.
                 _uiState.update {
-                    if (it.lottery == report.config.lottery) it.copy(running = false, report = report) else it
+                    if (it.lottery == report.config.lottery) it.copy(report = report) else it
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: IllegalArgumentException) {
-                _uiState.update { it.copy(running = false, message = e.message) }
+                _uiState.update { it.copy(message = e.message) }
+            } catch (e: Exception) {
+                // Erro inesperado (banco, memória do cálculo): vira mensagem em
+                // vez de derrubar o app ou deixar o botão travado.
+                logger.log(Level.WARNING, "Falha no backtest", e)
+                _uiState.update {
+                    it.copy(message = "Falha no backtest: ${e.message ?: e::class.simpleName}")
+                }
+            } finally {
+                // Um backtest cancelado por outro mais novo não mexe no estado dele.
+                if (backtestJob === coroutineContext[Job]) {
+                    _uiState.update { it.copy(running = false) }
+                }
             }
         }
     }
@@ -187,3 +206,5 @@ class BacktestViewModel(
         scope.cancel()
     }
 }
+
+private val logger: Logger = Logger.getLogger(BacktestViewModel::class.java.name)

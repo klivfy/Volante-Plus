@@ -1,5 +1,6 @@
 package com.volanteplus.desktop.ui.backtest
 
+import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
 import com.volanteplus.loterias.domain.backtest.BacktestEngine
 import com.volanteplus.loterias.domain.model.Draw
@@ -14,6 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class BacktestViewModelTest {
 
@@ -69,6 +71,33 @@ class BacktestViewModelTest {
 
         assertNull(vm.uiState.value.report)
         assertFalse(vm.uiState.value.running)
+        vm.dispose()
+    }
+
+    /** Repositório cujo histórico falha na leitura. */
+    private class BrokenRepository(
+        private val delegate: InMemoryDrawRepository,
+    ) : DrawRepository by delegate {
+        override suspend fun getDrawsUpTo(lottery: Lottery, cutoff: LocalDate): List<Draw> =
+            throw IllegalStateException("leitura falhou")
+    }
+
+    @Test
+    fun erroInesperadoViraMensagemELiberaOBotao() = runTest {
+        val repo = BrokenRepository(repository())
+        val vm = BacktestViewModel(
+            engine = BacktestEngine(repo),
+            repository = repo,
+            dispatcher = StandardTestDispatcher(testScheduler),
+        )
+        advanceUntilIdle()
+        vm.setCutoffInput("2024-06-05")
+        vm.runBacktest()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.running)
+        assertNull(vm.uiState.value.report)
+        assertTrue(vm.uiState.value.message!!.contains("leitura falhou"))
         vm.dispose()
     }
 }
