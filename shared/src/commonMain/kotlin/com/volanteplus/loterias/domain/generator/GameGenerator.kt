@@ -215,6 +215,12 @@ class GameGenerator(private val random: Random = SecureRandom()) {
      * Sorteia o tier pela proporção-alvo e depois a dezena, ponderada pelo
      * peso. Se o tier sorteado já se esgotou, percorre os demais em ordem
      * circular — nunca devolve um jogo incompleto enquanto houver dezena.
+     *
+     * WHY (sem `filter`): é o laço mais quente do backtest (réplicas ×
+     * concursos × jogos × candidatos × dezenas). As dezenas já escolhidas são
+     * puladas na própria varredura do tier, sem alocar uma lista por dezena;
+     * a ordem de soma e os sorteios do [random] são os mesmos de antes, então
+     * a mesma semente produz exatamente o mesmo jogo.
      */
     private fun pickFromTiers(tiers: List<List<NumberPerformance>>, taken: Set<Int>): Int? {
         val roll = random.nextDouble()
@@ -224,22 +230,45 @@ class GameGenerator(private val random: Random = SecureRandom()) {
             else -> LOW_TIER_INDEX
         }
         for (offset in tiers.indices) {
-            val candidates = tiers[(start + offset) % tiers.size].filter { it.number !in taken }
-            if (candidates.isNotEmpty()) return weightedPick(candidates)
+            val tier = tiers[(start + offset) % tiers.size]
+            var available = 0
+            var total = 0.0
+            for (candidate in tier) {
+                if (candidate.number in taken) continue
+                available++
+                total += candidate.weight
+            }
+            if (available > 0) return weightedPick(tier, taken, available, total)
         }
         return null
     }
 
-    /** Roleta proporcional ao peso; pesos todos nulos degeneram em uniforme. */
-    private fun weightedPick(candidates: List<NumberPerformance>): Int {
-        val total = candidates.sumOf { it.weight }
-        if (total <= 0.0) return candidates[random.nextInt(candidates.size)].number
+    /**
+     * Roleta proporcional ao peso sobre as dezenas de [tier] fora de [taken];
+     * pesos todos nulos degeneram em uniforme.
+     */
+    private fun weightedPick(
+        tier: List<NumberPerformance>,
+        taken: Set<Int>,
+        available: Int,
+        total: Double,
+    ): Int {
+        if (total <= 0.0) {
+            var index = random.nextInt(available)
+            for (candidate in tier) {
+                if (candidate.number in taken) continue
+                if (index-- == 0) return candidate.number
+            }
+        }
         var threshold = random.nextDouble() * total
-        for (candidate in candidates) {
+        var last = -1
+        for (candidate in tier) {
+            if (candidate.number in taken) continue
             threshold -= candidate.weight
             if (threshold <= 0.0) return candidate.number
+            last = candidate.number
         }
-        return candidates.last().number
+        return last
     }
 
     /**

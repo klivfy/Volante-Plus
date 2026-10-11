@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -108,6 +109,39 @@ class BacktestViewModelTest {
         assertNotNull(report)
         assertEquals(5, report!!.trainingDraws)
         assertEquals(5, report.validationDraws)
+    }
+
+    @Test
+    fun `trocar de loteria cancela o backtest em andamento`() = runTest {
+        val repo = InMemoryDrawRepository()
+        repo.upsertAll((1..10).map { megaDraw(it, LocalDate.of(2024, 6, it)) })
+
+        val vm = viewModel(repo)
+        advanceUntilIdle()
+        vm.setCutoffInput("2024-06-05")
+        vm.runBacktest()
+        vm.selectLottery(Lottery.MAIS_MILIONARIA)
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.report)
+        assertFalse(vm.uiState.value.running)
+        assertEquals(Lottery.MAIS_MILIONARIA, vm.uiState.value.lottery)
+    }
+
+    @Test
+    fun `cancelar o backtest libera o botao sem publicar relatorio`() = runTest {
+        val repo = InMemoryDrawRepository()
+        repo.upsertAll((1..10).map { megaDraw(it, LocalDate.of(2024, 6, it)) })
+
+        val vm = viewModel(repo)
+        advanceUntilIdle()
+        vm.setCutoffInput("2024-06-05")
+        vm.runBacktest()
+        vm.cancelBacktest()
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.report)
+        assertFalse(vm.uiState.value.running)
     }
 
     @Test

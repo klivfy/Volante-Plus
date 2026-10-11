@@ -35,6 +35,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +68,11 @@ fun BacktestScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Sair da aba de Backtesting interrompe o cálculo em andamento.
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.cancelBacktest() }
+    }
 
     LaunchedEffect(state.message) {
         state.message?.let {

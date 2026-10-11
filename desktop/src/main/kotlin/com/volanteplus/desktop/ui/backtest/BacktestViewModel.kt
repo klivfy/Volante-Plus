@@ -10,8 +10,10 @@ import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,8 +56,13 @@ class BacktestViewModel(
     private val engine: BacktestEngine,
     private val repository: DrawRepository,
     private val parser: CsvDrawParser = CsvDrawParser(),
+    /** Injetável para os testes passarem o dispatcher do `runTest`. */
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    /** Backtest em andamento; no máximo um por vez. */
+    private var backtestJob: Job? = null
 
     private val _uiState = MutableStateFlow(BacktestUiState())
     val uiState: StateFlow<BacktestUiState> = _uiState.asStateFlow()
@@ -65,6 +72,8 @@ class BacktestViewModel(
     }
 
     fun selectLottery(lottery: Lottery) {
+        // O backtest em andamento é da loteria anterior: continuar só gastaria CPU.
+        cancelBacktest()
         _uiState.update { it.copy(lottery = lottery, report = null, message = null) }
         refreshHistory()
     }
@@ -89,7 +98,8 @@ class BacktestViewModel(
             _uiState.update { it.copy(cutoffError = true) }
             return
         }
-        scope.launch {
+        backtestJob?.cancel()
+        backtestJob = scope.launch {
             _uiState.update { it.copy(running = true, report = null, message = null) }
             try {
                 val report = engine.run(
@@ -105,6 +115,17 @@ class BacktestViewModel(
                 _uiState.update { it.copy(running = false, message = e.message) }
             }
         }
+    }
+
+    /**
+     * Interrompe o backtest em andamento. Chamado ao trocar de loteria e quando
+     * a tela sai de composição: o motor verifica cancelamento a cada réplica,
+     * então a CPU é liberada em seguida em vez de minutos depois.
+     */
+    fun cancelBacktest() {
+        backtestJob?.cancel()
+        backtestJob = null
+        _uiState.update { it.copy(running = false) }
     }
 
     /**

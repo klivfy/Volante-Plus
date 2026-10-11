@@ -20,6 +20,7 @@ import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
 import com.volanteplus.loterias.ui.navigation.PerformanceCache
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,11 +66,16 @@ class BacktestViewModel(
     private val _uiState = MutableStateFlow(BacktestUiState())
     val uiState: StateFlow<BacktestUiState> = _uiState.asStateFlow()
 
+    /** Backtest em andamento; no máximo um por vez. */
+    private var backtestJob: Job? = null
+
     init {
         refreshHistory()
     }
 
     fun selectLottery(lottery: Lottery) {
+        // O backtest em andamento é da loteria anterior: continuar só gastaria CPU.
+        cancelBacktest()
         _uiState.update { it.copy(lottery = lottery, report = null, message = null) }
         refreshHistory()
     }
@@ -94,7 +100,8 @@ class BacktestViewModel(
             _uiState.update { it.copy(cutoffError = true) }
             return
         }
-        viewModelScope.launch {
+        backtestJob?.cancel()
+        backtestJob = viewModelScope.launch {
             _uiState.update { it.copy(running = true, report = null, message = null) }
             try {
                 // O motor faz Monte Carlo pesado (réplicas × concursos). Rodar
@@ -114,6 +121,17 @@ class BacktestViewModel(
                 _uiState.update { it.copy(running = false, message = e.message) }
             }
         }
+    }
+
+    /**
+     * Interrompe o backtest em andamento. Chamado ao trocar de loteria e quando
+     * a tela sai de composição: o motor verifica cancelamento a cada réplica,
+     * então a CPU é liberada em seguida em vez de minutos depois.
+     */
+    fun cancelBacktest() {
+        backtestJob?.cancel()
+        backtestJob = null
+        _uiState.update { it.copy(running = false) }
     }
 
     /**

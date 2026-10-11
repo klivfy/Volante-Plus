@@ -4,6 +4,8 @@ import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.security.SecureRandom
 import java.util.Random
 import kotlin.math.sqrt
@@ -27,6 +29,14 @@ import kotlin.math.sqrt
  *
  * **Baseline.** A média e a distribuição teóricas vêm de [Hypergeometric] em
  * forma fechada (erro zero), não de simulação.
+ *
+ * **Custo e cancelamento.** O laço de réplicas é o caminho mais quente do
+ * app. Sem semente, o [SecureRandom] é usado **uma única vez**, para sortear a
+ * semente-base da execução; as réplicas usam [Random] comum derivado dela por
+ * [replicationSeed] — o mesmo caminho do modo com semente, então os dois modos
+ * são estatisticamente equivalentes. O motor verifica cancelamento a cada
+ * réplica e a cada concurso: cancelar o `Job` de quem chamou (sair da tela,
+ * trocar de loteria) interrompe o cálculo em vez de deixá-lo terminar.
  */
 class BacktestEngine(private val repository: DrawRepository) {
 
@@ -41,20 +51,24 @@ class BacktestEngine(private val repository: DrawRepository) {
         // treino — reprodutível quando config.seed está definida. A análise
         // roda uma única vez: o histórico de treino é fixo, não depende de
         // réplica.
-        val analysisRandom: Random = config.seed?.let { Random(it) } ?: SecureRandom()
+        // Sem semente, a entropia do sistema entra só aqui (ver KDoc da classe).
+        val baseSeed = config.seed ?: SecureRandom().nextLong()
+        val analysisRandom = Random(baseSeed)
         val analyzer = BacktestAnalyzer(analysisRandom)
         val performances = analyzer.analyze(training, config)
         val trevoPerformances = analyzer.analyzeTrevos(training, config)
 
         // Réplica 1 vira o relatório detalhado; as demais alimentam a
-        // decomposição de variância. Com `seed` definida todas as réplicas são
-        // determinísticas, cada uma derivando sua própria semente.
+        // decomposição de variância. Cada réplica deriva sua própria semente
+        // da semente-base: determinísticas quando `seed` está definida.
+        // Séries guardadas em DoubleArray (sem boxing de réplicas × concursos).
         val replicationSeries = ArrayList<List<Double>>(config.replications)
         var outcomes: List<ContestOutcome> = emptyList()
         for (replication in 0 until config.replications) {
-            val current = simulate(config, performances, trevoPerformances, validation, replication)
+            currentCoroutineContext().ensureActive()
+            val current = simulate(config, performances, trevoPerformances, validation, baseSeed, replication)
             if (replication == 0) outcomes = current
-            replicationSeries += current.map { it.meanHits }
+            replicationSeries += DoubleArray(current.size) { current[it].meanHits }.asList()
         }
 
         val totalGames = outcomes.sumOf { it.hitsPerGame.size }
@@ -107,12 +121,13 @@ class BacktestEngine(private val repository: DrawRepository) {
         performances: List<NumberPerformance>,
         trevoPerformances: List<NumberPerformance>,
         validation: List<Draw>,
+        baseSeed: Long,
         replication: Int,
     ): List<ContestOutcome> {
-        val generator = GameGenerator(
-            config.seed?.let { Random(replicationSeed(it, replication)) } ?: SecureRandom(),
-        )
+        val generator = GameGenerator(Random(replicationSeed(baseSeed, replication)))
+        val context = currentCoroutineContext()
         return validation.map { draw ->
+            context.ensureActive()
             val batch = generator.generate(
                 lottery = config.lottery,
                 count = config.gamesPerContest,
