@@ -43,9 +43,10 @@ class VolanteViewModelTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
         // PerformanceCache é um singleton compartilhado pela JVM de testes.
+        // Limpa antes de soltar o Main: ViewModels observam o cache.
         PerformanceCache.clear()
+        Dispatchers.resetMain()
     }
 
     private fun viewModel(
@@ -306,6 +307,32 @@ class VolanteViewModelTest {
 
         assertEquals(cached, vm.performances.value)
         assertFalse(vm.isAnalyzing.value)
+    }
+
+    @Test
+    fun `backtest exportado com o volante aberto e aplicado sem trocar de loteria`() = runTest {
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        val cached = performances(Lottery.MEGA_SENA) { if (it <= 6) 1.0 else 0.0 }
+        PerformanceCache.store(Lottery.MEGA_SENA, PerformanceCache.Snapshot(numbers = cached))
+        advanceUntilIdle()
+
+        assertEquals(cached, vm.performances.value)
+    }
+
+    @Test
+    fun `backtest de outra loteria nao altera o desempenho da ativa`() = runTest {
+        val vm = viewModel()
+        advanceUntilIdle()
+        val before = vm.performances.value
+
+        val other = performances(Lottery.MAIS_MILIONARIA) { 1.0 }
+        PerformanceCache.store(Lottery.MAIS_MILIONARIA, PerformanceCache.Snapshot(numbers = other))
+        advanceUntilIdle()
+
+        assertEquals(before, vm.performances.value)
+        assertTrue(vm.performances.value.all { it.lottery == Lottery.MEGA_SENA })
     }
 
     @Test

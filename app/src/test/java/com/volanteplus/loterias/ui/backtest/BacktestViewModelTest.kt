@@ -7,6 +7,7 @@ import com.volanteplus.loterias.domain.backtest.BacktestEngine
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
+import com.volanteplus.loterias.ui.navigation.PerformanceCache
 import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,6 +39,7 @@ class BacktestViewModelTest {
 
     @After
     fun tearDown() {
+        PerformanceCache.clear()
         Dispatchers.resetMain()
     }
 
@@ -142,6 +144,24 @@ class BacktestViewModelTest {
 
         assertNull(vm.uiState.value.report)
         assertFalse(vm.uiState.value.running)
+    }
+
+    @Test
+    fun `usar no gerador grava o desempenho sob a loteria do relatorio`() = runTest {
+        val repo = InMemoryDrawRepository()
+        repo.upsertAll((1..10).map { megaDraw(it, LocalDate.of(2024, 6, it)) })
+
+        val vm = viewModel(repo)
+        advanceUntilIdle()
+        vm.setCutoffInput("2024-06-05")
+        vm.runBacktest()
+        advanceUntilIdle()
+
+        assertTrue(vm.useReportForGeneration())
+        val stored = PerformanceCache.get(Lottery.MEGA_SENA)
+        assertNotNull(stored)
+        assertEquals(vm.uiState.value.report!!.performances, stored!!.numbers)
+        assertNull(PerformanceCache.get(Lottery.MAIS_MILIONARIA))
     }
 
     @Test

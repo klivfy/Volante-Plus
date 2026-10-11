@@ -116,7 +116,11 @@ class BacktestViewModel(
                         )
                     )
                 }
-                _uiState.update { it.copy(running = false, report = report) }
+                // Publica só na loteria que pediu o relatório: se a aba mudou no
+                // meio, o resultado é de outra loteria e não pode aparecer aqui.
+                _uiState.update {
+                    if (it.lottery == report.config.lottery) it.copy(running = false, report = report) else it
+                }
             } catch (e: IllegalArgumentException) {
                 _uiState.update { it.copy(running = false, message = e.message) }
             }
@@ -139,10 +143,10 @@ class BacktestViewModel(
      * onde o Volante o lê com prioridade sobre a análise local.
      */
     fun useReportForGeneration(): Boolean {
-        val state = _uiState.value
-        val report = state.report ?: return false
+        val report = _uiState.value.report ?: return false
+        // A chave vem do próprio relatório, nunca da aba ativa.
         PerformanceCache.store(
-            lottery = state.lottery,
+            lottery = report.config.lottery,
             snapshot = PerformanceCache.Snapshot(
                 numbers = report.performances,
                 trevos = report.trevoPerformances,

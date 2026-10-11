@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BacktestReport, NumberPerformance } from '../types/domain';
+import { BacktestReport, Lottery, NumberPerformance } from '../types/domain';
 import type { BacktestWorkerRequest, BacktestWorkerResponse } from '../workers/backtest.worker';
 
 export interface UseBacktestWorkerResult {
   result: NumberPerformance[] | null;
   trevoPerformances: NumberPerformance[] | null;
+  /** Loteria a que `result`/`trevoPerformances` pertencem. */
+  resultLottery: Lottery | null;
   /** Relatório completo, preenchido quando `run` recebe uma requisição `kind: 'backtest'`. */
   report: BacktestReport | null;
   loading: boolean;
@@ -16,14 +18,25 @@ export interface UseBacktestWorkerResult {
 }
 
 /**
+ * True só para a resposta da requisição mais recente: uma resposta de
+ * requisição já substituída por outra `run()` pertence a um pedido antigo
+ * (talvez de outra loteria) e é descartada.
+ */
+export function isCurrentResponse(response: { requestId?: number }, latestRequestId: number): boolean {
+  return response.requestId === latestRequestId;
+}
+
+/**
  * Instancia (uma vez, por montagem) o Web Worker de `analyzeBacktest` e expõe
  * seu ciclo de vida como estado React — a tela chama `run()` e observa
  * `loading`/`result`/`error`, sem lidar com `postMessage` diretamente.
  */
 export function useBacktestWorker(): UseBacktestWorkerResult {
   const workerRef = useRef<Worker | null>(null);
+  const latestRequestIdRef = useRef(0);
   const [result, setResult] = useState<NumberPerformance[] | null>(null);
   const [trevoPerformances, setTrevoPerformances] = useState<NumberPerformance[] | null>(null);
+  const [resultLottery, setResultLottery] = useState<Lottery | null>(null);
   const [report, setReport] = useState<BacktestReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,10 +46,12 @@ export function useBacktestWorker(): UseBacktestWorkerResult {
     workerRef.current = worker;
 
     worker.onmessage = (event: MessageEvent<BacktestWorkerResponse>) => {
+      if (!isCurrentResponse(event.data, latestRequestIdRef.current)) return;
       setLoading(false);
       if (event.data.type === 'success') {
         setResult(event.data.performances);
         setTrevoPerformances(event.data.trevoPerformances);
+        setResultLottery(event.data.lottery);
         setError(null);
       } else if (event.data.type === 'report') {
         setReport(event.data.report);
@@ -59,8 +74,9 @@ export function useBacktestWorker(): UseBacktestWorkerResult {
   const run = useCallback((request: BacktestWorkerRequest) => {
     setError(null);
     setLoading(true);
-    workerRef.current?.postMessage(request);
+    latestRequestIdRef.current += 1;
+    workerRef.current?.postMessage({ ...request, requestId: latestRequestIdRef.current });
   }, []);
 
-  return { result, trevoPerformances, report, loading, error, run };
+  return { result, trevoPerformances, resultLottery, report, loading, error, run };
 }
