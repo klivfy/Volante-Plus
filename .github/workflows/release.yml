@@ -3,21 +3,22 @@ name: Release
 # Publica o APK como Release do GitHub (download público e permanente),
 # ao contrário do artefato do CI, que expira em 14 dias e exige login.
 #
-# Três gatilhos:
-#   1. push de tag `v*`      — o caminho normal;
-#   2. workflow_dispatch     — republica uma tag existente (só aparece na UI
-#                              depois que este arquivo chegar à branch padrão);
-#   3. push na branch de     — atalho temporário: publica quando a mensagem do
-#      desenvolvimento         commit contém `[release]`, usando o versionName
-#                              de app/build.gradle.kts como tag.
+# Dois gatilhos:
+#   1. push de tag `v<numero>` — o caminho normal;
+#   2. workflow_dispatch       — republica uma tag existente.
 #
-# TODO: remover o gatilho 3 (o `branches:` abaixo e o ramo `else` do passo
-# "Resolve a tag") depois que esta branch for mesclada — a partir daí tag e
-# workflow_dispatch cobrem todos os casos.
+# As tags com sufixo têm outro dono e são excluídas aqui para que uma mesma
+# tag não gere duas Releases: `v*-android` (android-build.yml), `v*-desktop`
+# (desktop-ci.yml) e `web-v*` (extension-release.yml). O antigo gatilho de
+# branch com `[release]` na mensagem do commit foi removido: publicava uma
+# Release pública a partir de qualquer push cuja mensagem contivesse a
+# palavra.
 on:
   push:
-    tags: ["v*"]
-    branches: ["claude/android-loterias-init-y1pr71"]
+    tags:
+      - "v*"
+      - "!v*-android"
+      - "!v*-desktop"
   workflow_dispatch:
     inputs:
       tag:
@@ -31,15 +32,13 @@ permissions:
 jobs:
   release:
     name: APK e Release
-    # Um push comum na branch não publica nada: só com `[release]` no commit.
     # `[web-only]` no commit da tag pula a Release Android — usado quando a
     # tag `v*` marca um lançamento da plataforma web/PWA sem mudança de
     # código Android (ex.: v2.0.0). workflow_dispatch ignora esse marcador
     # de propósito: é sempre um pedido explícito de publicar uma tag.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.ref_type == 'tag' && !contains(github.event.head_commit.message, '[web-only]')) ||
-      contains(github.event.head_commit.message, '[release]')
+      (github.ref_type == 'tag' && !contains(github.event.head_commit.message, '[web-only]'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -50,12 +49,11 @@ jobs:
           INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
+          # Só há dois gatilhos: tag ou workflow_dispatch com a tag a republicar.
           if [ -n "${INPUT_TAG:-}" ]; then
             echo "ref=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.ref_type }}" = "tag" ]; then
-            echo "ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout
@@ -72,16 +70,8 @@ jobs:
           set -euo pipefail
           if [ -n "${INPUT_TAG:-}" ]; then
             tag="${INPUT_TAG}"
-          elif [ "${{ github.ref_type }}" = "tag" ]; then
-            tag="${{ github.ref_name }}"
           else
-            # Push na branch: a tag sai do versionName declarado no build.
-            version="$(sed -n 's/.*versionName *= *"\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)"
-            if [ -z "$version" ]; then
-              echo "::error::versionName não encontrado em app/build.gradle.kts"
-              exit 1
-            fi
-            tag="v${version}"
+            tag="${{ github.ref_name }}"
           fi
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "Publicando como ${tag}"

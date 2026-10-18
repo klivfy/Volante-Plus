@@ -25,6 +25,7 @@ import com.volanteplus.loterias.domain.model.NextDrawInfo
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.domain.usecase.GetNextDrawInfoUseCase
 import com.volanteplus.loterias.ui.navigation.PerformanceCache
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -228,6 +229,10 @@ class VolanteViewModel(
                         state
                     }
                 }
+            } catch (e: CancellationException) {
+                // Troca de loteria cancela esta busca: propagar preserva o
+                // cancelamento estruturado do viewModelScope.
+                throw e
             } catch (e: Exception) {
                 _uiState.update { state ->
                     if (state.lottery == lottery) {
@@ -364,6 +369,10 @@ class VolanteViewModel(
 
         viewModelScope.launch(workDispatcher) {
             try {
+                // Recência: dezenas do último concurso são menos apostadas
+                // (falácia do apostador) — ver Unpopularity. Repositório nulo
+                // (preview/teste) simplesmente deixa o componente vazio.
+                val recentNumbers = repository?.getLatestDraw(state.lottery)?.numbers.orEmpty()
                 val batch = generator.generate(
                     lottery = state.lottery,
                     count = count,
@@ -371,6 +380,7 @@ class VolanteViewModel(
                     trevoPerformances = _trevoPerformances.value,
                     trevoStrategy = state.current.trevoStrategy,
                     pool = null,
+                    recentNumbers = recentNumbers,
                 )
                 _uiState.update { it.copy(generatedBatch = batch, message = null) }
             } catch (e: IllegalArgumentException) {

@@ -10,6 +10,7 @@ import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -100,9 +101,15 @@ class BacktestViewModel(
                         trevoStrategy = state.trevoStrategy,
                     )
                 )
-                _uiState.update { it.copy(running = false, report = report) }
-            } catch (e: IllegalArgumentException) {
-                _uiState.update { it.copy(running = false, message = e.message) }
+                _uiState.update { it.copy(report = report) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Mesma razão do Android: só IllegalArgumentException deixava
+                // qualquer outra falha travar a tela em "Executando…".
+                _uiState.update { it.copy(message = e.message ?: "Falha ao executar o backtest.") }
+            } finally {
+                _uiState.update { it.copy(running = false) }
             }
         }
     }
@@ -134,6 +141,8 @@ class BacktestViewModel(
                 val draws = parser.parse(lottery, content)
                 repository.upsertAll(draws)
                 _uiState.update { it.copy(message = "Importados ${draws.size} concursos de ${file.name}.") }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(message = "Falha ao importar ${file.name}: ${e.message ?: "arquivo inválido"}")

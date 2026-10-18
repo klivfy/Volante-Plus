@@ -4,6 +4,7 @@ import com.volanteplus.loterias.data.remote.CaixaLotteryApi
 import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -62,6 +63,10 @@ class SyncDrawHistory(
                             } else {
                                 api.fetchContest(lottery, contest).toDomain(lottery)
                             }
+                        } catch (e: CancellationException) {
+                            // Sem isto, cancelar a sincronização virava "concurso
+                            // falhou" e o cancelamento estruturado se perdia.
+                            throw e
                         } catch (_: Exception) {
                             null
                         }

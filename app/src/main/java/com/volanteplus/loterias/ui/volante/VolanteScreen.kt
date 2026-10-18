@@ -331,13 +331,14 @@ private fun GeneratorControls(
             )
 
             Text(
-                text = GameBatch.STRATEGY_LABEL,
+                text = GameGenerator.UNPOPULAR_STRATEGY_LABEL,
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(top = 16.dp),
             )
             Text(
-                text = "Os jogos saem do desempenho medido no histórico local — não há " +
-                    "estratégia a escolher.",
+                text = "Sorteio uniforme com desempate pelos jogos menos disputados: " +
+                    "a chance de acertar é exatamente a de qualquer outro jogo — e, " +
+                    "se o jogo ganhar, o prêmio é dividido com menos gente.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),

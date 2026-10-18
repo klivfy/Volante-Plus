@@ -1,9 +1,15 @@
 name: Extension Release Build
 
+# Convenção de tags (ver specs/002, T076): a extensão acompanha o release
+# web, então dispara apenas em `web-vX.Y.Z`. As demais tags têm dono único:
+#   - `v<numero>`            → release.yml (APK debug Android)
+#   - `v<numero>-android`    → android-build.yml (APK release assinado)
+#   - `v<numero>-desktop`    → desktop-ci.yml (instaladores Windows)
+# Antes, os três workflows respondiam a `v*` e colidiam na mesma tag.
 on:
   push:
     tags:
-      - 'v*'
+      - 'web-v*'
 
 permissions:
   contents: write
@@ -22,6 +28,21 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Resolve versão da tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#web-v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Release version: $VERSION"
+
+      # Portão anti-dessincronização: se o bump de versão do web não tiver
+      # atualizado os manifests da extensão, o release para aqui — sem gerar
+      # zips rotulados com a versão errada.
+      - name: Confere versão dos manifests
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/sync-extension-versions.mjs --check "$VERSION"
 
       - name: Install extension dependencies
         working-directory: extension
@@ -42,73 +63,77 @@ jobs:
           test -f extension/dist/firefox.zip || (echo "Firefox zip not found" && exit 1)
           echo "✓ All extension packages built successfully"
 
-      - name: Get version from tag
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Release version: $VERSION"
-
+      # WHY `gh release` em vez de actions/create-release@v1 e
+      # actions/upload-release-asset@v1: essas actions rodam em runtimes Node
+      # antigos e sem manutenção. O padrão aqui é o mesmo já usado em
+      # release.yml e desktop-ci.yml.
       - name: Create Release Draft
-        id: create_release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ steps.version.outputs.version }}
-          draft: true
-          body: |
-            **Version ${{ steps.version.outputs.version }}**
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<EOF
+          **Version $VERSION**
 
-            This is an automated release build for the browser extensions.
+          This is an automated release build for the browser extensions.
 
-            ## Artifacts
+          ## Artifacts
 
-            - **Chrome** (`volante-plus-chrome.zip`) — For Chrome Web Store
-            - **Edge** (`volante-plus-edge.zip`) — For Microsoft Edge Add-ons
-            - **Firefox** (`volante-plus-firefox.zip`) — For Firefox Add-ons
+          - **Chrome** (\`volante-plus-chrome-$VERSION.zip\`) — For Chrome Web Store
+          - **Edge** (\`volante-plus-edge-$VERSION.zip\`) — For Microsoft Edge Add-ons
+          - **Firefox** (\`volante-plus-firefox-$VERSION.zip\`) — For Firefox Add-ons
 
-            ## Next steps
+          ## Next steps
 
-            1. ✅ **Review** this release and the build artifacts
-            2. 📝 **Update** release notes and changelog (if needed)
-            3. 🚀 **Publish** to each store:
-               - [Chrome Web Store](https://chrome.google.com/webstore/devconsole)
-               - [Microsoft Edge Add-ons](https://partner.microsoft.com/dashboard/microsoftedge/overview)
-               - [Firefox Add-ons](https://addons.mozilla.org/developers/)
+          1. ✅ **Review** this release and the build artifacts
+          2. 📝 **Update** release notes and changelog (if needed)
+          3. 🚀 **Publish** to each store:
+             - [Chrome Web Store](https://chrome.google.com/webstore/devconsole)
+             - [Microsoft Edge Add-ons](https://partner.microsoft.com/dashboard/microsoftedge/overview)
+             - [Firefox Add-ons](https://addons.mozilla.org/developers/)
 
-            See [`docs/EXTENSION-RELEASES.md`](https://github.com/${{ github.repository }}/blob/main/docs/EXTENSION-RELEASES.md) for detailed publishing instructions.
+          See [\`docs/EXTENSION-RELEASES.md\`](https://github.com/${{ github.repository }}/blob/main/docs/EXTENSION-RELEASES.md) for detailed publishing instructions.
+          EOF
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "::warning::Release $GITHUB_REF_NAME já existe — artefatos serão reenviados."
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --target "${{ github.sha }}" \
+              --title "Volante+ Extensão $VERSION" \
+              --notes-file release-notes.md \
+              --draft
+          fi
 
       - name: Upload Chrome extension
-        uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: extension/dist/chrome.zip
-          asset_name: volante-plus-chrome-${{ steps.version.outputs.version }}.zip
-          asset_content_type: application/zip
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          asset="volante-plus-chrome-${VERSION}.zip"
+          cp extension/dist/chrome.zip "$asset"
+          gh release upload "$GITHUB_REF_NAME" "$asset" --clobber
 
       - name: Upload Edge extension
-        uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: extension/dist/edge.zip
-          asset_name: volante-plus-edge-${{ steps.version.outputs.version }}.zip
-          asset_content_type: application/zip
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          asset="volante-plus-edge-${VERSION}.zip"
+          cp extension/dist/edge.zip "$asset"
+          gh release upload "$GITHUB_REF_NAME" "$asset" --clobber
 
       - name: Upload Firefox extension
-        uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: extension/dist/firefox.zip
-          asset_name: volante-plus-firefox-${{ steps.version.outputs.version }}.zip
-          asset_content_type: application/zip
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          asset="volante-plus-firefox-${VERSION}.zip"
+          cp extension/dist/firefox.zip "$asset"
+          gh release upload "$GITHUB_REF_NAME" "$asset" --clobber
 
       - name: Post success summary
         run: |

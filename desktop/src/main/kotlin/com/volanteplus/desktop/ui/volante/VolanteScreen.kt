@@ -50,6 +50,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.volanteplus.loterias.domain.generator.ClosureGuarantee
+import com.volanteplus.loterias.domain.generator.ClosureDesigner
 import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
@@ -106,6 +108,7 @@ fun VolanteScreen(viewModel: VolanteViewModel) {
                 onSelectTrevoStrategy = viewModel::selectTrevoStrategy,
                 onClear = viewModel::clearSelection,
                 onSetBatchCount = viewModel::setBatchCount,
+                onSelectGuarantee = viewModel::selectClosureGuarantee,
                 onGenerate = { viewModel.generateGames(state.batchCount) },
             )
         }
@@ -150,6 +153,7 @@ private fun VolanteContent(
     onSelectTrevoStrategy: (TrevoStrategy) -> Unit,
     onClear: () -> Unit,
     onSetBatchCount: (Int) -> Unit,
+    onSelectGuarantee: (ClosureGuarantee) -> Unit,
     onGenerate: () -> Unit,
 ) {
     val lottery = state.lottery
@@ -212,17 +216,16 @@ private fun VolanteContent(
             }
         }
 
+        if (state.gameMode == GameMode.FECHAMENTO) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                ClosurePanel(state = state, onSelectGuarantee = onSelectGuarantee)
+            }
+        }
+
         item(span = { GridItemSpan(maxLineSpan) }) {
             GeneratorControls(
                 batchCount = state.batchCount,
                 isAnalyzing = isAnalyzing,
-                fechamentoHint = if (state.gameMode == GameMode.FECHAMENTO) {
-                    "Fechamento: os jogos usam apenas as dezenas marcadas no volante " +
-                        "(mín. ${lottery.minSelection}). Cada dezena marcada entra em jogo " +
-                        "antes de qualquer repetição."
-                } else {
-                    null
-                },
                 onSetCount = onSetBatchCount,
                 onGenerate = onGenerate,
             )
@@ -236,25 +239,104 @@ private fun VolanteContent(
     }
 }
 
+/**
+ * Painel do modo Fechamento (equivalente ao do Android). Mostra o contrato do
+ * desdobramento antes de gerar: quantos jogos, qual garantia e quanto custa —
+ * e deixa claro que a garantia é sobre a cobertura das dezenas marcadas, não
+ * sobre ganhar.
+ */
+@Composable
+private fun ClosurePanel(
+    state: VolanteUiState,
+    onSelectGuarantee: (ClosureGuarantee) -> Unit,
+) {
+    val marcadas = state.current.numbers.size
+    val design = state.closureDesign
+
+    Column(modifier = Modifier.padding(top = 16.dp)) {
+        Text(
+            text = "GARANTIA DO FECHAMENTO",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            ClosureGuarantee.entries.forEach { option ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.selectable(
+                        selected = option == state.closureGuarantee,
+                        onClick = { onSelectGuarantee(option) },
+                        role = Role.RadioButton,
+                    ),
+                ) {
+                    RadioButton(
+                        selected = option == state.closureGuarantee,
+                        onClick = { onSelectGuarantee(option) },
+                    )
+                    Text(text = option.label, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+
+        when {
+            state.lottery.hasTrevos -> Text(
+                text = "Fechamento com garantia só vale para a Mega-Sena: na " +
+                    "${state.lottery.displayName} as faixas também dependem dos " +
+                    "trevos, então cobrir dezenas não garante prêmio.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+
+            design == null -> {
+                val min = ClosureDesigner.SUPPORTED_POOL_SIZES.first
+                val max = ClosureDesigner.SUPPORTED_POOL_SIZES.last
+                val guidance = if (marcadas < min) {
+                    "faltam ${min - marcadas} para a garantia mínima"
+                } else {
+                    "o máximo suportado é $max dezenas"
+                }
+                Text(
+                    text = "Marque de $min a $max dezenas no volante para montar um " +
+                        "fechamento. Marcadas: $marcadas — $guidance.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+
+            else -> {
+                Text(
+                    text = design.contract,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                Text(
+                    text = "A garantia é no pior caso: qualquer combinação de " +
+                        "${state.closureGuarantee.hits} das suas $marcadas dezenas aparece " +
+                        "inteira em pelo menos um jogo. Ela não aumenta a chance por real " +
+                        "apostado — troca muitos resultados zerados por prêmios menores e " +
+                        "mais frequentes, apostando mais.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GeneratorControls(
     batchCount: Int,
     isAnalyzing: Boolean,
-    fechamentoHint: String?,
     onSetCount: (Int) -> Unit,
     onGenerate: () -> Unit,
 ) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
         HorizontalDivider()
-        fechamentoHint?.let { hint ->
-            Text(
-                text = hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.padding(top = 12.dp),
-            )
-        }
         Text(
             text = "QUANTOS JOGOS",
             style = MaterialTheme.typography.titleSmall,
@@ -292,13 +374,14 @@ private fun GeneratorControls(
         )
 
         Text(
-            text = GameBatch.STRATEGY_LABEL,
+            text = GameGenerator.UNPOPULAR_STRATEGY_LABEL,
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(top = 16.dp),
         )
         Text(
-            text = "Os jogos saem do desempenho medido no histórico local — não há " +
-                "estratégia a escolher.",
+            text = "Sorteio uniforme com desempate pelos jogos menos disputados: " +
+                "a chance de acertar é exatamente a de qualquer outro jogo — e, " +
+                "se o jogo ganhar, o prêmio é dividido com menos gente.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
