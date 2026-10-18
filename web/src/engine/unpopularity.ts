@@ -73,6 +73,16 @@ const W_ALIGNMENT = 0.4;
 const W_CENTER = 0.3;
 const W_ARITHMETIC = 0.2;
 
+/**
+ * Recência: dezenas do concurso anterior são **menos** apostadas — a falácia
+ * do apostador faz o jogador evitá-las ("acabou de sair, agora vai demorar").
+ * Clotfelter, C. T. e Cook, P. J., *The "Gambler's Fallacy" in Lottery Play*,
+ * Management Science 39(12), 1993: queda medida nas apostas sobre dezenas
+ * recém-sorteadas. Incluí-las é de graça: mesma chance, menos divisores.
+ * Peso conservador — a magnitude brasileira não é calibrada (como os demais).
+ */
+const W_RECENCY = 0.25;
+
 /** Primalidade por divisão sucessiva; o universo aqui vai só até 60. */
 export function isPrime(value: number): boolean {
   if (value < 2) return false;
@@ -117,8 +127,15 @@ function countBy(numbers: readonly number[], keyOf: (n: number) => number): Map<
 /**
  * Penalidade de popularidade do jogo. Maior = mais popular = pior para o
  * rateio. Sempre >= 0.
+ *
+ * @param recentNumbers dezenas do concurso mais recente (opcional): entram
+ *   com sinal **negativo**, porque recém-sorteadas são menos apostadas.
  */
-export function unpopularityPenalty(lottery: Lottery, numbers: readonly number[]): number {
+export function unpopularityPenalty(
+  lottery: Lottery,
+  numbers: readonly number[],
+  recentNumbers: Iterable<number> = [],
+): number {
   if (numbers.length === 0) return 0;
   const n = numbers.length;
   const sorted = [...numbers].sort((a, b) => a - b);
@@ -155,14 +172,21 @@ export function unpopularityPenalty(lottery: Lottery, numbers: readonly number[]
   // Progressão aritmética exata (5,10,15,...) é padrão deliberado comum.
   const arithmetic = numbers.length >= 3 && isArithmeticProgression(sorted) ? 1 : 0;
 
-  return (
+  // Recência: dezenas do último concurso são MENOS apostadas — o componente
+  // é subtraído, não somado (ver W_RECENCY).
+  const recentSet = recentNumbers instanceof Set ? recentNumbers : new Set(recentNumbers);
+  const recency = numbers.filter((x) => recentSet.has(x)).length / n;
+
+  return Math.max(
+    0,
     W_BIRTHDAY * birthday +
-    W_MONTH * month +
-    W_PRIME * primes +
-    W_SEVEN * seven +
-    W_CONSECUTIVE * consecutive +
-    W_ALIGNMENT * alignment +
-    W_CENTER * center +
-    W_ARITHMETIC * arithmetic
+      W_MONTH * month +
+      W_PRIME * primes +
+      W_SEVEN * seven +
+      W_CONSECUTIVE * consecutive +
+      W_ALIGNMENT * alignment +
+      W_CENTER * center +
+      W_ARITHMETIC * arithmetic -
+      W_RECENCY * recency,
   );
 }

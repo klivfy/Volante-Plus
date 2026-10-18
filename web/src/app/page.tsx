@@ -12,7 +12,7 @@ import Grid from '@mui/material/Grid';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import EvidencePanel from '@/components/EvidencePanel';
 import GameCard from '@/components/GameCard';
@@ -35,6 +35,7 @@ import { evaluatePayoutBatch } from '@/engine/payoutShare';
 import { hasTrevos, lotteryRules } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
 import { usePerformanceCache } from '@/hooks/usePerformanceCache';
+import { getDraws } from '@/services/db';
 import { useLotteryTheme } from '@/context/LotteryThemeContext';
 import { GameBatch, GameMode, GeneratedGame, Lottery, MIN_GAMES } from '@/types/domain';
 
@@ -80,6 +81,34 @@ export default function VolantePage() {
 
   const nextDraw = useNextDraw(lottery);
   const { performances, trevoPerformances, loading, error } = usePerformanceCache(lottery);
+  // Recência: dezenas do último concurso são menos apostadas (falácia do
+  // apostador — ver unpopularity.ts). A leitura é best-effort: sem histórico
+  // local, o componente fica vazio e nada muda. O reset na troca de loteria
+  // segue o padrão de ajuste durante a renderização usado em `trackedLottery`.
+  const [recentState, setRecentState] = useState<{ lottery: Lottery; numbers: number[] }>({
+    lottery,
+    numbers: [],
+  });
+  if (recentState.lottery !== lottery) {
+    setRecentState({ lottery, numbers: [] });
+  }
+  const recentNumbers = recentState.numbers;
+  useEffect(() => {
+    let cancelled = false;
+    void getDraws(lottery)
+      .then((draws) => {
+        if (!cancelled) {
+          setRecentState({
+            lottery,
+            numbers: draws[draws.length - 1]?.numbers ?? [],
+          });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [lottery]);
   const evidence = useMemo(
     () => (performances.length > 0 ? numberEvidence(lottery, performances) : null),
     [lottery, performances],
@@ -167,7 +196,7 @@ export default function VolantePage() {
       });
       const batch = closureMode
         ? generateClosure(lottery, pool, guarantee)
-        : generateGames(lottery, batchCount, performances, { trevoPerformances });
+        : generateGames(lottery, batchCount, performances, { trevoPerformances, recentNumbers });
       trackGameGeneration({
         lottery: lottery.toString(),
         batchSize: batch.games.length,

@@ -2,6 +2,7 @@ package com.volanteplus.loterias.domain.backtest
 
 import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.domain.generator.GameGenerator
+import com.volanteplus.loterias.domain.generator.GenerationStrategy
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import java.security.SecureRandom
@@ -119,6 +120,11 @@ class BacktestEngine(private val repository: DrawRepository) {
                 performances = performances,
                 trevoPerformances = trevoPerformances,
                 trevoStrategy = config.trevoStrategy,
+                // WHY: o backtest existe para medir a estratégia legada por
+                // tiers de frequência — a padrão (UNPOPULAR, uniforme) não usa
+                // o histórico e mediria outra coisa. Sem recência: protocolo
+                // determinístico, reprodutível por semente.
+                strategy = GenerationStrategy.FREQUENCY_TIERS,
             )
             var bets = 0
             var prized = 0

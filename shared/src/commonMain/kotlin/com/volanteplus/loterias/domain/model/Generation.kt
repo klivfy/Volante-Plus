@@ -12,9 +12,11 @@ data class GeneratedGame(
 )
 
 /**
- * Lote gerado. Desde a unificação das estratégias existe uma única forma de
- * gerar jogos — a partir do desempenho medido no backtesting — então
- * [strategyLabel] é rótulo de exibição, não uma escolha do usuário.
+ * Lote gerado. Não há estratégia selecionável pelo usuário: a padrão é o
+ * sorteio uniforme com desempate pelos jogos menos disputados
+ * ([GameGenerator.UNPOPULAR_STRATEGY_LABEL]); a estratégia legada por tiers
+ * de frequência só roda no backtest/laboratório ([STRATEGY_LABEL]).
+ * [strategyLabel] é rótulo de exibição do lote concreto.
  */
 data class GameBatch(
     val lottery: Lottery,

@@ -126,6 +126,9 @@ class GameGeneratorTest {
                 GameGenerator.MAX_GAMES,
                 performances,
                 payoutCandidates = 1,
+                // A estratégia padrão (UNPOPULAR) não usa pesos: o teste mede
+                // a estratégia legada por tiers, que é o objeto do backtest.
+                strategy = GenerationStrategy.FREQUENCY_TIERS,
             )
             batch.games.forEach { game ->
                 slots += game.numbers.size
@@ -151,6 +154,7 @@ class GameGeneratorTest {
                 GameGenerator.MAX_GAMES,
                 performances,
                 payoutCandidates = 1,
+                strategy = GenerationStrategy.FREQUENCY_TIERS,
             )
             batch.games.forEach { game ->
                 slots += game.numbers.size
@@ -240,6 +244,9 @@ class GameGeneratorTest {
 
     @Test
     fun `trevo de maior peso aparece mais que o de menor peso`() = runTest {
+        // WHY FREQUENCY_TIERS: a estratégia padrão sorteia os trevos de forma
+        // uniforme (duplas complementares) e ignora o desempenho — o ranking
+        // de trevos é medido pelo laboratório, não usado na geração.
         val trevos = trevoPerformances { if (it == 1) 1.0 else 0.01 }
         val generator = generator()
         val counts = IntArray(Lottery.TREVO_RANGE.last + 1)
@@ -249,6 +256,7 @@ class GameGeneratorTest {
                 count = GameGenerator.MAX_GAMES,
                 performances = performances(Lottery.MAIS_MILIONARIA),
                 trevoPerformances = trevos,
+                strategy = GenerationStrategy.FREQUENCY_TIERS,
             )
             batch.games.forEach { game -> game.trevoDuplas.single().forEach { counts[it]++ } }
         }
@@ -370,12 +378,12 @@ class GameGeneratorTest {
     }
 
     /**
-     * A troca declarada na documentação do gerador, fixada em teste: quando
-     * as dezenas de melhor desempenho são também as mais apostadas — aqui o
-     * tier TOP é 1..24, a faixa de aniversário — o desempate por rateio
-     * prevalece e a meta do tier TOP deixa de ser cumprida. É intencional: o
-     * peso por desempenho não altera a chance de acertar, o rateio altera
-     * quanto se recebe.
+     * A troca declarada na documentação do gerador (estratégia legada por
+     * tiers), fixada em teste: quando as dezenas de melhor desempenho são
+     * também as mais apostadas — aqui o tier TOP é 1..24, a faixa de
+     * aniversário — o desempate por rateio prevalece e a meta do tier TOP
+     * deixa de ser cumprida. É intencional: o peso por desempenho não altera
+     * a chance de acertar, o rateio altera quanto se recebe.
      */
     @Test
     fun `desempate por rateio prevalece sobre a meta do tier TOP`() = runTest {
@@ -392,6 +400,7 @@ class GameGeneratorTest {
                     GameGenerator.MAX_GAMES,
                     performances,
                     payoutCandidates = payoutCandidates,
+                    strategy = GenerationStrategy.FREQUENCY_TIERS,
                 ).games.forEach { game ->
                     slots += game.numbers.size
                     fromTop += game.numbers.count { it in topNumbers }
@@ -408,6 +417,74 @@ class GameGeneratorTest {
             "Com otimização o tier TOP deveria ceder espaço: $comOtimizacao",
             comOtimizacao < semOtimizacao,
         )
+    }
+
+    /** Estratégia padrão: uniforme + desempate por rateio. */
+    @Test
+    fun `estrategia padrao rotula o lote como baixa popularidade`() = runTest {
+        val batch = generator().generate(Lottery.MEGA_SENA, GameGenerator.MIN_GAMES, performances())
+        assertEquals(GameGenerator.UNPOPULAR_STRATEGY_LABEL, batch.strategyLabel)
+    }
+
+    @Test
+    fun `estrategia padrao ignora os pesos do historico`() = runTest {
+        // Pesos extremamente enviesados para 1..10 não podem mudar a
+        // frequência de escolha: o sorteio de base é uniforme.
+        val enviesado = performances { if (it <= 10) 100.0 else 1.0 }
+        val plano = performances { 1.0 }
+
+        suspend fun fracaoDoBaixo(p: List<NumberPerformance>): Double {
+            var baixas = 0
+            var total = 0
+            repeat(150) { seed ->
+                generator(seed.toLong()).generate(Lottery.MEGA_SENA, GameGenerator.MIN_GAMES, p)
+                    .games.forEach { game ->
+                        baixas += game.numbers.count { it <= 10 }
+                        total += game.numbers.size
+                    }
+            }
+            return baixas.toDouble() / total
+        }
+
+        val enviesada = fracaoDoBaixo(enviesado)
+        val plana = fracaoDoBaixo(plano)
+        assertTrue(
+            "pesos não deveriam mudar a distribuição (enviesada=$enviesada, plana=$plana)",
+            kotlin.math.abs(enviesada - plana) < 0.02,
+        )
+    }
+
+    @Test
+    fun `trevos complementares - 3 jogos cobrem os 6 trevos com duplas disjuntas`() = runTest {
+        repeat(100) { seed ->
+            val batch = generator(seed.toLong()).generate(
+                lottery = Lottery.MAIS_MILIONARIA,
+                count = 3,
+                performances = performances(Lottery.MAIS_MILIONARIA),
+                trevoPerformances = trevoPerformances(),
+                trevoStrategy = TrevoStrategy.ECONOMICO,
+            )
+            val duplas = batch.games.map { it.trevoDuplas.single() }
+            assertEquals(3, duplas.toSet().size)
+            assertEquals(6, duplas.flatten().toSet().size)
+        }
+    }
+
+    @Test
+    fun `trevos complementares - nunca repete dupla dentro do lote`() = runTest {
+        for (count in GameGenerator.MIN_GAMES..GameGenerator.MAX_GAMES) {
+            repeat(50) { seed ->
+                val batch = generator(seed.toLong() * 10 + count).generate(
+                    lottery = Lottery.MAIS_MILIONARIA,
+                    count = count,
+                    performances = performances(Lottery.MAIS_MILIONARIA),
+                    trevoPerformances = trevoPerformances(),
+                    trevoStrategy = TrevoStrategy.ECONOMICO,
+                )
+                val duplas = batch.games.map { it.trevoDuplas.single() }
+                assertEquals(count, duplas.toSet().size)
+            }
+        }
     }
 
 }

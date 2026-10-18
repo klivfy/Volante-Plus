@@ -60,4 +60,17 @@ describe('unpopularityPenalty', () => {
     expect(Number.isFinite(value)).toBe(true);
     expect(value).toBeGreaterThanOrEqual(0);
   });
+
+  it('dezenas do concurso anterior reduzem a penalidade (recência)', () => {
+    const game = [10, 15, 20, 25, 30, 35];
+    const withoutRecency = unpopularityPenalty(Lottery.MEGA_SENA, game);
+    const withRecency = unpopularityPenalty(Lottery.MEGA_SENA, game, [10, 15]);
+    expect(withRecency).toBeLessThan(withoutRecency);
+  });
+
+  it('recência nunca torna a penalidade negativa', () => {
+    const game = [1, 2, 3, 4, 5, 6];
+    const value = unpopularityPenalty(Lottery.MEGA_SENA, game, [1, 2, 3, 4, 5, 6]);
+    expect(value).toBeGreaterThanOrEqual(0);
+  });
 });
