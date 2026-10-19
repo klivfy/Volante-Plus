@@ -41,6 +41,10 @@ function formatGame(
  * rede extra num popup que já pode ser fechado a qualquer momento) nem tela de
  * backtesting — só o essencial, seleção de loteria e geração de jogos, lido
  * do que o service worker já sincronizou em `chrome.storage.local`.
+ *
+ * O visual segue os mesmos tokens de design do app web (ver
+ * `web/src/theme.ts` e `styles/globals.css`): cor da modalidade
+ * (verde/azul), claro/escuro automático, cartões outlined e botões pill.
  */
 export default function PopupContent() {
   const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
@@ -51,6 +55,13 @@ export default function PopupContent() {
   const [batch, setBatch] = useState<GameBatch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  // Tema por modalidade (verde Mega-Sena, azul +Milionária), como o
+  // LotteryThemeContext do web.
+  useEffect(() => {
+    document.documentElement.dataset.lottery =
+      lottery === Lottery.MAIS_MILIONARIA ? 'milionaria' : 'mega';
+  }, [lottery]);
 
   // Avisa o service worker que o popup abriu — o usuário "viu" os sorteios
   // novos, então ele limpa o badge do ícone (ver extension/src/background.ts).
@@ -134,7 +145,10 @@ export default function PopupContent() {
 
   return (
     <main>
-      <h1>Volante+</h1>
+      <header>
+        <h1>Volante+</h1>
+        <p>Gerador estatístico. Sem palpite, sem número quente.</p>
+      </header>
 
       <div className="lottery-selector" role="group" aria-label="Escolha a loteria">
         {LOTTERY_OPTIONS.map((option) => (
@@ -170,6 +184,13 @@ export default function PopupContent() {
         </button>
       </div>
 
+      {/* Mesma ressalva exibida no app web (volante.strategyNote). */}
+      <p className="strategy-note">
+        Cada jogo é sorteado entre combinações uniformes e fica com a menos
+        disputada. Não aumenta a chance de ganhar — só reduz com quantos
+        apostadores o prêmio seria dividido.
+      </p>
+
       {batch && (
         <ul className="games" aria-label="Jogos gerados">
           {batch.games.map((game, index) => (
@@ -191,7 +212,7 @@ export default function PopupContent() {
                 <div className="game-card__trevos">
                   {game.trevoDuplas.map((dupla, i) => (
                     <span key={i} className="trevo">
-                      {dupla.join('-')}
+                      Trevos: {dupla.join('-')}
                     </span>
                   ))}
                 </div>

@@ -45,6 +45,16 @@ jobs:
       - name: Build de produção
         run: npm run build
 
+      # Portão anti-dessincronização: os manifests da extensão têm de seguir a
+      # versão do web/package.json. Sem isto, um release `web-vX.Y.Z` empacota
+      # zips rotulados com a versão antiga e ninguém percebe.
+      - name: Confere versão dos manifests da extensão
+        working-directory: .
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./web/package.json').version")"
+          node scripts/sync-extension-versions.mjs --check "$version"
+
       - name: Instala dependências da extensão
         working-directory: extension
         run: npm ci

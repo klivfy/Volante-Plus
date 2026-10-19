@@ -1,11 +1,16 @@
-/**
- * Sentry client-side configuration.
- * Auto-loaded by @sentry/nextjs when NEXT_PUBLIC_SENTRY_DSN is set.
- */
-
 import * as Sentry from '@sentry/nextjs';
 
-export const sentryConfig = {
+/**
+ * Inicialização do Sentry no cliente.
+ *
+ * WHY este arquivo (e não `sentry.config.ts`): o @sentry/nextjs v10
+ * auto-carrega `instrumentation-client.ts` na raiz do projeto — `sentry.config.ts`
+ * não bate com nenhuma convenção do SDK e era ignorado silenciosamente
+ * (amostragem, `ignoreErrors`, `beforeSend` e `denyUrls` nunca eram aplicados).
+ * O init do servidor/edge vive em `sentry.server.config.ts` e
+ * `sentry.edge.config.ts`, importados por `instrumentation.ts`.
+ */
+Sentry.init({
   enabled: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -14,7 +19,7 @@ export const sentryConfig = {
   environment: process.env.NODE_ENV || 'development',
 
   // Release version — use como Git commit hash ou semver
-  release: process.env.NEXT_PUBLIC_APP_VERSION || '2.0.0',
+  release: process.env.NEXT_PUBLIC_APP_VERSION || '2.3.0',
 
   // Amostragem: % de transações a rastrear (0-1)
   // 1.0 = 100%, 0.1 = 10% (para reduzir quota em produção)
@@ -36,7 +41,7 @@ export const sentryConfig = {
   ],
 
   // Dados sensíveis a não capturar
-  beforeSend(event: Sentry.Event) {
+  beforeSend(event) {
     if (!event.request) return event;
 
     // Não capturar credenciais
@@ -58,6 +63,4 @@ export const sentryConfig = {
     /moz-extension\//i,
     /chrome-extension\//i,
   ],
-};
-
-export default sentryConfig;
+});

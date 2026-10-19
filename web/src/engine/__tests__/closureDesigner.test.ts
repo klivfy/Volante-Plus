@@ -10,7 +10,9 @@ import {
   offeredGuarantees,
   schonheimBound,
   verifyClosure,
+  verifyTrevoClosure,
 } from '../closureDesigner';
+import { allTrevoPairs } from '../gameGenerator';
 import { createSeededRandom } from '../random';
 
 const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
@@ -83,6 +85,40 @@ describe('generateClosure', () => {
       expect(a).not.toBe(b);
       expect([a, b].every((t) => t >= 1 && t <= 6)).toBe(true);
     }
+  });
+
+  it('+Milionária: fechamento em 3 cores, com contrato de trevo verificado exaustivamente', () => {
+    for (const guarantee of [2, 3, 4]) {
+      const batch = generateClosure(Lottery.MAIS_MILIONARIA, range(1, 10), guarantee, {
+        random: createSeededRandom(7),
+      });
+      expect(batch.closure?.trevoClosure).toBe(true);
+      expect(batch.closure?.guarantee).toBe(guarantee);
+      // Custo = 3× o fechamento de dezenas, declarado no contrato.
+      expect(batch.closure?.cost).toBe(closureCost(batch.games.length));
+      expect(verifyTrevoClosure(batch.games, batch.sourcePool!, guarantee)).toBe(true);
+      // Para qualquer sorteio com `guarantee` dezenas do pool, todo par de
+      // trevos sorteado deixa o contrato de pé.
+      const random = createSeededRandom(11);
+      const poolNumbers = batch.sourcePool!;
+      const hitNumbers = poolNumbers.slice(0, guarantee).concat(
+        Array.from({ length: 6 - guarantee }, () => 1 + random.nextInt(50)),
+      );
+      for (const [x, y] of allTrevoPairs(Lottery.MAIS_MILIONARIA)) {
+        const draw = {
+          lottery: Lottery.MAIS_MILIONARIA,
+          contestNumber: 1,
+          date: '',
+          numbers: hitNumbers,
+          trevos: [x, y],
+        };
+        expect(closureHoldsFor(batch, draw)).toBe(true);
+      }
+    }
+  });
+
+  it('oferece garantias com trevo na +Milionária (2, 3 e 4 pagam)', () => {
+    expect(offeredGuarantees(Lottery.MAIS_MILIONARIA)).toEqual([2, 3, 4]);
   });
 
   it('só oferece garantias que podem pagar prêmio', () => {

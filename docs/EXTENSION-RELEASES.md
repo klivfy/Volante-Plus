@@ -12,109 +12,81 @@ Volante+ usa **Semantic Versioning** (semver): `MAJOR.MINOR.PATCH`
 
 ### Versão única para todo o projeto
 
-A versão é centralizada em dois locais:
+A versão de referência da extensão é a do **`web/package.json`** — a extensão
+empacota o mesmo app (popup = export estático do Next). Os três
+`extension/manifests/*.manifest.json` precisam estar na mesma versão.
 
-1. **`README.md`** — campo `version:` no frontmatter
-   ```markdown
-   ---
-   version: 2.0.1
-   ---
-   ```
+O manifest **não** é atualizado automaticamente durante o build:
+`extension/build.mjs` copia cada manifest verbatim. Quem sincroniza é
+`scripts/sync-extension-versions.mjs`, que tem dois modos:
 
-2. **Todos os `manifests/*.json`** — campo `"version"` é atualizado automaticamente durante build
+```bash
+# Escreve a versão nos três manifests
+node scripts/sync-extension-versions.mjs 2.3.0
 
-Há um script que sincroniza: `scripts/sync-versions.mjs` (a ser implementado em CI se necessário).
+# Só confere (não escreve) e falha se algum divergir — é o que o CI roda
+node scripts/sync-extension-versions.mjs --check 2.3.0
+```
+
+Dois portões no CI garantem que isso nunca passe despercebido:
+
+- **`web-ci.yml`** confere os manifests contra o `web/package.json` em todo PR;
+- **`extension-release.yml`** confere contra a versão da tag antes de empacotar.
+
+### Convenção de tags
+
+Cada artefato tem um workflow dono, para que uma tag não dispare três
+releases concorrentes:
+
+| Tag | Workflow | Publica |
+|---|---|---|
+| `web-vX.Y.Z` | `extension-release.yml` | zips das extensões (Chrome/Edge/Firefox) |
+| `vX.Y.Z` | `release.yml` | APK Android de debug |
+| `vX.Y.Z-android` | `android-build.yml` | APK Android de release assinado |
+| `vX.Y.Z-desktop` | `desktop-ci.yml` | instaladores Windows (.msi/.exe) |
 
 ### Exemplo de bump
 
-Para liberar versão `2.1.0`:
+Para liberar a versão `2.4.0` da extensão (e do web):
 
 ```bash
-# 1. Atualizar README.md
-# version: 2.1.0
+# 1. Atualizar a versão do web
+npm version 2.4.0 --no-git-tag-version --prefix web
 
 # 2. Sincronizar versão em todos os manifests da extensão
-node scripts/sync-extension-versions.mjs 2.1.0
+node scripts/sync-extension-versions.mjs 2.4.0
 
 # 3. Commitar
-git add README.md extension/manifests/
-git commit -m "chore: bump version to 2.1.0"
+git add web/package.json web/package-lock.json extension/manifests/
+git commit -m "chore: bump version to 2.4.0"
 
-# 4. Criar tag
-git tag v2.1.0
-
-# 5. Push tag
-git push origin v2.1.0
+# 4. Criar e publicar a tag da plataforma web/extensão
+git tag web-v2.4.0
+git push origin web-v2.4.0
 ```
-
-**Nota**: O script `scripts/sync-extension-versions.mjs` sincroniza automaticamente todos os `manifests/*.json` com a mesma versão.
 
 ## Build automatizado de releases
 
-Quando você cria uma tag `v*` (ex.: `v2.1.0`):
+Quando você cria uma tag `web-v*` (ex.: `web-v2.4.0`):
 
-1. **GitHub Actions** (`[.github/workflows/extension-release.yml]`) é acionado
-2. Ambiente de build:
-   - Node.js instalado
-   - Dependências instaladas (`npm ci` em `extension/`)
-   - Build dos 3 alvos: Chrome, Edge, Firefox
-3. Artefatos gerados:
+1. **GitHub Actions** (`.github/workflows/extension-release.yml`) é acionado
+2. Confere que os manifests estão na versão da tag (falha o job se não)
+3. Instala dependências (`npm ci` em `extension/` e `extension/popup-app/`)
+4. Build dos 3 alvos: Chrome, Edge, Firefox
+5. Artefatos gerados:
    - `extension/dist/chrome.zip`
    - `extension/dist/edge.zip`
    - `extension/dist/firefox.zip`
-4. Criados como **Release artifacts** no GitHub
+6. Publicados como assets de uma **Release em rascunho**, com o número da
+   versão no nome (`volante-plus-chrome-2.4.0.zip`)
 
 ### Workflow detalhes
 
-Ver [`.github/workflows/extension-release.yml`](https://github.com/mestrys/volante-plus/blob/main/.github/workflows/extension-release.yml):
-
-O workflow automaticamente:
-
-```yaml
-name: Extension Release Build
-
-on:
-  push:
-    tags:
-      - 'v*'  # Qualquer tag começando com v
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install dependencies
-        run: |
-          cd extension
-          npm ci
-          cd popup-app
-          npm ci
-      
-      - name: Build extensions
-        run: cd extension && npm run build
-      
-      - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          draft: true  # Release como rascunho (para revisão antes de publicar)
-      
-      - name: Upload artifacts to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          release_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./extension/dist/chrome.zip
-          asset_name: volante-plus-chrome.zip
-```
+Ver [`.github/workflows/extension-release.yml`](https://github.com/mestrys/volante-plus/blob/main/.github/workflows/extension-release.yml).
+A publicação usa o **`gh` CLI** (`gh release create` / `gh release upload`), o
+mesmo padrão de `release.yml` e `desktop-ci.yml` — as actions
+`actions/create-release@v1` e `actions/upload-release-asset@v1` usadas antes
+estão descontinuadas e rodam em runtimes Node sem manutenção.
 
 ## Publicação nas lojas
 
@@ -190,8 +162,9 @@ jobs:
 ## Checklist de release
 
 ```markdown
-- [ ] Versão atualizada em README.md
-- [ ] Commit e tag criados
+- [ ] Versão atualizada em web/package.json
+- [ ] Manifests sincronizados (node scripts/sync-extension-versions.mjs <versão>)
+- [ ] Commit e tag `web-vX.Y.Z` criados
 - [ ] GitHub Actions concluiu build com sucesso
 - [ ] Artifacts aparecem na Release page
 - [ ] Changelog/release notes preparado

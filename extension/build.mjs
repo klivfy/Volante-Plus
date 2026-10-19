@@ -2,13 +2,15 @@
 // Monta extension/dist/<target>/ (popup estático + background.js + ícones +
 // manifest específico) e empacota cada um em extension/dist/<target>.zip.
 // Usa o binário `zip` do sistema (presente por padrão nos runners
-// ubuntu-latest do GitHub Actions) em vez de trazer uma dependência npm só
-// para isso.
-import { existsSync, mkdirSync, rmSync, cpSync, copyFileSync, readdirSync } from 'node:fs';
+// ubuntu-latest do GitHub Actions); quando ele não existe — o caso de
+// máquinas Windows de desenvolvimento — cai no compactador puro
+// (`lib/zip-fallback.mjs`), sem dependências.
+import { existsSync, mkdirSync, rmSync, cpSync, copyFileSync, readdirSync, readFileSync, writeFileSync, renameSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as esbuild from 'esbuild';
+import { zipDirectory } from './lib/zip-fallback.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const sharedIconsDir = path.join(root, 'shared', 'icons');
@@ -31,11 +33,55 @@ for (const target of targets) {
 }
 
 console.log('Compilando o popup (Next.js, export estático)...');
-execFileSync('npm', ['run', 'build'], { cwd: popupAppDir, stdio: 'inherit' });
+// WHY shell no Windows: o `npm` do PATH é um shim `.cmd`, que o
+// `execFileSync` só executa através do shell — o mesmo build quebraria em
+// qualquer máquina Windows de desenvolvimento (no CI ubuntu o binário é o
+// script sh e roda sem shell).
+execFileSync('npm', ['run', 'build'], {
+  cwd: popupAppDir,
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+});
 
 if (!existsSync(popupOutDir) || readdirSync(popupOutDir).length === 0) {
   console.error(`Export do popup não gerou nada em ${popupOutDir}.`);
   process.exit(1);
+}
+
+// WHY (renomear _next → assets): o Chrome rejeita extensões com arquivo ou
+// diretório cujo nome começa com "_" ("Filenames starting with '_' are
+// reserved for use by the system") — e o export estático do Next emite a
+// pasta `_next/`. O `assetPrefix` do Next só muda o prefixo da URL, não o
+// nome da pasta; então a correção é renomear a pasta e reescrever as
+// referências `/_next/` em todos os arquivos de texto do export (o popup
+// referencia os assets por caminho absoluto a partir da raiz da extensão).
+rewriteNextAssets(popupOutDir);
+
+/** Renomeia `_next/` para `assets/` e reescreve as referências em texto. */
+function rewriteNextAssets(dir) {
+  const nextDir = path.join(dir, '_next');
+  if (!existsSync(nextDir)) return;
+  renameSync(nextDir, path.join(dir, 'assets'));
+
+  const textExtensions = new Set(['.html', '.js', '.css', '.json', '.txt', '.map', '.xml', '.svg']);
+  const stack = [dir];
+  let rewrites = 0;
+  while (stack.length > 0) {
+    const current = stack.pop();
+    for (const name of readdirSync(current)) {
+      const full = path.join(current, name);
+      if (statSync(full).isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!textExtensions.has(path.extname(name).toLowerCase())) continue;
+      const content = readFileSync(full, 'utf8');
+      if (!content.includes('/_next/')) continue;
+      writeFileSync(full, content.replaceAll('/_next/', '/assets/'));
+      rewrites++;
+    }
+  }
+  console.log(`  (assets do popup: _next → assets, ${rewrites} arquivos reescritos)`);
 }
 
 console.log('Empacotando o service worker de background (esbuild)...');
@@ -72,7 +118,13 @@ for (const target of targets) {
 
   const zipPath = path.join(distDir, `${target}.zip`);
   if (existsSync(zipPath)) rmSync(zipPath);
-  execFileSync('zip', ['-r', '-X', `../${target}.zip`, '.'], { cwd: targetDir, stdio: 'inherit' });
+  try {
+    execFileSync('zip', ['-r', '-X', `../${target}.zip`, '.'], { cwd: targetDir, stdio: 'inherit' });
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+    console.log(`  (binário \`zip\` ausente — usando compactador puro para ${target})`);
+    zipDirectory(targetDir, zipPath);
+  }
 
   console.log(`OK ${target}: dist/${target}.zip`);
 }

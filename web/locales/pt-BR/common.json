@@ -31,7 +31,11 @@
     "strategyNote": "Cada jogo é sorteado entre combinações uniformes e fica com a menos disputada. Não aumenta a chance de ganhar — só reduz com quantos apostadores o prêmio seria dividido.",
     "modeAvulsos": "Jogos avulsos",
     "modeFechamento": "Fechamento",
-    "modeLabel": "Modo de geração"
+    "modeLabel": "Modo de geração",
+    "dezenasLabel": "Dezenas entre os jogos",
+    "dezenasDiversificacao": "Máxima diversificação",
+    "dezenasMaximoValor": "Máximo valor",
+    "dezenasNote": "Sem repetir dezenas, os jogos do lote não compartilham números (sem efeito mensurável na chance). Permitindo repetição, o lote fica em média ~8% menos disputado — o que aumenta o prêmio condicional a ganhar."
   },
   "backtesting": {
     "title": "Backtesting",
@@ -169,6 +173,7 @@
     "guaranteeLabel": "Garantia",
     "guaranteeOption": "{{t}} acertos garantidos",
     "contract": "{{games}} jogos · R$ {{cost}} — se {{t}} ou mais das suas {{pool}} dezenas saírem, ao menos um jogo acerta {{t}} ou mais. Não aumenta a chance de as dezenas saírem.",
+    "contractTrevos": "{{games}} jogos · R$ {{cost}} — se {{t}} ou mais das suas {{pool}} dezenas saírem, ao menos um jogo acerta {{t}} ou mais E pelo menos 1 trevo, em qualquer dupla de trevos sorteada. Não aumenta a chance de as dezenas saírem.",
     "needMore": "Marque pelo menos {{min}} dezenas para montar o fechamento.",
     "generate": "Gerar fechamento",
     "closureResult": "Fechamento com garantia de {{t}} acertos",

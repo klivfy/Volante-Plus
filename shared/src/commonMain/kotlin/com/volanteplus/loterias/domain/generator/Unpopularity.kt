@@ -74,10 +74,28 @@ object Unpopularity {
     private const val W_ARITHMETIC = 0.20
 
     /**
+     * Recência: dezenas do concurso anterior são **menos** apostadas — a
+     * falácia do apostador faz o jogador evitá-las ("acabou de sair, agora
+     * vai demorar"). Clotfelter e Cook, *The "Gambler's Fallacy" in Lottery
+     * Play*, Management Science 39(12), 1993: queda medida nas apostas sobre
+     * dezenas recém-sorteadas. Incluí-las é de graça: mesma chance, menos
+     * divisores. Peso conservador — a magnitude brasileira não é calibrada
+     * (como os demais componentes).
+     */
+    private const val W_RECENCY = 0.25
+
+    /**
      * Penalidade de popularidade do jogo. Maior = mais popular = pior para
      * o rateio. Sempre >= 0.
+     *
+     * @param recentNumbers dezenas do concurso mais recente (opcional): entram
+     *   com sinal **negativo**, porque recém-sorteadas são menos apostadas.
      */
-    fun penalty(lottery: Lottery, numbers: List<Int>): Double {
+    fun penalty(
+        lottery: Lottery,
+        numbers: List<Int>,
+        recentNumbers: Collection<Int> = emptySet(),
+    ): Double {
         if (numbers.isEmpty()) return 0.0
         val n = numbers.size.toDouble()
         val sorted = numbers.sorted()
@@ -86,6 +104,7 @@ object Unpopularity {
         val month = numbers.count { it <= MONTH_MAX } / n
         val primes = numbers.count(::isPrime) / n
         val seven = if (7 in numbers) 1.0 else 0.0
+        val recency = numbers.count { it in recentNumbers } / n
 
         // Pares consecutivos: 5, 6 conta uma vez.
         val consecutive = sorted.zipWithNext().count { (a, b) -> b - a == 1 } / (n - 1).coerceAtLeast(1.0)
@@ -109,14 +128,15 @@ object Unpopularity {
         // Progressão aritmética exata (5,10,15,...) é padrão deliberado comum.
         val arithmetic = if (numbers.size >= 3 && isArithmetic(sorted)) 1.0 else 0.0
 
-        return W_BIRTHDAY * birthday +
+        return (W_BIRTHDAY * birthday +
             W_MONTH * month +
             W_PRIME * primes +
             W_SEVEN * seven +
             W_CONSECUTIVE * consecutive +
             W_ALIGNMENT * alignment.coerceIn(0.0, 1.0) +
             W_CENTER * center +
-            W_ARITHMETIC * arithmetic
+            W_ARITHMETIC * arithmetic -
+            W_RECENCY * recency).coerceAtLeast(0.0)
     }
 
     private fun maxRepeat(counts: Map<Int, Int>): Double =

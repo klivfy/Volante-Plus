@@ -16,17 +16,34 @@ import { unpopularityPenalty } from './unpopularity';
  * Gerador de lotes de jogos simples (6 dezenas).
  *
  * Fonte única de dados: a lista de `NumberPerformance` produzida pelo
- * `analyzeBacktest`. Não existem estratégias selecionáveis — todo lote é
- * `STRATEGY_LABEL`.
+ * `analyzeBacktest`.
  *
- * ALGORITMO
- * 1. As dezenas elegíveis são ordenadas por `weight` e fatiadas em três tiers
- *    por percentil: 40% top, 30% mid, 30% low.
- * 2. Cada vaga do jogo sorteia primeiro um tier (`TOP_TIER_SHARE` = 70%,
- *    `MID_TIER_SHARE` = 20%, o restante 10% para o low) e depois uma dezena
- *    *dentro* do tier, com probabilidade proporcional ao peso.
+ * ALGORITMO (estratégia padrão `UNPOPULAR`)
+ * 1. Cada jogo sorteia dezenas uniformemente (todos os jogos têm exatamente
+ *    a mesma chance de ganhar — sorteio honesto é i.i.d. e nenhum histórico
+ *    muda isso).
+ * 2. Desempate por rateio: cada vaga do lote sorteia `UNPOPULAR_CANDIDATES`
+ *    jogos pelo processo acima e fica com o menos popular segundo
+ *    `unpopularityPenalty` (ver WHY no `payoutShare.ts` — a única otimização
+ *    que a matemática autoriza).
  * 3. Jogo repetido dentro do lote é resorteado até `MAX_DEDUP_ATTEMPTS` vezes;
  *    passando disso, o jogo é aceito.
+ * 4. Trevos complementares (+Milionária, Econômico): as duplas do lote são
+ *    sorteadas sem repetição — com 3 jogos, uma partição aleatória dos 6
+ *    trevos — maximizando a chance de pelo menos um prêmio pelo mesmo custo
+ *    (SC-005 da spec 002).
+ *
+ * ALGORITMO (`FREQUENCY_TIERS`, legado): as dezenas elegíveis são ordenadas
+ * por `weight` e fatiadas em três tiers por percentil (40/30/30); cada vaga
+ * sorteia primeiro o tier (70/20/10) e depois a dezena, proporcional ao peso.
+ * Estratégia mantida apenas para o backtest/benchmark, que medem que ela não
+ * supera o acaso.
+ *
+ * WHY (padrão uniforme, não tiers): os tiers concentram 70% das vagas nas
+ * dezenas de maior frequência medida — desproporcionalmente na faixa de
+ * aniversário (≤ 31), a mais apostada —, de modo que o desempate por rateio
+ * tinha de brigar contra o próprio sorteio. Com candidatos uniformes, o
+ * desempate explora todo o universo a cada vaga.
  *
  * WHY (tiers recalculados aqui): o tier gravado em cada `NumberPerformance` é
  * relativo ao universo inteiro da loteria. No modo Fechamento o universo
@@ -57,12 +74,26 @@ export type GenerationStrategy = 'UNPOPULAR' | 'FREQUENCY_TIERS';
 /**
  * Candidatos avaliados por jogo na estratégia `UNPOPULAR`.
  *
- * WHY 64 e não o mínimo global: escolher sempre a combinação menos popular
+ * WHY 12 e não o mínimo global: escolher sempre a combinação menos popular
  * faria todo usuário do app jogar o mesmo bilhete — e o app, ele mesmo,
- * viraria a fonte de popularidade. Com 64 sorteios uniformes o jogo escolhido
- * cai, em média, entre os ~2% menos populares, mas continua aleatório.
+ * viraria a fonte de popularidade. Medido (protocolo do Kotlin
+ * `PAYOUT_CANDIDATES`: 4.000 lotes por configuração, Mega-Sena, 20 milhões de
+ * apostas no concurso, sorteio uniforme — `candidateTuning.benchmark.test.ts`):
+ *
+ * | candidatos | ganho médio | dezenas ≤ 31 | jogos repetidos |
+ * |-----------:|------------:|-------------:|----------------:|
+ * | 1          | −0,73%      | 51,6%        | 5 em 16.000     |
+ * | 4          | +4,58%      | 37,1%        | 4 em 16.000     |
+ * | 12         | **+6,68%**  | 28,5%        | 11 em 16.000    |
+ * | 24         | +7,64%      | 23,7%        | 16 em 16.000    |
+ * | 64         | +8,65%      | 18,3%        | 24 em 16.000    |
+ *
+ * 12 captura 77% do ganho disponível; acima disso o retorno é decrescente e a
+ * concentração cresce — e concentrar os lotes de todos os usuários nas mesmas
+ * combinações "ótimas" recriaria a aglomeração que a otimização existe para
+ * evitar, desta vez causada pelo próprio app.
  */
-export const UNPOPULAR_CANDIDATES = 64;
+export const UNPOPULAR_CANDIDATES = 12;
 
 /** Proporção-alvo de vagas por tier (o low fica com o restante, 10%). */
 export const TOP_TIER_SHARE = 0.7;
@@ -86,6 +117,26 @@ export interface GenerateOptions {
   random?: RandomSource;
   /** Estratégia de sorteio; padrão `UNPOPULAR`. */
   strategy?: GenerationStrategy;
+  /**
+   * Candidatos sorteados por jogo no desempate por popularidade (espelho do
+   * `payoutCandidates` do Kotlin); padrão `UNPOPULAR_CANDIDATES`. `1` desliga
+   * o desempate e deixa o lote inteiramente uniforme.
+   */
+  candidates?: number;
+  /**
+   * Dezenas **disjuntas** entre os jogos do lote (padrão `true`). É uma
+   * preferência de experiência, sem ganho de chance mensurável na Mega-Sena
+   * (ver `docs/estudo-precisao-geracao.md` §4.2) — e custa ~8% do ganho de
+   * popularidade. `false` (modo "máximo valor") deixa os jogos compartilharem
+   * dezenas, maximizando o único ganho real que a matemática autoriza.
+   */
+  disjointNumbers?: boolean;
+  /**
+   * Dezenas do concurso mais recente: entram no `unpopularityPenalty` como
+   * menos apostadas (falácia do apostador — ver `unpopularity.ts`). Ausente
+   * em protocolos determinísticos (ex.: backtest).
+   */
+  recentNumbers?: Iterable<number>;
 }
 
 /**
@@ -157,29 +208,61 @@ export function generateGames(
   }
 
   const strategy = options.strategy ?? 'UNPOPULAR';
+  const candidateCount = options.candidates ?? UNPOPULAR_CANDIDATES;
+  if (!Number.isInteger(candidateCount) || candidateCount < 1) {
+    throw new RangeError(`Candidatos por jogo deve ser >= 1 (recebido: ${candidateCount})`);
+  }
+  const disjoint = options.disjointNumbers ?? true;
+  const recentNumbers = options.recentNumbers === undefined ? [] : [...options.recentNumbers];
   const numberTiers = tiersOf(eligible);
   const trevoTiers = buildTrevoTiers(lottery, options.trevoPerformances ?? []);
 
-  // DEDUPLICAÇÃO ABSOLUTA: compartilhamos um Set de dezenas usadas entre todos os jogos
+  // DEDUPLICAÇÃO ABSOLUTA (só no modo disjunto): compartilhamos um Set de
+  // dezenas usadas entre todos os jogos. No modo "máximo valor" os jogos podem
+  // compartilhar dezenas — evita-se apenas repetir o jogo exato.
   const usedNumbersGlobal = new Set<number>();
+  const signatures = new Set<string>();
   const games: GeneratedGame[] = [];
 
-  // Cada jogo retira `numbersPerBet` dezenas de um bolo que não se repõe, então
-  // o lote satura em `floor(elegíveis / numbersPerBet)`. Sem esse teto, os
-  // jogos seguintes sairiam incompletos (o sorteio simplesmente fica sem
-  // dezenas disponíveis) — pior que devolver menos jogos. Quem chama compara
-  // `games.length` com o pedido para avisar o usuário; ver `maxDistinctGames`.
-  const effectiveCount = Math.min(count, maxDistinctGames(lottery, eligible.length));
+  // No modo disjunto, cada jogo retira `numbersPerBet` dezenas de um bolo que
+  // não se repõe, então o lote satura em `floor(elegíveis / numbersPerBet)`.
+  // Sem esse teto, os jogos seguintes sairiam incompletos (o sorteio
+  // simplesmente fica sem dezenas disponíveis) — pior que devolver menos
+  // jogos. Quem chama compara `games.length` com o pedido para avisar o
+  // usuário; ver `maxDistinctGames`.
+  const effectiveCount = disjoint
+    ? Math.min(count, maxDistinctGames(lottery, eligible.length))
+    : count;
 
   for (let index = 0; index < effectiveCount; index++) {
     if (strategy === 'UNPOPULAR') {
-      const game = buildUnpopularGame(
+      const available = disjoint
+        ? eligible.map((performance) => performance.number).filter((n) => !usedNumbersGlobal.has(n))
+        : eligible.map((performance) => performance.number);
+      let game = buildUnpopularGame(
         lottery,
-        eligible.map((performance) => performance.number).filter((n) => !usedNumbersGlobal.has(n)),
+        available,
         rules.numbersPerBet,
-        trevoStrategy,
+        candidateCount,
+        recentNumbers,
         random,
       );
+      if (!disjoint) {
+        // Só evita o jogo exato repetido; compartilhar dezenas é permitido.
+        let attempts = 1;
+        while (attempts < MAX_DEDUP_ATTEMPTS && signatures.has(game.numbers.join('-'))) {
+          game = buildUnpopularGame(
+            lottery,
+            available,
+            rules.numbersPerBet,
+            candidateCount,
+            recentNumbers,
+            random,
+          );
+          attempts++;
+        }
+      }
+      signatures.add(game.numbers.join('-'));
       game.numbers.forEach((n) => usedNumbersGlobal.add(n));
       games.push(game);
       continue;
@@ -196,13 +279,84 @@ export function generateGames(
     );
   }
 
+  // WHY (trevos por lote, não por jogo): na estratégia padrão, sortear a dupla
+  // independentemente por jogo pode repetir duplas dentro do lote. Duplas
+  // distintas maximizam a chance de pelo menos um prêmio pelo mesmo custo —
+  // a spec 002 mede 25,4% contra 25,1% em lotes de 3 jogos. A estratégia
+  // legada mantém o sorteio por jogo: o laboratório mede o comportamento
+  // antigo, não o novo.
+  const finishedGames =
+    strategy === 'UNPOPULAR' ? assignBatchTrevoDuplas(lottery, games, trevoStrategy, random) : games;
+
   return {
     lottery,
-    games,
+    games: finishedGames,
     strategyLabel: strategy === 'UNPOPULAR' ? UNPOPULAR_STRATEGY_LABEL : STRATEGY_LABEL,
     performancesSnapshot: eligible,
     ...(pool === null ? {} : { sourcePool: [...pool].sort((a, b) => a - b) }),
   };
+}
+
+/**
+ * Duplas de trevos do lote inteiro (estratégia padrão).
+ *
+ * - COBERTURA_TOTAL: cada jogo leva as 15 duplas (inalterado).
+ * - ECONÔMICO: uma dupla distinta por jogo; com até 3 jogos, as duplas saem
+ *   de uma partição aleatória dos 6 trevos (disjuntas — o lote cobre 2·k
+ *   trevos); com 4 ou 5 jogos, as 3 duplas da partição cobrem os 6 trevos e
+ *   as demais completam com duplas distintas sorteadas. A ordem final é
+ *   embaralhada para não concentrar os usuários do app nos mesmos arranjos.
+ */
+function assignBatchTrevoDuplas(
+  lottery: Lottery,
+  games: GeneratedGame[],
+  trevoStrategy: TrevoStrategy,
+  random: RandomSource,
+): GeneratedGame[] {
+  if (!hasTrevos(lottery)) return games;
+  if (trevoStrategy === TrevoStrategy.COBERTURA_TOTAL) {
+    const all = allTrevoPairs(lottery);
+    return games.map((game) => ({ ...game, trevoDuplas: all }));
+  }
+  const duplas = complementaryTrevoDuplas(lottery, games.length, random);
+  return games.map((game, index) => ({ ...game, trevoDuplas: [duplas[index]] }));
+}
+
+/** Duplas distintas para `count` jogos, com a partição aleatória descrita acima. */
+function complementaryTrevoDuplas(
+  lottery: Lottery,
+  count: number,
+  random: RandomSource,
+): [number, number][] {
+  const universe = trevoUniverse(lottery);
+  const shuffled = sampleDistinct(universe, universe.length, random);
+  const matching: [number, number][] = [];
+  for (let i = 0; i + 1 < shuffled.length; i += 2) {
+    const a = shuffled[i];
+    const b = shuffled[i + 1];
+    matching.push([Math.min(a, b), Math.max(a, b)]);
+  }
+  if (count <= matching.length) {
+    return shuffleArray(matching, random).slice(0, count);
+  }
+  const all = allTrevoPairs(lottery);
+  const extras = all.filter(
+    (dupla) => !matching.some((m) => m[0] === dupla[0] && m[1] === dupla[1]),
+  );
+  return shuffleArray(
+    [...matching, ...shuffleArray(extras, random).slice(0, count - matching.length)],
+    random,
+  );
+}
+
+/** Fisher–Yates com o RNG injetado (reproduzível em teste). */
+function shuffleArray<T>(array: readonly T[], random: RandomSource): T[] {
+  const copy = [...array];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = random.nextInt(i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 /** `k` elementos distintos de `pool`, uniformes (Fisher-Yates parcial). */
@@ -218,35 +372,28 @@ function sampleDistinct(pool: readonly number[], k: number, random: RandomSource
 /**
  * Jogo da estratégia `UNPOPULAR`: o de menor `unpopularityPenalty` entre
  * `UNPOPULAR_CANDIDATES` sorteios uniformes das dezenas ainda disponíveis.
- * Os trevos são sorteados uniformemente — não há evidência de viés de
- * popularidade neles, e ranquear por frequência seria a mesma ilusão das dezenas.
+ * As duplas de trevos são atribuídas **por lote** depois, em
+ * `assignBatchTrevoDuplas` — nunca aqui.
  */
 function buildUnpopularGame(
   lottery: Lottery,
   available: readonly number[],
   gameSize: number,
-  trevoStrategy: TrevoStrategy,
+  candidates: number,
+  recentNumbers: readonly number[],
   random: RandomSource,
 ): GeneratedGame {
   let best: number[] = [];
   let bestPenalty = Infinity;
-  for (let i = 0; i < UNPOPULAR_CANDIDATES; i++) {
+  for (let i = 0; i < candidates; i++) {
     const candidate = sampleDistinct(available, gameSize, random);
-    const penalty = unpopularityPenalty(lottery, candidate);
+    const penalty = unpopularityPenalty(lottery, candidate, recentNumbers);
     if (penalty < bestPenalty) {
       best = candidate;
       bestPenalty = penalty;
     }
   }
-  if (!hasTrevos(lottery)) {
-    return { numbers: best };
-  }
-  const universe = Array.from({ length: lotteryRules(lottery).trevoUniverse }, (_, i) => i + 1);
-  const duplas: [number, number][] =
-    trevoStrategy === TrevoStrategy.COBERTURA_TOTAL
-      ? allTrevoPairs(lottery)
-      : [sampleDistinct(universe, lotteryRules(lottery).trevosPerBet, random) as [number, number]];
-  return { numbers: best, trevoDuplas: duplas };
+  return { numbers: best };
 }
 
 interface BuildContext {

@@ -12,7 +12,7 @@ import Grid from '@mui/material/Grid';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import EvidencePanel from '@/components/EvidencePanel';
 import GameCard from '@/components/GameCard';
@@ -35,6 +35,7 @@ import { evaluatePayoutBatch } from '@/engine/payoutShare';
 import { hasTrevos, lotteryRules } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
 import { usePerformanceCache } from '@/hooks/usePerformanceCache';
+import { getDraws } from '@/services/db';
 import { useLotteryTheme } from '@/context/LotteryThemeContext';
 import { GameBatch, GameMode, GeneratedGame, Lottery, MIN_GAMES } from '@/types/domain';
 
@@ -77,9 +78,41 @@ export default function VolantePage() {
   const [mode, setMode] = useState<GameMode>(GameMode.JOGOS_AVULSOS);
   const [pool, setPool] = useState<number[]>([]);
   const [guarantee, setGuarantee] = useState<number>(4);
+  // Dezenas disjuntas entre os jogos do lote (padrão). O modo "máximo valor"
+  // permite compartilhar dezenas: custa ~8% do ganho de popularidade sem
+  // contrapartida mensurável de chance — ver docs/estudo-precisao-geracao.md §4.2.
+  const [disjointNumbers, setDisjointNumbers] = useState<boolean>(true);
 
   const nextDraw = useNextDraw(lottery);
   const { performances, trevoPerformances, loading, error } = usePerformanceCache(lottery);
+  // Recência: dezenas do último concurso são menos apostadas (falácia do
+  // apostador — ver unpopularity.ts). A leitura é best-effort: sem histórico
+  // local, o componente fica vazio e nada muda. O reset na troca de loteria
+  // segue o padrão de ajuste durante a renderização usado em `trackedLottery`.
+  const [recentState, setRecentState] = useState<{ lottery: Lottery; numbers: number[] }>({
+    lottery,
+    numbers: [],
+  });
+  if (recentState.lottery !== lottery) {
+    setRecentState({ lottery, numbers: [] });
+  }
+  const recentNumbers = recentState.numbers;
+  useEffect(() => {
+    let cancelled = false;
+    void getDraws(lottery)
+      .then((draws) => {
+        if (!cancelled) {
+          setRecentState({
+            lottery,
+            numbers: draws[draws.length - 1]?.numbers ?? [],
+          });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [lottery]);
   const evidence = useMemo(
     () => (performances.length > 0 ? numberEvidence(lottery, performances) : null),
     [lottery, performances],
@@ -146,7 +179,8 @@ export default function VolantePage() {
   // clicar, em vez de deixar o usuário descobrir pelo lote menor.
   const gamesAvailable =
     performances.length > 0 ? maxDistinctGames(lottery, performances.length) : batchCount;
-  const batchLimited = !loading && batchCount > gamesAvailable;
+  const batchLimited =
+    disjointNumbers && !loading && batchCount > gamesAvailable;
 
   const tickets = Number(ticketsInput) >= 1 ? Number(ticketsInput) : undefined;
   const payoutAssessment =
@@ -167,7 +201,11 @@ export default function VolantePage() {
       });
       const batch = closureMode
         ? generateClosure(lottery, pool, guarantee)
-        : generateGames(lottery, batchCount, performances, { trevoPerformances });
+        : generateGames(lottery, batchCount, performances, {
+            trevoPerformances,
+            recentNumbers,
+            disjointNumbers,
+          });
       trackGameGeneration({
         lottery: lottery.toString(),
         batchSize: batch.games.length,
@@ -280,6 +318,18 @@ export default function VolantePage() {
             ) : (
               <>
                 <GameCountControl value={batchCount} onChange={setBatchCount} disabled={isBusy} />
+                <Box sx={{ mt: 2 }}>
+                  <SegmentedControl
+                    value={disjointNumbers ? 'diversificacao' : 'maximo'}
+                    onChange={(next: string) => setDisjointNumbers(next === 'diversificacao')}
+                    disabled={isBusy}
+                    ariaLabel={t('volante.dezenasLabel')}
+                    options={[
+                      { value: 'diversificacao', label: t('volante.dezenasDiversificacao') },
+                      { value: 'maximo', label: t('volante.dezenasMaximoValor') },
+                    ]}
+                  />
+                </Box>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                   {t('volante.strategyNote')}
                 </Typography>
@@ -329,12 +379,15 @@ export default function VolantePage() {
           <Alert severity="success">
             <strong>{t('fechamento.closureResult', { t: generatedBatch.closure.guarantee })}</strong>
             <br />
-            {t('fechamento.contract', {
-              games: generatedBatch.games.length,
-              cost: closureCost(generatedBatch.games.length).toFixed(2).replace('.', ','),
-              t: generatedBatch.closure.guarantee,
-              pool: generatedBatch.closure.poolSize,
-            })}
+            {t(
+              generatedBatch.closure.trevoClosure ? 'fechamento.contractTrevos' : 'fechamento.contract',
+              {
+                games: generatedBatch.games.length,
+                cost: closureCost(generatedBatch.games.length).toFixed(2).replace('.', ','),
+                t: generatedBatch.closure.guarantee,
+                pool: generatedBatch.closure.poolSize,
+              },
+            )}
             <br />
             {(() => {
               const p = guaranteeProbability(

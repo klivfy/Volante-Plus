@@ -4,6 +4,83 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
 ## [Unreleased]
 
+### Added
+
+- **Gerador: sorteio uniforme como estratégia padrão** (`GameGenerator.kt`,
+  `web/src/engine/gameGenerator.ts`). A estratégia legada por tiers de
+  frequência (`FREQUENCY_TIERS` / "Backtest-Driven") deixa de ser o padrão e
+  fica restrita ao backtest/laboratório, que medem que ela não supera o
+  acaso. O padrão (`UNPOPULAR` / "Baixa popularidade") sorteia dezenas
+  uniformemente e desempata pelos jogos menos disputados — a única otimização
+  que a matemática autoriza. Medição nova do número de candidatos no mesmo
+  protocolo (4.000 lotes, Mega-Sena, 20 M de apostas): 12 candidatos capturam
+  77% do ganho disponível com repetição desprezível; web e Android unificados
+  em 12 (a web usava 64).
+- **Trevos complementares na +Milionária**: no modo Econômico, as duplas do
+  lote são sorteadas sem repetição — com 3 jogos, uma partição aleatória dos
+  6 trevos — maximizando a chance de pelo menos um prêmio pelo mesmo custo
+  (SC-005 da spec 002), nas duas plataformas.
+- **Recência na medida de popularidade** (`Unpopularity`): dezenas do
+  concurso anterior entram como menos apostadas (falácia do apostador,
+  Clotfelter & Cook 1993), com peso conservador, nas duas plataformas; o
+  app e o web alimentam o componente com o último concurso salvo.
+- **Spec 003** (`specs/003-popularity-calibration/`): especificação da
+  calibração brasileira da medida de popularidade a partir das contagens
+  oficiais de ganhadores por faixa e da arrecadação, com portão de validação
+  pré-registrado e objetivo de rateio consciente das faixas de valor fixo.
+- **Estudo de precisão da geração** (`docs/estudo-precisao-geracao.md`,
+  `scripts/precision-study.mjs`): teto teórico, avenidas quantificadas e
+  roadmap priorizado, com medições reproduzíveis.
+
+### Changed
+
+- **As 10 faixas oficiais da +Milionária no web** (`prizeRules.ts`): a tabela
+  anterior (9 faixas, cruzando 6/5/4 dezenas com 2/1/0 trevos) subestimava a
+  chance de prêmio em ~88% — o web dizia "1 em 1.099" quando o correto é
+  **1 em 11,39**. Agora espelha o Android (`PrizeRules.kt`), com faixas
+  "1 ou nenhum trevo" como conjunto, e a análise de poder usa a tabela oficial.
+- **Ganho de rateio qualificado por faixa** (web `payoutShare.ts` + Kotlin
+  `PayoutShare.kt`): na +Milionária, as faixas fixas 7–10 concentram 99% da
+  probabilidade de prêmio e não mudam com a popularidade — o texto do ganho
+  condicional agora declara que ele vale só sobre as faixas de rateio.
+- **Modo "máximo valor"** (web + Kotlin): `disjointNumbers = false` permite
+  compartilhar dezenas entre os jogos do lote, que fica em média ~8% menos
+  disputado (ganho condicional ~6,7% → ~7,8% a 20 M de apostas) sem perda
+  mensurável de chance. O padrão continua sendo a disjunção ("máxima
+  diversificação"), com seletor na interface web.
+- **Fechamento com trevos na +Milionária (web)**: cada jogo da cobertura é
+  repetido em 3 cores (duplas de trevos disjuntas cobrindo os 6 trevos),
+  garantindo "t dezenas + pelo menos 1 trevo" para qualquer dupla sorteada,
+  verificada exaustivamente (`verifyTrevoClosure`). Custo 3×, declarado no
+  contrato. Garantias 2/3/4 oferecidas; os apps Android/desktop continuam
+  recusando a modalidade com mensagem honesta até a próxima rodada.
+
+### Fixed
+
+- **Sentry web** não era carregado: `sentry.config.ts` não seguia convenção
+  do SDK v10; migrado para `instrumentation-client.ts` +
+  `sentry.server/edge.config.ts` + `instrumentation.ts`, com `release`
+  alinhado à versão do pacote. Amostragem, `ignoreErrors`, `beforeSend` e
+  `denyUrls` voltam a valer.
+- **Colisão de releases por tag**: cada artefato tem workflow dono —
+  `v*` (APK debug), `v*-android` (APK assinado), `v*-desktop` (instaladores),
+  `web-v*` (extensões). Removidos os gatilhos de branch temporária e o
+  marcador `[release]` no texto do commit.
+- **CI**: actions deprecadas migradas para o `gh` CLI
+  (`extension-release.yml`, `android-build.yml`); versão do APK lida do
+  `versionName`; JDK unificado em 17; portão de versão dos manifests da
+  extensão (`sync-extension-versions.mjs --check`) no `web-ci.yml` e no
+  release; manifests sincronizados para 2.3.0.
+- **Android/desktop**: falha inesperada no backtest (qualquer exceção além
+  de `IllegalArgumentException`) não derruba mais o app nem trava o botão
+  "Executando…"; `CancellationException` propagada nos fluxos de sincronismo;
+  Room com `exportSchema = true`, schema versionado em `app/schemas/` e
+  `fallbackToDestructiveMigration` explícito; `InMemoryDrawRepository`
+  thread-safe (`ConcurrentHashMap`).
+- **Desktop**: modo Fechamento usa `ClosureDesigner` com garantia verificada
+  e recusa +Milionária (antes usava o gerador ponderado, que não garante
+  nada), com painel de garantia e contrato do desdobramento.
+
 ## [2.3.0] - 2026-10-06
 
 Laboratório web (`web/`): consolida segurança, precisão das sugestões, métodos

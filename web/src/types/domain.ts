@@ -76,6 +76,12 @@ export interface GameBatch {
     poolSize: number;
     /** Custo total em reais, ao preço de referência da aposta simples. */
     cost: number;
+    /**
+     * `true` quando a garantia inclui os trevos (+Milionária): além das
+     * dezenas, algum jogo acerta pelo menos 1 trevo (3 cores — R11 da
+     * spec 002). Os jogos do lote carregam a dupla de trevos.
+     */
+    trevoClosure?: boolean;
   };
 }
 

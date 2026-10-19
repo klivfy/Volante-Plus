@@ -15,43 +15,36 @@ Hilt/Koin). Este documento cobre o app Android — para web e desktop, ver
 ## Gerador de Jogos
 
 `domain/generator/GameGenerator.kt` concentra toda a geração de jogos
-simples (sempre 6 dezenas). Duas famílias de algoritmo convivem hoje:
+simples (sempre 6 dezenas). Não há estratégia selecionável pelo usuário: o
+gerador tem **uma** estratégia padrão e uma legada de laboratório, ambas
+guiadas pela lista de `NumberPerformance` (não vazia) produzida pelo
+`BacktestAnalyzer`:
 
-- **`generate(lottery, strategy, gameCount, ...)`** — estratégias clássicas
-  (ver seção "Estratégias" abaixo), com a **regra de repetição mínima**:
-  nenhuma dezena se repete entre os jogos do lote enquanto houver dezena
-  inédita disponível no pool.
-- **`generateWithPerformances(lottery, performances, gameCount, ...)`** —
-  algoritmo **baseado em tiers**: recebe uma `List<NumberPerformance>`
-  (uma dezena, um `score` de 0 a 1 e um `PerformanceTier`) produzida pelo
-  `BacktestAnalyzer` e monta cada jogo priorizando o tier `TOP`. A fração-alvo
-  de dezenas do tier `TOP` por jogo é `GameGenerator.TOP_TIER_TARGET_RATIO`
-  (0.7, ou seja, ~4 das 6 dezenas); o restante vem dos demais tiers. Ao
-  contrário de `generate()`, não há repetição mínima entre jogos do lote —
-  cada jogo é sorteado de forma independente a partir do mesmo ranking.
+- **`UNPOPULAR` (padrão)** — sorteio **uniforme** das dezenas com
+  **desempate por rateio**: entre `PAYOUT_CANDIDATES` (12) jogos sorteados
+  fica o menos popular segundo `Unpopularity.penalty` (que penaliza datas,
+  sequências, padrões do volante e recompensa as dezenas recém-sorteadas).
+  A chance de acertar é exatamente a de qualquer outro jogo — o desempate só
+  reduz com quantos apostadores o prêmio seria dividido. Na +Milionária, as
+  duplas de trevos do lote são **complementares** (distintas; com 3 jogos,
+  disjuntas e cobrindo os 6 trevos), maximizando a chance de pelo menos um
+  prêmio pelo mesmo custo.
+- **`FREQUENCY_TIERS` (legado)** — a estratégia anterior, por tiers de
+  frequência histórica (40% TOP / 30% MID / 30% LOW, com meta de 70% das
+  vagas no TOP). Só é usada pelo backtest e pelo laboratório, que existem
+  para medir que ela não supera o acaso. Rótulo: `Backtest-Driven`.
 
-Ambos os métodos aceitam `pool` (modo Fechamento): restringe o sorteio às
-dezenas marcadas no volante.
+Ambos os métodos aceitam `pool` (modo Fechamento), que restringe o sorteio
+às dezenas marcadas no volante. O modo Fechamento em si usa o
+`ClosureDesigner` (covering design com garantia verificada), não o
+`GameGenerator` — ver `ClosureDesigner.kt`.
 
-## Estratégias
-
-`domain/model/Generation.kt` define `GenerationStrategy`:
-
-| Estratégia | Uso | Histórico exigido? |
-|---|---|---|
-| `RANDOM` (Aleatório puro) | RNG criptográfico (`SecureRandom`), zero viés | Não |
-| `BALANCED` (Equilibrado) | 3 dezenas pares + 3 ímpares por jogo | Não |
-| `FREQUENCY` (Mais sorteadas) | Prioriza as dezenas mais frequentes da janela de treino — hipótese que o backtesting existe para refutar | Sim (só roda na tela de Backtesting) |
-| **`BACKTEST_DRIVEN` (Backtest-Driven)** | Usa o `List<NumberPerformance>` de um backtest já executado (ver "Próximo Concurso"/fluxo abaixo) para priorizar dezenas do tier `TOP` | Não no momento da geração — o histórico já foi consumido ao rodar o backtest |
-
-**Fluxo do Backtest-Driven**: na tela de Backtesting, após rodar um
-backtest, o `BacktestAnalyzer` calcula o desempenho de cada dezena na janela
-de treino; o botão "Usar estes dados para gerar jogos" grava esse resultado
-no `PerformanceCache` (`ui/navigation/NavGraph.kt`) e navega para a tela de
-Volante. Lá, selecionando a estratégia Backtest-Driven, `generateBatch()`
-lê o cache e chama `generateWithPerformances`. Sem um backtest rodado antes,
-a tela mostra uma mensagem pedindo para rodar o backtest primeiro — não há
-crash nem geração com dados incompletos.
+A calibração brasileira da medida de popularidade (substituir a heurística
+por um modelo ajustado às contagens oficiais de ganhadores por faixa) está
+especificada em `specs/003-popularity-calibration/`. O estudo completo das
+avenidas de precisão — com medições de poder estatístico, estrutura de lote,
+timing de concurso e roadmap priorizado — está em
+[`estudo-precisao-geracao.md`](estudo-precisao-geracao.md).
 
 ## Próximo Concurso
 
@@ -72,8 +65,11 @@ auxiliares.
 - `GameGenerator.MAX_GAMES = 5` — teto do lote (antes era 10; reduzido por
   custo de geração/renderização de lotes grandes).
 - `GameGenerator.GAME_SIZE = 6` — dezenas por jogo (fixo, `Draw.NUMBERS_DRAWN`).
-- `GameGenerator.TOP_TIER_TARGET_RATIO = 0.7` — fração-alvo de dezenas do
-  tier `TOP` por jogo na geração Backtest-Driven.
+- `GameGenerator.PAYOUT_CANDIDATES = 12` — candidatos sorteados por vaga no
+  desempate por rateio (valor medido: 77% do ganho disponível, concentração
+  desprezível — tabela no kdoc da constante).
+- `GameGenerator.TOP_TIER_SHARE = 0.7` — fração-alvo de dezenas do tier
+  `TOP` por jogo na estratégia legada `FREQUENCY_TIERS` (laboratório).
 
 ## Estrutura de diretórios (resumo)
 

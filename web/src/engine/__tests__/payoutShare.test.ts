@@ -181,3 +181,36 @@ describe('evaluatePayoutBatch', () => {
     expect(betterThanAverageCount(empty)).toBe(0);
   });
 });
+
+describe('rateioProbabilityShare', () => {
+  const T = 20_000_000;
+
+  it('é 1 na Mega-Sena (todas as faixas são de rateio)', () => {
+    const assessment = evaluatePayoutShare(Lottery.MEGA_SENA, [4, 10, 23, 41, 52, 59], T);
+    expect(assessment.rateioProbabilityShare).toBeCloseTo(1, 12);
+  });
+
+  it('na +Milionária é a fração das faixas 1–6 (~1% da probabilidade de prêmio)', () => {
+    const assessment = evaluatePayoutShare(
+      Lottery.MAIS_MILIONARIA,
+      [4, 10, 23, 31, 42, 49],
+      T,
+    );
+    // Faixas fixas 7–10 concentram ~99% da probabilidade (2+1 sozinha ≈ 6,83%).
+    expect(assessment.rateioProbabilityShare).toBeCloseTo(0.0099, 3);
+  });
+
+  it('o resumo qualifica o ganho quando há faixas fixas', () => {
+    const assessment = evaluatePayoutShare(
+      Lottery.MAIS_MILIONARIA,
+      [4, 10, 23, 31, 42, 49],
+      T,
+    );
+    const summary = payoutSummary(assessment);
+    expect(summary).toContain('faixas de rateio');
+    expect(summary).toContain('não mudam em nada');
+
+    const mega = evaluatePayoutShare(Lottery.MEGA_SENA, [4, 10, 23, 41, 52, 59], T);
+    expect(payoutSummary(mega)).not.toContain('não mudam em nada');
+  });
+});

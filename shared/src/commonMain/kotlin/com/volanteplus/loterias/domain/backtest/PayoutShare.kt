@@ -6,6 +6,7 @@ import com.volanteplus.loterias.domain.model.Lottery
 import kotlin.math.exp
 import kotlin.math.expm1
 import kotlin.math.ln1p
+import kotlin.math.roundToInt
 
 /**
  * A única alavanca que a matemática deixa de pé numa loteria — e a sua
@@ -154,7 +155,23 @@ object PayoutShare {
             crowding = crowdingFactor((q0 * m).coerceAtMost(1.0), tickets),
             baselineCrowding = crowdingFactor(q0, tickets),
             conditionalGain = conditionalPayoutGain(lottery, m, tickets),
+            rateioProbabilityShare = rateioProbabilityShare(lottery),
         )
+    }
+
+    /**
+     * Fração da probabilidade de "qualquer prêmio" que vem de faixas de
+     * **rateio** (não fixas) — as únicas em que a popularidade importa. 1,0 na
+     * Mega-Sena; ~0,01 na +Milionária (as faixas 7–10, de prêmio fixo,
+     * concentram 99% dos casos de prêmio). Espelha o web `payoutShare.ts`
+     * (spec 003, FR-005).
+     */
+    fun rateioProbabilityShare(lottery: Lottery): Double {
+        val tiers = PrizeTable.tiers(lottery)
+        val total = tiers.sumOf { it.probability }
+        if (total <= 0.0) return 1.0
+        val rateio = tiers.filter { it.payout is PrizeTable.Payout.Share }.sumOf { it.probability }
+        return rateio / total
     }
 
     /** O que se sabe sobre um jogo depois de medido. Nada aqui é previsão. */
@@ -172,6 +189,11 @@ object PayoutShare {
         val baselineCrowding: Double,
         /** Ganho no valor esperado condicional a ganhar, frente à média. */
         val conditionalGain: Double,
+        /**
+         * Fração da probabilidade de prêmio em faixas de **rateio** — as
+         * únicas em que a popularidade importa (ver [rateioProbabilityShare]).
+         */
+        val rateioProbabilityShare: Double,
     ) {
         /** true quando o jogo é menos disputado que a combinação média. */
         val betterThanAverage: Boolean get() = relativePopularity < 1.0
@@ -180,13 +202,23 @@ object PayoutShare {
          * A frase que a interface deve exibir — inclui a ressalva, sempre.
          * Sem ela o número vira promessa, que é o que este app existe para
          * não fazer.
+         *
+         * WHY (qualificação por faixa): na +Milionária, 99% da probabilidade
+         * de prêmio está nas faixas 7–10, de valor fixo — onde a popularidade
+         * não muda nada. O ganho vale só sobre as faixas de rateio, e a frase
+         * diz isso; sem a qualificação, o app venderia um ganho maior que o
+         * real.
          */
         val summary: String
             get() {
                 val pct = conditionalGain * 100
                 val direction = if (pct >= 0) "a mais" else "a menos"
-                return "%.1f%% %s de prêmio se ganhar, pela mesma chance de ganhar."
-                    .format(kotlin.math.abs(pct), direction)
+                val base = "%.1f%% %s de prêmio nas faixas de rateio se ganhar, " +
+                    "pela mesma chance de ganhar.".format(kotlin.math.abs(pct), direction)
+                if (rateioProbabilityShare >= 1.0 - 1e-12) return base
+                val fixedPct = ((1.0 - rateioProbabilityShare) * 100).roundToInt()
+                return "$base As faixas de prêmio fixo — $fixedPct% dos casos de " +
+                    "prêmio — não mudam em nada."
             }
     }
 

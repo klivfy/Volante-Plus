@@ -437,3 +437,68 @@ describe('generateGames — estratégia UNPOPULAR (padrão)', () => {
     }
   });
 });
+
+describe('generateGames — disjunção entre jogos (achado §4.2)', () => {
+  it('modo "máximo valor" permite compartilhar dezenas e nunca repete o jogo exato', () => {
+    let shared = false;
+    for (let seed = 1; seed <= 50; seed++) {
+      const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, megaPerformances(), {
+        random: createSeededRandom(seed),
+        disjointNumbers: false,
+      });
+      expect(batch.games).toHaveLength(MAX_GAMES);
+      const all = allNumbers(batch.games);
+      if (new Set(all).size < all.length) shared = true;
+      // Mesmo relaxado, o jogo exato nunca se repete dentro do lote.
+      expect(new Set(batch.games.map((g) => g.numbers.join('-'))).size).toBe(MAX_GAMES);
+      for (const game of batch.games) {
+        expect(game.numbers).toHaveLength(6);
+        expect(new Set(game.numbers).size).toBe(6);
+      }
+    }
+    expect(shared).toBe(true);
+  });
+
+  it('padrão (disjunto) mantém dezenas distintas entre jogos', () => {
+    const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, megaPerformances(), {
+      random: createSeededRandom(3),
+    });
+    expect(new Set(allNumbers(batch.games)).size).toBe(MAX_GAMES * 6);
+  });
+});
+
+describe('generateGames — trevos complementares (estratégia padrão)', () => {  it('+Milionária: 3 jogos recebem duplas disjuntas que cobrem os 6 trevos', () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      const batch = generateGames(Lottery.MAIS_MILIONARIA, 3, milionariaPerformances(), {
+        random: createSeededRandom(seed),
+        trevoStrategy: TrevoStrategy.ECONOMICO,
+      });
+      const duplas = batch.games.map((game) => game.trevoDuplas![0]);
+      expect(new Set(duplas.map(([a, b]) => `${a}-${b}`)).size).toBe(3);
+      expect(new Set(duplas.flat()).size).toBe(6);
+    }
+  });
+
+  it('+Milionária: 4 jogos recebem 4 duplas distintas cobrindo os 6 trevos', () => {
+    const batch = generateGames(Lottery.MAIS_MILIONARIA, MAX_GAMES, milionariaPerformances(), {
+      random: createSeededRandom(7),
+      trevoStrategy: TrevoStrategy.ECONOMICO,
+    });
+    const duplas = batch.games.map((game) => game.trevoDuplas![0]);
+    expect(new Set(duplas.map(([a, b]) => `${a}-${b}`)).size).toBe(MAX_GAMES);
+    expect(new Set(duplas.flat()).size).toBe(6);
+  });
+
+  it('nunca repete dupla dentro do lote, em nenhum tamanho de lote', () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      for (const count of [2, 3, MAX_GAMES]) {
+        const batch = generateGames(Lottery.MAIS_MILIONARIA, count, milionariaPerformances(), {
+          random: createSeededRandom(seed * 10 + count),
+          trevoStrategy: TrevoStrategy.ECONOMICO,
+        });
+        const signatures = batch.games.map((game) => game.trevoDuplas![0].join('-'));
+        expect(new Set(signatures).size).toBe(count);
+      }
+    }
+  });
+});

@@ -69,4 +69,22 @@ class UnpopularityTest {
             primos,
         )
     }
+
+    @Test
+    fun `dezenas do concurso anterior reduzem a penalidade`() {
+        val jogo = listOf(10, 15, 20, 25, 30, 35)
+        val semRecencia = Unpopularity.penalty(Lottery.MEGA_SENA, jogo)
+        val comRecencia = Unpopularity.penalty(Lottery.MEGA_SENA, jogo, recentNumbers = listOf(10, 15))
+        assertTrue(
+            "recência deveria reduzir a penalidade ($semRecencia vs $comRecencia)",
+            comRecencia < semRecencia,
+        )
+    }
+
+    @Test
+    fun `recencia nunca torna a penalidade negativa`() {
+        val jogo = listOf(1, 2, 3, 4, 5, 6)
+        val valor = Unpopularity.penalty(Lottery.MEGA_SENA, jogo, recentNumbers = listOf(1, 2, 3, 4, 5, 6))
+        assertTrue(valor >= 0.0)
+    }
 }

@@ -2,8 +2,10 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    // Mantido explicitamente: KSP ainda não suporta o Kotlin embutido do
-    // AGP 9 (ver android.builtInKotlin=false em gradle.properties).
+    // Mantido explicitamente em vez do Kotlin embutido do AGP: o KSP (Room)
+    // depende do plugin kotlin-android aplicado. Na migração para o AGP 9 o
+    // flag `android.builtInKotlin` precisa ir para false em gradle.properties
+    // — hoje a propriedade não existe lá porque o AGP 8.7.3 não a tem.
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
@@ -83,6 +85,13 @@ android {
     buildFeatures {
         compose = true
     }
+}
+
+// Schema do Room versionado em app/schemas/ (exportSchema = true em
+// VolanteDatabase). É o insumo obrigatório para escrever e testar uma
+// Migration quando a versão do banco subir.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 // Plugin kotlin-android explícito (não built-in): a configuração do

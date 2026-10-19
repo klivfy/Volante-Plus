@@ -26,7 +26,7 @@
       "description": "Sentry DSN for error tracking (optional)"
     },
     "NEXT_PUBLIC_APP_VERSION": {
-      "description": "App version to report (default: 2.0.0)"
+      "description": "App version to report (default: 2.3.0, the package.json version)"
     }
   }
 }

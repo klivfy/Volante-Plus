@@ -12,7 +12,8 @@ uma aba nem de ter o Volante+ web publicado em algum lugar.
   com o mesmo motor (`web/src/engine/`) usado pelo app web.
 - **Sincronização em segundo plano** — um service worker (`background.js`)
   agendado via `chrome.alarms` busca o histórico novo periodicamente (a cada
-  24h) e grava em `chrome.storage.local`.
+  6h — `SYNC_PERIOD_MINUTES` em `extension/src/sync.ts`) e grava em
+  `chrome.storage.local`.
 - **Badge no ícone** — havendo concursos novos após uma sincronização, o
   ícone da extensão ganha um badge com a contagem; abrir o popup limpa o
   badge.
@@ -94,7 +95,7 @@ exclusivo dele).
 
 `chrome.*` (Chrome/Edge, baseado em callback) e `browser.*` (Firefox, Promises
 nativas) diferem na API. `extension/src/*.ts` e
-`popup-app/src/app/PopupContent.tsx` usam só `browser.*` do pacote
+`popup-app/src/components/PopupContent.tsx` usam só `browser.*` do pacote
 [`webextension-polyfill`](https://github.com/mozilla/webextension-polyfill),
 que expõe esse namespace com Promises em qualquer um dos três navegadores —
 um único código-fonte para os três `build:*`, sem `if (chrome) ... else
@@ -149,6 +150,19 @@ pacote. Os avisos `UNSAFE_VAR_ASSIGNMENT` sobre `innerHTML` vêm do runtime
 minificado do próprio Next.js/React (hidratação), não de código deste
 projeto — não bloqueiam publicação.
 
+### Smoke test automatizado (antes de submeter às lojas)
+
+`node extension/test-smoke.mjs [chrome|edge]` carrega o pacote num Chromium
+real via Playwright, confere o registro do service worker, abre o popup,
+verifica erros de console e executa uma geração de jogos de ponta a ponta.
+No Windows, rode com `SMOKE_HEADED=1` (o headless desta versão do Chromium
+não inicia o service worker de extensões — limitação do runner, não do
+pacote). Requer `web/node_modules` instalado (`npm ci` em `web/`) e o
+Chromium do Playwright (`npx playwright install chromium` em `web/`).
+O Firefox não tem caminho automatizado equivalente (o Playwright não suporta
+extensões no Firefox): vale-se do `web-ext lint` acima + carregamento
+temporário manual.
+
 ## Permissões pedidas
 
 | Permissão | Por quê |
@@ -201,6 +215,15 @@ toda a lógica de geração (antes só abria uma aba).
 
 ## Versionamento
 
-O campo `version` nos três manifests (`extension/manifests/*.json`) segue o
-mesmo número de versão do projeto (ver `README.md`, raiz do repositório).
-Atualize os três junto com qualquer bump de versão.
+O campo `version` nos três manifests (`extension/manifests/*.json`) segue a
+versão do `web/package.json` (a extensão empacota o mesmo app). O processo
+completo — incluindo a convenção de tags `web-vX.Y.Z` e os portões de CI —
+está em [`EXTENSION-RELEASES.md`](EXTENSION-RELEASES.md). Em resumo:
+
+```bash
+node scripts/sync-extension-versions.mjs <versão>   # escreve nos 3 manifests
+node scripts/sync-extension-versions.mjs --check <versão>  # confere (usado no CI)
+```
+
+O build (`extension/build.mjs`) copia os manifests verbatim — a sincronização
+tem de acontecer antes, no repositório.

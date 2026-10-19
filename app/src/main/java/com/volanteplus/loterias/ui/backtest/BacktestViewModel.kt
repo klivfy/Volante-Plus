@@ -18,6 +18,7 @@ import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
 import com.volanteplus.loterias.ui.navigation.PerformanceCache
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -109,9 +110,19 @@ class BacktestViewModel(
                         )
                     )
                 }
-                _uiState.update { it.copy(running = false, report = report) }
-            } catch (e: IllegalArgumentException) {
-                _uiState.update { it.copy(running = false, message = e.message) }
+                _uiState.update { it.copy(report = report) }
+            } catch (e: CancellationException) {
+                // Cancelamento não é falha: propagar mantém o escopo estruturado
+                // (o `finally` ainda destrava o botão).
+                throw e
+            } catch (e: Exception) {
+                // WHY não só IllegalArgumentException: a configuração inválida
+                // é o caso esperado, mas uma falha de banco ou do motor
+                // escapava da coroutine e derrubava o app — com o estado preso
+                // em "Executando…". Qualquer exceção vira mensagem na tela.
+                _uiState.update { it.copy(message = e.message ?: "Falha ao executar o backtest.") }
+            } finally {
+                _uiState.update { it.copy(running = false) }
             }
         }
     }
@@ -149,6 +160,8 @@ class BacktestViewModel(
                     if (!result.completed) append(" Interrompido — tente novamente para retomar.")
                 }
                 _uiState.update { it.copy(message = summary) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(message = "Falha na sincronização: ${e.message ?: "erro de rede"}")

@@ -1,11 +1,16 @@
 name: Android APK Build
 
+# Convenção de tags: cada artefato tem um workflow dono, para que uma tag
+# nunca dispare três releases concorrentes (ver extension-release.yml).
+#   - `v<numero>-android`    → aqui (APK release assinado)
+#   - `v<numero>`            → release.yml (APK debug)
+#   - `v<numero>-desktop`    → desktop-ci.yml
+#   - `web-v<numero>`        → extension-release.yml
+# Antes o gatilho era `v2.1*` (versão hardcoded) mais uma branch temporária.
 on:
   push:
-    branches:
-      - claude/android-loterias-init-y1pr71
     tags:
-      - 'v2.1*'
+      - 'v*-android'
   workflow_dispatch:
     inputs:
       build_type:
@@ -31,21 +36,34 @@ jobs:
         with:
           fetch-depth: 0
 
+      # JDK 17 para bater com android-ci.yml, release.yml e desktop-ci.yml —
+      # o projeto compila com Java 17 (ver app/build.gradle.kts).
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          gradle-version: wrapper
-          cache-disabled: false
+      - name: Setup Gradle (com cache)
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
+
+      # A versão publicada sai do versionName declarado no build, não de um
+      # literal no workflow: hardcodar "2.1.0" aqui deixava artefato e notas
+      # mentindo a cada bump de versão.
+      - name: Resolve a versão do app
+        id: appversion
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/.*versionName *= *"\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)"
+          if [ -z "$version" ]; then
+            echo "::error::versionName não encontrado em app/build.gradle.kts"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "versionName: $version"
 
       - name: Build Release APK
         run: ./gradlew assembleRelease --stacktrace
@@ -108,43 +126,51 @@ jobs:
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: volante-plus-v2.1.0-${{ steps.sign.outputs.signed == 'true' && 'release' || 'release-UNSIGNED' }}
+          name: volante-plus-v${{ steps.appversion.outputs.version }}-${{ steps.sign.outputs.signed == 'true' && 'release' || 'release-UNSIGNED' }}
           path: ${{ steps.locate.outputs.path }}
           retention-days: 7
 
+      # WHY `gh release` em vez de softprops/action-gh-release@v1: mesma
+      # razão de extension-release.yml — a v1 roda em runtime Node antigo e o
+      # repositório já usa o gh CLI em release.yml e desktop-ci.yml.
       - name: Create Release (on tag push)
-        if: startsWith(github.ref, 'refs/tags/v2.1') && steps.sign.outputs.signed == 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.locate.outputs.path }}
-          draft: true
-          body: |
-            # Volante+ v2.1.0 Android Release
+        if: github.ref_type == 'tag' && steps.sign.outputs.signed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK: ${{ steps.locate.outputs.path }}
+          VERSION: ${{ steps.appversion.outputs.version }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<EOF
+          # Volante+ v${VERSION} Android Release
 
-            **Features**:
-            - ✅ All 10 v2.1 features implemented
-            - ✅ Material Design 3 styling
-            - ✅ Dynamic lottery theming
-            - ✅ Absolute deduplication algorithm
-            - ✅ Next draw accumulation badge
-            - ✅ Google Sans Flex typography
-            - ✅ Splash screen with fade-out
-            - ✅ Kotlin/Compose foundation
+          APK de release **assinado**, gerado por \`android-build.yml\`.
 
-            **Build Info**:
-            - versionCode: 2
-            - versionName: 2.1.0
-            - minSdkVersion: 26 (Android 8.0)
-            - targetSdkVersion: 35 (Android 15)
-            - Signed release APK ready for production
+          **Build Info**:
+          - versionName: ${VERSION}
+          - minSdkVersion: 26 (Android 8.0)
+          - targetSdkVersion: 35 (Android 15)
+          - Commit: \`${{ github.sha }}\`
 
-            **Installation**:
-            ```bash
-            adb install app-release.apk
-            ```
+          **Installation**:
+          \`\`\`bash
+          adb install $(basename "$APK")
+          \`\`\`
+          EOF
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+            gh release edit "$TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" "$APK" \
+              --target "${{ github.sha }}" \
+              --title "Volante+ Android v${VERSION}" \
+              --notes-file release-notes.md \
+              --draft
+          fi
 
       - name: Aviso de release sem assinatura (on tag push)
-        if: startsWith(github.ref, 'refs/tags/v2.1') && steps.sign.outputs.signed != 'true'
+        if: github.ref_type == 'tag' && steps.sign.outputs.signed != 'true'
         run: |
           echo "⚠️  Tag $GITHUB_REF publicada, mas o APK não está assinado —"
           echo "⚠️  a GitHub Release NÃO foi criada. Configure o keystore de release"
@@ -159,5 +185,5 @@ jobs:
           echo "Common issues:"
           echo "1. Network issues - retry the workflow"
           echo "2. Gradle cache issues - clear cache and retry"
-          echo "3. Java version mismatch - verify Java 21 is used"
+          echo "3. Java version mismatch - verify Java 17 is used"
           exit 1

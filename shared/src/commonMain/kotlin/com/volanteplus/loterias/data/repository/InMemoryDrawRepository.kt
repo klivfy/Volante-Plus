@@ -5,6 +5,7 @@ import com.volanteplus.loterias.domain.model.Lottery
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import java.time.LocalDate
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Implementação em memória do repositório — usada em testes de domínio e,
@@ -15,7 +16,12 @@ import java.time.LocalDate
  */
 class InMemoryDrawRepository : DrawRepository {
 
-    private val stored = mutableMapOf<Pair<Lottery, Int>, Draw>()
+    // WHY ConcurrentHashMap: no desktop este repositório é compartilhado por
+    // dois CoroutineScope(Dispatchers.Default) independentes — a importação de
+    // CSV escreve enquanto a análise do volante lê. Com um mutableMapOf comum,
+    // isso é uma corrida de dados real (ConcurrentModificationException na
+    // varredura ou escrita perdida), não uma possibilidade teórica.
+    private val stored = ConcurrentHashMap<Pair<Lottery, Int>, Draw>()
 
     fun drawsOf(lottery: Lottery): List<Draw> =
         stored.values.filter { it.lottery == lottery }.sortedBy { it.contestNumber }

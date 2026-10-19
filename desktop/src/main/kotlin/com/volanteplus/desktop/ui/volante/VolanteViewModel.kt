@@ -5,6 +5,9 @@ import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.domain.backtest.BacktestAnalyzer
 import com.volanteplus.loterias.domain.backtest.BacktestConfig
 import com.volanteplus.loterias.domain.backtest.NumberPerformance
+import com.volanteplus.loterias.domain.generator.ClosureDesign
+import com.volanteplus.loterias.domain.generator.ClosureDesigner
+import com.volanteplus.loterias.domain.generator.ClosureGuarantee
 import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.GameBatch
 import com.volanteplus.loterias.domain.model.GameMode
@@ -12,6 +15,7 @@ import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.NextDrawInfo
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.domain.usecase.GetNextDrawInfoUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -46,11 +50,24 @@ data class VolanteUiState(
     val selections: Map<Lottery, VolanteSelection> =
         Lottery.entries.associateWith { VolanteSelection() },
     val batchCount: Int = GameGenerator.MIN_GAMES,
+    /** Garantia pedida no modo Fechamento. */
+    val closureGuarantee: ClosureGuarantee = ClosureGuarantee.QUADRA,
     val generatedBatch: GameBatch? = null,
     val message: String? = null,
 ) {
     val current: VolanteSelection
         get() = selections.getValue(lottery)
+
+    /**
+     * Desdobramento aplicável às dezenas já marcadas, ou null quando a
+     * quantidade marcada está fora da faixa com garantia conhecida.
+     */
+    val closureDesign: ClosureDesign?
+        get() = if (gameMode == GameMode.FECHAMENTO) {
+            ClosureDesigner.design(current.numbers.size, closureGuarantee)
+        } else {
+            null
+        }
 
     val isSelectionValid: Boolean
         get() {
@@ -172,22 +189,21 @@ class VolanteViewModel(
         }
     }
 
+    fun selectClosureGuarantee(guarantee: ClosureGuarantee) {
+        _uiState.update { it.copy(closureGuarantee = guarantee, generatedBatch = null) }
+    }
+
+    /**
+     * Gera [count] jogos. No modo Fechamento, [count] é ignorado: o número de
+     * jogos vem do desdobramento por covering design ([ClosureDesigner]), que
+     * sozinho garante a cobertura — a geração ponderada por desempenho não
+     * garante nada sobre as dezenas marcadas.
+     */
     fun generateGames(count: Int) {
         val state = _uiState.value
-        val pool = if (state.gameMode == GameMode.FECHAMENTO) {
-            val marked = state.current.numbers
-            if (marked.size < state.lottery.minSelection) {
-                _uiState.update {
-                    it.copy(
-                        message = "Fechamento: marque ao menos ${state.lottery.minSelection} " +
-                            "dezenas no volante (marcadas: ${marked.size})."
-                    )
-                }
-                return
-            }
-            marked
-        } else {
-            null
+        if (state.gameMode == GameMode.FECHAMENTO) {
+            generateClosure(state)
+            return
         }
 
         val performances = _performances.value
@@ -200,18 +216,85 @@ class VolanteViewModel(
 
         scope.launch {
             try {
+                // Recência: dezenas do último concurso são menos apostadas
+                // (falácia do apostador) — ver Unpopularity. Repositório nulo
+                // (testes) simplesmente deixa o componente vazio.
+                val recentNumbers = repository?.getLatestDraw(state.lottery)?.numbers.orEmpty()
                 val batch = generator.generate(
                     lottery = state.lottery,
                     count = count,
                     performances = performances,
                     trevoPerformances = _trevoPerformances.value,
                     trevoStrategy = state.current.trevoStrategy,
-                    pool = pool,
+                    pool = null,
+                    recentNumbers = recentNumbers,
                 )
                 _uiState.update { it.copy(generatedBatch = batch, message = null) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: IllegalArgumentException) {
                 _uiState.update { it.copy(message = e.message) }
             }
+        }
+    }
+
+    /**
+     * Desdobra as dezenas marcadas por covering design, com garantia
+     * matemática verificada (ver [ClosureDesigner]) — não pela geração
+     * ponderada por desempenho, que não garante cobertura alguma.
+     *
+     * WHY esta função existe no desktop: até aqui o módulo chamava o
+     * [GameGenerator] com `pool`, cuja regra de repetição mínima deixou algum
+     * quarteto descoberto nas 300 de 300 simulações medidas (ver
+     * [ClosureDesigner]). O Android já usava o [ClosureDesigner]; as duas
+     * plataformas prometiam coisas diferentes sob o mesmo nome de recurso.
+     */
+    private fun generateClosure(state: VolanteUiState) {
+        // A garantia é sobre as 6 dezenas. Na +Milionária as faixas também
+        // exigem trevos, então "quadra garantida" não se traduz em prêmio
+        // garantido e o fechamento seria uma promessa falsa. Melhor recusar
+        // do que prometer errado.
+        if (state.lottery.hasTrevos) {
+            _uiState.update {
+                it.copy(
+                    message = "Fechamento com garantia só vale para a Mega-Sena. Na " +
+                        "${state.lottery.displayName} as faixas também dependem dos " +
+                        "trevos, e acertar dezenas não garante prêmio."
+                )
+            }
+            return
+        }
+        val marked = state.current.numbers
+        if (marked.size < state.lottery.minSelection) {
+            _uiState.update {
+                it.copy(
+                    message = "Fechamento: marque ao menos ${state.lottery.minSelection} " +
+                        "dezenas no volante (marcadas: ${marked.size})."
+                )
+            }
+            return
+        }
+        val design = ClosureDesigner.design(marked.size, state.closureGuarantee)
+        if (design == null) {
+            _uiState.update {
+                it.copy(
+                    message = "Não há fechamento com garantia de " +
+                        "${state.closureGuarantee.label} para ${marked.size} dezenas. " +
+                        "Marque de ${ClosureDesigner.SUPPORTED_POOL_SIZES.first} a " +
+                        "${ClosureDesigner.SUPPORTED_POOL_SIZES.last} dezenas."
+                )
+            }
+            return
+        }
+        _uiState.update {
+            it.copy(
+                generatedBatch = GameBatch(
+                    lottery = state.lottery,
+                    games = design.apply(marked.toList()),
+                    sourcePool = marked.sorted(),
+                ),
+                message = null,
+            )
         }
     }
 

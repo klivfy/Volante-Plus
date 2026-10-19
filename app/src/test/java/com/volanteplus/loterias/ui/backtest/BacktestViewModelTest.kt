@@ -7,6 +7,7 @@ import com.volanteplus.loterias.domain.backtest.BacktestEngine
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
+import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -52,6 +54,19 @@ class BacktestViewModelTest {
         override suspend fun fetchContest(lottery: Lottery, contestNumber: Int) = dto(contestNumber)
         override suspend fun fetchNextDraw(lottery: Lottery): Result<NextDrawDto> =
             Result.failure(UnsupportedOperationException("não usado neste teste"))
+    }
+
+    /**
+     * Repositório que falha só na leitura da janela de treino — o caminho que
+     * o motor de backtesting percorre. Delega o resto para um repositório
+     * real para que a tela carregue normalmente antes da falha.
+     */
+    private class FailingOnTrainingRepository(
+        private val delegate: InMemoryDrawRepository,
+        private val failure: Exception,
+    ) : DrawRepository by delegate {
+        override suspend fun getDrawsUpTo(lottery: Lottery, cutoff: LocalDate): List<Draw> =
+            throw failure
     }
 
     private fun megaDraw(contest: Int, date: LocalDate) =
@@ -123,6 +138,35 @@ class BacktestViewModelTest {
 
         assertNull(vm.uiState.value.report)
         assertNotNull(vm.uiState.value.message)
+    }
+
+    /**
+     * Regressão: `runBacktest` capturava só IllegalArgumentException, então
+     * uma falha de repositório escapava da coroutine (derrubando o app) e
+     * deixava `running = true` para sempre — botão travado em "Executando…".
+     */
+    @Test
+    fun `falha inesperada do repositorio vira mensagem e destrava a execucao`() = runTest {
+        val backing = InMemoryDrawRepository()
+        backing.upsertAll((1..4).map { megaDraw(it, LocalDate.of(2024, 6, it)) })
+        val repo = FailingOnTrainingRepository(backing, IllegalStateException("banco indisponível"))
+
+        val vm = BacktestViewModel(
+            engine = BacktestEngine(repo),
+            repository = repo,
+            syncDrawHistory = SyncDrawHistory(repo, FakeCaixaApi(latestContest = 1)),
+            seeder = null,
+            computeDispatcher = dispatcher,
+        )
+        advanceUntilIdle()
+        vm.setCutoffInput("2024-06-02")
+        vm.runBacktest()
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertFalse("running deve voltar a false mesmo em falha", state.running)
+        assertNull(state.report)
+        assertEquals("banco indisponível", state.message)
     }
 
     @Test

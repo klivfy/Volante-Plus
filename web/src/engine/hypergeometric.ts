@@ -114,14 +114,20 @@ export function prizeProbabilities(lottery: Lottery): Record<string, number> {
       rules.numbersPerBet,
       tier.numberHits,
     );
+    // Faixas com "1 ou nenhum trevo" somam as probabilidades do conjunto.
     const trevos =
       tier.trevoHits === undefined
         ? 1
-        : hypergeometricProbability(
-            rules.trevoUniverse,
-            rules.trevosDrawn,
-            rules.trevosPerBet,
-            tier.trevoHits,
+        : tier.trevoHits.reduce(
+            (sum, hits) =>
+              sum +
+              hypergeometricProbability(
+                rules.trevoUniverse,
+                rules.trevosDrawn,
+                rules.trevosPerBet,
+                hits,
+              ),
+            0,
           );
     result[tier.key] = numbers * trevos;
   }
