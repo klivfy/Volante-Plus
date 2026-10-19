@@ -1,13 +1,59 @@
-/* Popup de extensão: Chrome/Edge auto-dimensionam a janela do popup ao
-   conteúdo, com teto de ~800×600px. Fixar width:400px + min-height:600px dá o
-   "400x600" pedido sem estourar esse teto (o excesso rola dentro do popup). */
+/* Visual do popup — mesmos tokens de design do app web (Netlify):
+ * superfícies #FFFBFE/#1C1B1F, cor da modalidade (verde Mega-Sena, azul
+ * +Milionária) com contraste WCAG ≥ 4,5:1, claro/escuro pelo navegador
+ * (`prefers-color-scheme`, como o tema do web), botões pill 20px, cartões
+ * outlined com raio 12px, chips com raio 8px. Ver `web/src/theme.ts`.
+ *
+ * Popup de extensão: Chrome/Edge auto-dimensionam a janela ao conteúdo, com
+ * teto de ~800×600px. Fixar width:400px + min-height:600px dá o "400×600"
+ * pedido sem estourar esse teto (o excesso rola dentro do popup). */
+
 :root {
-  --primary: #6750a4;
-  --primary-dark: #4f378b;
+  /* Neutros claros (iguais ao tema do web). */
   --surface: #fffbfe;
+  --surface-variant: #e7e0ec;
   --on-surface: #1c1b1f;
+  --on-surface-variant: #49454f;
+  --secondary: #625b71;
   --outline: #cac4d0;
   --error: #b3261e;
+  /* Cor da modalidade — sobrescrita por [data-lottery]. */
+  --primary: #2b8300;
+  --primary-contrast: #ffffff;
+  --primary-hover: #1d5a00;
+  --chip-surface: #e8def8;
+  --chip-text: #4a4458;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #1c1b1f;
+    --surface-variant: #49454f;
+    --on-surface: #e6e0e9;
+    --on-surface-variant: #cac4d0;
+    --secondary: #ccc7d8;
+    --outline: #49454f;
+    --error: #f2b8b5;
+    --primary: #40be00;
+    --primary-contrast: #0b2000;
+    --primary-hover: #7adb44;
+    --chip-surface: #49454f;
+    --chip-text: #e6e0e9;
+  }
+}
+
+:root[data-lottery='milionaria'] {
+  --primary: #005ca9;
+  --primary-contrast: #ffffff;
+  --primary-hover: #003f75;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-lottery='milionaria'] {
+    --primary: #48acff;
+    --primary-contrast: #001d36;
+    --primary-hover: #8ac8ff;
+  }
 }
 
 * {
@@ -25,10 +71,13 @@ body {
   background: var(--surface);
   color: var(--on-surface);
   font-family:
-    system-ui,
     -apple-system,
+    BlinkMacSystemFont,
     "Segoe UI",
     Roboto,
+    "Helvetica Neue",
+    Arial,
+    system-ui,
     sans-serif;
   font-size: 14px;
 }
@@ -40,12 +89,23 @@ main {
   gap: 12px;
 }
 
-h1 {
-  font-size: 18px;
+/* Cabeçalho — título + subtítulo fixo, como a barra superior do web. */
+header h1 {
+  font-size: 1.375rem; /* 22px — h5/h6 do tema do web */
   font-weight: 700;
+  line-height: 1.273;
   margin: 0;
 }
 
+header p {
+  margin: 2px 0 0;
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.4;
+  color: var(--secondary);
+}
+
+/* Seletor de loteria: segmentado, selecionado preenchido com a cor da
+ * modalidade (como o MuiToggleButton selecionado do web). */
 .lottery-selector {
   display: flex;
   gap: 8px;
@@ -53,19 +113,28 @@ h1 {
 
 .chip {
   flex: 1;
+  min-height: 44px;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--outline);
   background: transparent;
   color: var(--on-surface);
-  font-size: 13px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
 }
 
-.chip--selected {
+.chip--selected,
+.chip--selected:hover {
   background: var(--primary);
   border-color: var(--primary);
-  color: white;
+  color: var(--primary-contrast);
+  font-weight: 700;
+}
+
+.chip:not(.chip--selected):hover {
+  background: var(--surface-variant);
 }
 
 .chip:disabled {
@@ -73,6 +142,7 @@ h1 {
   cursor: not-allowed;
 }
 
+/* Controles de geração. */
 .controls {
   display: flex;
   flex-direction: column;
@@ -80,7 +150,8 @@ h1 {
 }
 
 .controls label {
-  font-size: 13px;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .controls input[type="range"] {
@@ -88,94 +159,119 @@ h1 {
   accent-color: var(--primary);
 }
 
+/* Botão primário: pill 20px, peso 600, altura mínima 44 (igual ao web). */
 button.primary {
-  padding: 10px 16px;
+  min-height: 44px;
+  padding: 10px 24px;
   border: none;
-  border-radius: 8px;
+  border-radius: 20px;
   background: var(--primary);
-  color: white;
-  font-size: 14px;
+  color: var(--primary-contrast);
+  font-size: 0.875rem;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
 }
 
 button.primary:disabled {
   background: var(--outline);
+  color: var(--on-surface-variant);
   cursor: not-allowed;
 }
 
 button.primary:not(:disabled):hover {
-  background: var(--primary-dark);
+  background: var(--primary-hover);
+}
+
+/* Ressalva da estratégia — mesmo texto exibido no web. */
+.strategy-note,
+.error {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--secondary);
+  margin: 0;
 }
 
 .error {
   color: var(--error);
-  font-size: 13px;
-  margin: 0;
 }
 
+/* Cartões de jogos: outlined, raio 12 (como o GameCard do web). */
 .games {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .game-card {
   border: 1px solid var(--outline);
-  border-radius: 8px;
-  padding: 10px;
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
 }
 
 .game-card__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
-  color: #555;
-  margin-bottom: 6px;
+  font-size: 0.75rem; /* caption do web */
+  color: var(--secondary);
+  margin-bottom: 8px;
 }
 
 .game-card__header button {
+  min-height: 32px;
   border: none;
   background: transparent;
   color: var(--primary);
-  font-size: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.game-card__header button:hover {
+  background: var(--surface-variant);
 }
 
 .game-card__numbers {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
+/* Bolinha de sorteio: 36px, cor da modalidade, texto de contraste (WCAG). */
 .ball {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--primary);
-  color: white;
+  color: var(--primary-contrast);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
 .game-card__trevos {
   display: flex;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
+/* Chip de trevos: raio 8, tom secundário (como o Chip do web). */
 .trevo {
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--primary);
-  color: var(--primary);
-  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--secondary);
+  background: var(--chip-surface);
+  color: var(--chip-text);
+  font-size: 0.75rem;
+  font-weight: 500;
 }

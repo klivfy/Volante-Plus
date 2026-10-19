@@ -2,13 +2,15 @@
 // Monta extension/dist/<target>/ (popup estático + background.js + ícones +
 // manifest específico) e empacota cada um em extension/dist/<target>.zip.
 // Usa o binário `zip` do sistema (presente por padrão nos runners
-// ubuntu-latest do GitHub Actions) em vez de trazer uma dependência npm só
-// para isso.
+// ubuntu-latest do GitHub Actions); quando ele não existe — o caso de
+// máquinas Windows de desenvolvimento — cai no compactador puro
+// (`lib/zip-fallback.mjs`), sem dependências.
 import { existsSync, mkdirSync, rmSync, cpSync, copyFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as esbuild from 'esbuild';
+import { zipDirectory } from './lib/zip-fallback.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const sharedIconsDir = path.join(root, 'shared', 'icons');
@@ -31,7 +33,15 @@ for (const target of targets) {
 }
 
 console.log('Compilando o popup (Next.js, export estático)...');
-execFileSync('npm', ['run', 'build'], { cwd: popupAppDir, stdio: 'inherit' });
+// WHY shell no Windows: o `npm` do PATH é um shim `.cmd`, que o
+// `execFileSync` só executa através do shell — o mesmo build quebraria em
+// qualquer máquina Windows de desenvolvimento (no CI ubuntu o binário é o
+// script sh e roda sem shell).
+execFileSync('npm', ['run', 'build'], {
+  cwd: popupAppDir,
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+});
 
 if (!existsSync(popupOutDir) || readdirSync(popupOutDir).length === 0) {
   console.error(`Export do popup não gerou nada em ${popupOutDir}.`);
@@ -72,7 +82,13 @@ for (const target of targets) {
 
   const zipPath = path.join(distDir, `${target}.zip`);
   if (existsSync(zipPath)) rmSync(zipPath);
-  execFileSync('zip', ['-r', '-X', `../${target}.zip`, '.'], { cwd: targetDir, stdio: 'inherit' });
+  try {
+    execFileSync('zip', ['-r', '-X', `../${target}.zip`, '.'], { cwd: targetDir, stdio: 'inherit' });
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+    console.log(`  (binário \`zip\` ausente — usando compactador puro para ${target})`);
+    zipDirectory(targetDir, zipPath);
+  }
 
   console.log(`OK ${target}: dist/${target}.zip`);
 }

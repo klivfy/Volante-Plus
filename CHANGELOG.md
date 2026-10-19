@@ -28,6 +28,32 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   calibração brasileira da medida de popularidade a partir das contagens
   oficiais de ganhadores por faixa e da arrecadação, com portão de validação
   pré-registrado e objetivo de rateio consciente das faixas de valor fixo.
+- **Estudo de precisão da geração** (`docs/estudo-precisao-geracao.md`,
+  `scripts/precision-study.mjs`): teto teórico, avenidas quantificadas e
+  roadmap priorizado, com medições reproduzíveis.
+
+### Changed
+
+- **As 10 faixas oficiais da +Milionária no web** (`prizeRules.ts`): a tabela
+  anterior (9 faixas, cruzando 6/5/4 dezenas com 2/1/0 trevos) subestimava a
+  chance de prêmio em ~88% — o web dizia "1 em 1.099" quando o correto é
+  **1 em 11,39**. Agora espelha o Android (`PrizeRules.kt`), com faixas
+  "1 ou nenhum trevo" como conjunto, e a análise de poder usa a tabela oficial.
+- **Ganho de rateio qualificado por faixa** (web `payoutShare.ts` + Kotlin
+  `PayoutShare.kt`): na +Milionária, as faixas fixas 7–10 concentram 99% da
+  probabilidade de prêmio e não mudam com a popularidade — o texto do ganho
+  condicional agora declara que ele vale só sobre as faixas de rateio.
+- **Modo "máximo valor"** (web + Kotlin): `disjointNumbers = false` permite
+  compartilhar dezenas entre os jogos do lote, que fica em média ~8% menos
+  disputado (ganho condicional ~6,7% → ~7,8% a 20 M de apostas) sem perda
+  mensurável de chance. O padrão continua sendo a disjunção ("máxima
+  diversificação"), com seletor na interface web.
+- **Fechamento com trevos na +Milionária (web)**: cada jogo da cobertura é
+  repetido em 3 cores (duplas de trevos disjuntas cobrindo os 6 trevos),
+  garantindo "t dezenas + pelo menos 1 trevo" para qualquer dupla sorteada,
+  verificada exaustivamente (`verifyTrevoClosure`). Custo 3×, declarado no
+  contrato. Garantias 2/3/4 oferecidas; os apps Android/desktop continuam
+  recusando a modalidade com mensagem honesta até a próxima rodada.
 
 ### Fixed
 

@@ -150,6 +150,19 @@ pacote. Os avisos `UNSAFE_VAR_ASSIGNMENT` sobre `innerHTML` vêm do runtime
 minificado do próprio Next.js/React (hidratação), não de código deste
 projeto — não bloqueiam publicação.
 
+### Smoke test automatizado (antes de submeter às lojas)
+
+`node extension/test-smoke.mjs [chrome|edge]` carrega o pacote num Chromium
+real via Playwright, confere o registro do service worker, abre o popup,
+verifica erros de console e executa uma geração de jogos de ponta a ponta.
+No Windows, rode com `SMOKE_HEADED=1` (o headless desta versão do Chromium
+não inicia o service worker de extensões — limitação do runner, não do
+pacote). Requer `web/node_modules` instalado (`npm ci` em `web/`) e o
+Chromium do Playwright (`npx playwright install chromium` em `web/`).
+O Firefox não tem caminho automatizado equivalente (o Playwright não suporta
+extensões no Firefox): vale-se do `web-ext lint` acima + carregamento
+temporário manual.
+
 ## Permissões pedidas
 
 | Permissão | Por quê |
