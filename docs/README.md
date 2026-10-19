@@ -41,7 +41,10 @@ Ambos os métodos aceitam `pool` (modo Fechamento), que restringe o sorteio
 
 A calibração brasileira da medida de popularidade (substituir a heurística
 por um modelo ajustado às contagens oficiais de ganhadores por faixa) está
-especificada em `specs/003-popularity-calibration/`.
+especificada em `specs/003-popularity-calibration/`. O estudo completo das
+avenidas de precisão — com medições de poder estatístico, estrutura de lote,
+timing de concurso e roadmap priorizado — está em
+[`estudo-precisao-geracao.md`](estudo-precisao-geracao.md).
 
 ## Próximo Concurso
 
