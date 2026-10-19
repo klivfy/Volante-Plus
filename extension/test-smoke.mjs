@@ -27,6 +27,21 @@ if (!existsSync(join(extensionDir, 'manifest.json'))) {
   process.exit(1);
 }
 
+// Guarda de compatibilidade: o Chrome rejeita extensões com qualquer
+// arquivo/diretório começando com "_" (ex.: o `_next` do export do Next —
+// o build renomeia para `assets/`). Se este check falhar, o pacote não
+// carrega no Chrome real.
+{
+  const reserved = readdirSync(extensionDir).filter((name) => name.startsWith('_'));
+  if (reserved.length > 0) {
+    console.error(
+      `✗ Entradas reservadas na raiz da extensão (${reserved.join(', ')}) — o Chrome recusa. ` +
+        'Rode o build de novo (extension/build.mjs deve renomear _next → assets).',
+    );
+    process.exit(1);
+  }
+}
+
 /**
  * ID de extensão desempacotada sem `key` no manifest: os 16 primeiros bytes
  * do SHA-256 do caminho absoluto (normalizado, ASCII minúsculo), cada nibble

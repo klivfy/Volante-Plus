@@ -5,7 +5,7 @@
 // ubuntu-latest do GitHub Actions); quando ele não existe — o caso de
 // máquinas Windows de desenvolvimento — cai no compactador puro
 // (`lib/zip-fallback.mjs`), sem dependências.
-import { existsSync, mkdirSync, rmSync, cpSync, copyFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, cpSync, copyFileSync, readdirSync, readFileSync, writeFileSync, renameSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -46,6 +46,42 @@ execFileSync('npm', ['run', 'build'], {
 if (!existsSync(popupOutDir) || readdirSync(popupOutDir).length === 0) {
   console.error(`Export do popup não gerou nada em ${popupOutDir}.`);
   process.exit(1);
+}
+
+// WHY (renomear _next → assets): o Chrome rejeita extensões com arquivo ou
+// diretório cujo nome começa com "_" ("Filenames starting with '_' are
+// reserved for use by the system") — e o export estático do Next emite a
+// pasta `_next/`. O `assetPrefix` do Next só muda o prefixo da URL, não o
+// nome da pasta; então a correção é renomear a pasta e reescrever as
+// referências `/_next/` em todos os arquivos de texto do export (o popup
+// referencia os assets por caminho absoluto a partir da raiz da extensão).
+rewriteNextAssets(popupOutDir);
+
+/** Renomeia `_next/` para `assets/` e reescreve as referências em texto. */
+function rewriteNextAssets(dir) {
+  const nextDir = path.join(dir, '_next');
+  if (!existsSync(nextDir)) return;
+  renameSync(nextDir, path.join(dir, 'assets'));
+
+  const textExtensions = new Set(['.html', '.js', '.css', '.json', '.txt', '.map', '.xml', '.svg']);
+  const stack = [dir];
+  let rewrites = 0;
+  while (stack.length > 0) {
+    const current = stack.pop();
+    for (const name of readdirSync(current)) {
+      const full = path.join(current, name);
+      if (statSync(full).isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!textExtensions.has(path.extname(name).toLowerCase())) continue;
+      const content = readFileSync(full, 'utf8');
+      if (!content.includes('/_next/')) continue;
+      writeFileSync(full, content.replaceAll('/_next/', '/assets/'));
+      rewrites++;
+    }
+  }
+  console.log(`  (assets do popup: _next → assets, ${rewrites} arquivos reescritos)`);
 }
 
 console.log('Empacotando o service worker de background (esbuild)...');
