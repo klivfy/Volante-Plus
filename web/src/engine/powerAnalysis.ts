@@ -1,5 +1,5 @@
 import { Lottery } from '../types/domain';
-import { hypergeometricMean, hypergeometricProbability } from './hypergeometric';
+import { hypergeometricMean, prizeProbabilities } from './hypergeometric';
 import { lotteryRules } from './prizeRules';
 import { approxNormalCDF } from './statUtils';
 
@@ -146,19 +146,15 @@ export function powerTable(
  * Probabilidade teórica de "qualquer prêmio" numa aposta simples — usada como
  * referência de poder para a taxa de eficácia (`prizeRate`), em vez de
  * acertos médios.
+ *
+ * WHY (soma das faixas, não acertos ≥ 4): antes esta função somava só os
+ * acertos de dezenas a partir de 4, o que ignorava as faixas 7–10 da
+ * +Milionária (3+2, 3+1, 2+2, 2+1) — justamente as que concentram 99% da
+ * probabilidade de prêmio. Somar `prizeProbabilities` usa a tabela oficial
+ * nas duas modalidades (spec 002, FR-006).
  */
 export function anyPrizeProbability(lottery: Lottery): number {
-  const rules = lotteryRules(lottery);
-  let total = 0;
-  for (let hits = 4; hits <= rules.numbersDrawn; hits++) {
-    total += hypergeometricProbability(
-      rules.numberUniverse,
-      rules.numbersDrawn,
-      rules.numbersPerBet,
-      hits,
-    );
-  }
-  return total;
+  return Object.values(prizeProbabilities(lottery)).reduce((sum, p) => sum + p, 0);
 }
 
 /** Acertos esperados por jogo — atalho para exibição junto da tabela de poder. */

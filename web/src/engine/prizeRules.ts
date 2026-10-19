@@ -4,17 +4,25 @@ import { Lottery } from '../types/domain';
  * Faixa de premiação: a combinação exata de acertos que paga prêmio.
  *
  * `key` é o identificador estável usado como chave em `expectedPrizes()` e nos
- * relatórios; `numberHits`/`trevoHits` são o critério objetivo de classificação.
+ * relatórios; `numberHits` e o conjunto `trevoHits` são o critério objetivo
+ * de classificação (o regulamento da +Milionária premia faixas com "1 ou
+ * nenhum trevo" — por isso `trevoHits` é um conjunto, não um escalar).
  */
 export interface PrizeTier {
-  /** Chave estável (ex.: `'6'`, `'6+2'`). Nunca traduza — é identidade, não rótulo. */
+  /** Chave estável (ex.: `'6'`, `'6+1/0'`). Nunca traduza — é identidade, não rótulo. */
   readonly key: string;
   /** Rótulo para exibição na UI. */
   readonly label: string;
   /** Dezenas que a faixa exige. */
   readonly numberHits: number;
-  /** Trevos que a faixa exige; ausente em loterias sem trevo. */
-  readonly trevoHits?: number;
+  /** Trevos que a faixa exige (conjunto); ausente em loterias sem trevo. */
+  readonly trevoHits?: readonly number[];
+  /**
+   * `true` quando o prêmio é de valor **fixo** (não rateado). Popularidade só
+   * afeta o prêmio de faixas de rateio — nas fixas, dividir com outros
+   * acertadores não muda nada (spec 003, FR-005).
+   */
+  readonly fixed?: boolean;
 }
 
 /**
@@ -50,21 +58,30 @@ export const MEGA_SENA_TIERS: readonly PrizeTier[] = [
 ];
 
 /**
- * +Milionária: nove faixas, cruzando 6/5/4 dezenas com 2/1/0 trevos.
+ * +Milionária: as 10 faixas oficiais.
  *
- * WHY: a faixa mais baixa exige 4 dezenas; combinações com 3 ou menos dezenas
- * não pagam, independentemente dos trevos — por isso não aparecem aqui.
+ * Espelha `PrizeRules.kt` do app Android (que já estava corrigido). Atenção às
+ * faixas 2, 4 e 6: o regulamento diz **"1 ou nenhum trevo"** — elas também
+ * premiam com 0 trevos. As faixas 8 e 10 exigem exatamente 1 trevo.
+ *
+ * Correção aplicada: a tabela anterior cruzava 6/5/4 dezenas com 2/1/0 trevos
+ * (9 faixas) e omitia 3+2, 3+1, 2+2 e 2+1. Como 2+1 sozinha vale 6,83% de
+ * probabilidade, o erro subestimava a chance de prêmio em ~88% — o app dizia
+ * "1 em 1.099" quando o correto é **1 em 11,39** (spec 002, US-001/SC-001).
+ * Um laboratório que existe para refutar contas erradas não pode errar a
+ * própria tabela.
  */
 export const MAIS_MILIONARIA_TIERS: readonly PrizeTier[] = [
-  { key: '6+2', label: '6 dezenas + 2 trevos', numberHits: 6, trevoHits: 2 },
-  { key: '6+1', label: '6 dezenas + 1 trevo', numberHits: 6, trevoHits: 1 },
-  { key: '6+0', label: '6 dezenas', numberHits: 6, trevoHits: 0 },
-  { key: '5+2', label: '5 dezenas + 2 trevos', numberHits: 5, trevoHits: 2 },
-  { key: '5+1', label: '5 dezenas + 1 trevo', numberHits: 5, trevoHits: 1 },
-  { key: '5+0', label: '5 dezenas', numberHits: 5, trevoHits: 0 },
-  { key: '4+2', label: '4 dezenas + 2 trevos', numberHits: 4, trevoHits: 2 },
-  { key: '4+1', label: '4 dezenas + 1 trevo', numberHits: 4, trevoHits: 1 },
-  { key: '4+0', label: '4 dezenas', numberHits: 4, trevoHits: 0 },
+  { key: '6+2', label: '6 dezenas + 2 trevos', numberHits: 6, trevoHits: [2] },
+  { key: '6+1/0', label: '6 dezenas + 1 ou nenhum trevo', numberHits: 6, trevoHits: [1, 0] },
+  { key: '5+2', label: '5 dezenas + 2 trevos', numberHits: 5, trevoHits: [2] },
+  { key: '5+1/0', label: '5 dezenas + 1 ou nenhum trevo', numberHits: 5, trevoHits: [1, 0] },
+  { key: '4+2', label: '4 dezenas + 2 trevos', numberHits: 4, trevoHits: [2] },
+  { key: '4+1/0', label: '4 dezenas + 1 ou nenhum trevo', numberHits: 4, trevoHits: [1, 0] },
+  { key: '3+2', label: '3 dezenas + 2 trevos', numberHits: 3, trevoHits: [2], fixed: true },
+  { key: '3+1', label: '3 dezenas + 1 trevo', numberHits: 3, trevoHits: [1], fixed: true },
+  { key: '2+2', label: '2 dezenas + 2 trevos', numberHits: 2, trevoHits: [2], fixed: true },
+  { key: '2+1', label: '2 dezenas + 1 trevo', numberHits: 2, trevoHits: [1], fixed: true },
 ];
 
 const RULES: Readonly<Record<Lottery, LotteryRules>> = {
@@ -127,7 +144,7 @@ export function classifyHits(
     tiers.find(
       (tier) =>
         tier.numberHits === numberHits &&
-        (tier.trevoHits === undefined || tier.trevoHits === trevoHits),
+        (tier.trevoHits === undefined || tier.trevoHits.includes(trevoHits)),
     ) ?? null
   );
 }

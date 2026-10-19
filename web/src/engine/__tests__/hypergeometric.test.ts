@@ -98,17 +98,19 @@ describe('prizeProbabilities', () => {
     expect(probabilities['6']).toBeCloseTo(1 / MEGA_COMBINATIONS, 15);
   });
 
-  it('cobre as nove faixas da +Milionária', () => {
+  it('cobre as dez faixas oficiais da +Milionária', () => {
     const probabilities = prizeProbabilities(Lottery.MAIS_MILIONARIA);
-    expect(Object.keys(probabilities)).toHaveLength(9);
+    expect(Object.keys(probabilities)).toHaveLength(10);
     // Chance oficial de 6 dezenas + 2 trevos: 1 em 238.360.500.
     expect(probabilities['6+2']).toBeCloseTo(1 / 238_360_500, 15);
-    expect(probabilities['6+1']).toBeCloseTo(8 / (15 * MILIONARIA_COMBINATIONS), 15);
+    // Soma de todas as faixas = chance de prêmio oficial: 1 em 11,39.
+    const anyPrize = Object.values(probabilities).reduce((sum, p) => sum + p, 0);
+    expect(1 / anyPrize).toBeCloseTo(11.39, 2);
   });
 
-  it('reparte a faixa de 6 dezenas entre 2, 1 e 0 trevos', () => {
+  it('reparte a faixa de 6 dezenas entre 2 e (1 ou 0) trevos', () => {
     const p = prizeProbabilities(Lottery.MAIS_MILIONARIA);
-    const seis = p['6+2'] + p['6+1'] + p['6+0'];
+    const seis = p['6+2'] + p['6+1/0'];
     expect(seis).toBeCloseTo(1 / MILIONARIA_COMBINATIONS, 15);
   });
 });
@@ -136,14 +138,17 @@ describe('expectedPrizes', () => {
 describe('prizeRules', () => {
   it('lista as faixas da mais alta para a mais baixa', () => {
     expect(MEGA_SENA_TIERS.map((tier) => tier.key)).toEqual(['6', '5', '4']);
-    expect(MAIS_MILIONARIA_TIERS).toHaveLength(9);
+    expect(MAIS_MILIONARIA_TIERS).toHaveLength(10);
   });
 
   it('classifica acertos na faixa correta', () => {
     expect(classifyHits(Lottery.MEGA_SENA, 6)?.label).toBe('Sena');
     expect(classifyHits(Lottery.MEGA_SENA, 3)).toBeNull();
-    expect(classifyHits(Lottery.MAIS_MILIONARIA, 5, 1)?.key).toBe('5+1');
-    expect(classifyHits(Lottery.MAIS_MILIONARIA, 3, 2)).toBeNull();
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 5, 1)?.key).toBe('5+1/0');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 5, 0)?.key).toBe('5+1/0');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 3, 2)?.key).toBe('3+2');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 2, 1)?.key).toBe('2+1');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 1, 2)).toBeNull();
   });
 
   it('ignora os trevos numa loteria sem trevos', () => {

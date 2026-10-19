@@ -423,8 +423,8 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
   const [tickets, setTickets] = useState('');
 
   const topTierKey = lottery === Lottery.MEGA_SENA ? '6' : '6+2';
-  const midTierKey = lottery === Lottery.MEGA_SENA ? '5' : '5+0';
-  const lowTierKey = lottery === Lottery.MEGA_SENA ? '4' : '4+0';
+  const midTierKey = lottery === Lottery.MEGA_SENA ? '5' : '5+1/0';
+  const lowTierKey = lottery === Lottery.MEGA_SENA ? '4' : '4+1/0';
 
   // Prêmios médios de referência — dado externo ao engine (não vem de nenhum
   // histórico), só uma estimativa razoável para ilustrar o cálculo.
