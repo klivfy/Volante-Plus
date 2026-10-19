@@ -107,6 +107,11 @@ class GameGenerator(private val random: Random = SecureRandom()) {
      * @param strategy [GenerationStrategy.UNPOPULAR] (padrão) ou
      *   [GenerationStrategy.FREQUENCY_TIERS] (legado, usada pelo backtest e
      *   pelo laboratório para medir a estratégia antiga).
+     * @param disjointNumbers dezenas **disjuntas** entre os jogos do lote
+     *   (padrão `true`, alinhado ao web). É preferência de experiência, sem
+     *   ganho mensurável de chance — e custa ~8% do ganho de popularidade
+     *   (ver `docs/estudo-precisao-geracao.md` §4.2). `false` (modo "máximo
+     *   valor") permite compartilhar dezenas entre os jogos.
      */
     suspend fun generate(
         lottery: Lottery,
@@ -118,6 +123,7 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         payoutCandidates: Int = PAYOUT_CANDIDATES,
         recentNumbers: Collection<Int> = emptySet(),
         strategy: GenerationStrategy = GenerationStrategy.UNPOPULAR,
+        disjointNumbers: Boolean = true,
     ): GameBatch {
         require(count in MIN_GAMES..MAX_GAMES) {
             "Quantidade de jogos deve estar em $MIN_GAMES..$MAX_GAMES"
@@ -155,22 +161,34 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         }
 
         val games = mutableListOf<GeneratedGame>()
+        val usedNumbers = mutableSetOf<Int>()
         repeat(count) {
-            games += when (strategy) {
-                GenerationStrategy.FREQUENCY_TIERS -> nextDistinctGame(
+            if (strategy == GenerationStrategy.UNPOPULAR) {
+                // WHY (disjunção e saturação): no modo disjunto, cada jogo
+                // retira 6 dezenas de um bolo que não se repõe; quando o bolo
+                // não tem 6 dezenas, o lote satura e para — devolver jogos
+                // incompletos seria pior que devolver menos jogos (mesma
+                // regra do web, ver `maxDistinctGames`). No modo "máximo
+                // valor" os jogos podem compartilhar dezenas.
+                val universe = eligible.map { it.number }
+                    .filter { !disjointNumbers || it !in usedNumbers }
+                if (universe.size < GAME_SIZE) return@repeat
+                val game = nextDistinctUniformGame(
+                    existing = games,
+                    lottery = lottery,
+                    universe = universe,
+                    payoutCandidates = payoutCandidates,
+                    recentNumbers = recentNumbers,
+                )
+                usedNumbers += game.numbers
+                games += game
+            } else {
+                games += nextDistinctGame(
                     existing = games,
                     numberTiers = numberTiers,
                     lottery = lottery,
                     trevoStrategy = trevoStrategy,
                     trevoTiers = trevoTiers,
-                    payoutCandidates = payoutCandidates,
-                    recentNumbers = recentNumbers,
-                )
-
-                GenerationStrategy.UNPOPULAR -> nextDistinctUniformGame(
-                    existing = games,
-                    lottery = lottery,
-                    universe = eligible.map { it.number },
                     payoutCandidates = payoutCandidates,
                     recentNumbers = recentNumbers,
                 )

@@ -197,9 +197,13 @@ class GameGeneratorTest {
     @Test
     fun `fechamento minimo aceita jogos repetidos em vez de falhar`() = runTest {
         // Com exatamente 6 dezenas só existe uma combinação possível: os
-        // resorteios se esgotam e o lote sai com jogos idênticos.
+        // resorteios se esgotam e o lote sai com jogos idênticos. O modo
+        // "máximo valor" (disjointNumbers = false) permite repetir as dezenas;
+        // no disjunto o lote saturaria em 1 jogo.
         val pool = setOf(2, 9, 17, 23, 31, 44)
-        val batch = generator().generate(Lottery.MEGA_SENA, 3, performances(), pool = pool)
+        val batch = generator().generate(
+            Lottery.MEGA_SENA, 3, performances(), pool = pool, disjointNumbers = false,
+        )
 
         assertEquals(3, batch.games.size)
         assertTrue(batch.games.all { it.numbers == pool.sorted() })
@@ -485,6 +489,35 @@ class GameGeneratorTest {
                 assertEquals(count, duplas.toSet().size)
             }
         }
+    }
+
+    /** Disjunção entre jogos (achado §4.2 do estudo de precisão). */
+    @Test
+    fun `estrategia padrao nao repete dezenas entre jogos por padrao`() = runTest {
+        val batch = generator().generate(
+            Lottery.MEGA_SENA, 4, performances(),
+        )
+        assertEquals(4, batch.games.size)
+        assertEquals(24, batch.games.flatMap { it.numbers }.toSet().size)
+    }
+
+    @Test
+    fun `modo maximo valor permite compartilhar dezenas entre jogos`() = runTest {
+        var algumCompartilhamento = false
+        repeat(50) { seed ->
+            val batch = generator(seed.toLong()).generate(
+                Lottery.MEGA_SENA, GameGenerator.MAX_GAMES, performances(),
+                disjointNumbers = false,
+            )
+            val todas = batch.games.flatMap { it.numbers }
+            if (todas.toSet().size < todas.size) algumCompartilhamento = true
+            // mesmo relaxado, o jogo exato nunca se repete
+            assertEquals(batch.games.size, batch.games.map { it.numbers }.toSet().size)
+        }
+        assertTrue(
+            "com disjunção desligada, lotes devem compartilhar dezenas com frequência",
+            algumCompartilhamento,
+        )
     }
 
 }

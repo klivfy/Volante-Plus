@@ -124,6 +124,14 @@ export interface GenerateOptions {
    */
   candidates?: number;
   /**
+   * Dezenas **disjuntas** entre os jogos do lote (padrão `true`). É uma
+   * preferência de experiência, sem ganho de chance mensurável na Mega-Sena
+   * (ver `docs/estudo-precisao-geracao.md` §4.2) — e custa ~8% do ganho de
+   * popularidade. `false` (modo "máximo valor") deixa os jogos compartilharem
+   * dezenas, maximizando o único ganho real que a matemática autoriza.
+   */
+  disjointNumbers?: boolean;
+  /**
    * Dezenas do concurso mais recente: entram no `unpopularityPenalty` como
    * menos apostadas (falácia do apostador — ver `unpopularity.ts`). Ausente
    * em protocolos determinísticos (ex.: backtest).
@@ -204,31 +212,57 @@ export function generateGames(
   if (!Number.isInteger(candidateCount) || candidateCount < 1) {
     throw new RangeError(`Candidatos por jogo deve ser >= 1 (recebido: ${candidateCount})`);
   }
+  const disjoint = options.disjointNumbers ?? true;
   const recentNumbers = options.recentNumbers === undefined ? [] : [...options.recentNumbers];
   const numberTiers = tiersOf(eligible);
   const trevoTiers = buildTrevoTiers(lottery, options.trevoPerformances ?? []);
 
-  // DEDUPLICAÇÃO ABSOLUTA: compartilhamos um Set de dezenas usadas entre todos os jogos
+  // DEDUPLICAÇÃO ABSOLUTA (só no modo disjunto): compartilhamos um Set de
+  // dezenas usadas entre todos os jogos. No modo "máximo valor" os jogos podem
+  // compartilhar dezenas — evita-se apenas repetir o jogo exato.
   const usedNumbersGlobal = new Set<number>();
+  const signatures = new Set<string>();
   const games: GeneratedGame[] = [];
 
-  // Cada jogo retira `numbersPerBet` dezenas de um bolo que não se repõe, então
-  // o lote satura em `floor(elegíveis / numbersPerBet)`. Sem esse teto, os
-  // jogos seguintes sairiam incompletos (o sorteio simplesmente fica sem
-  // dezenas disponíveis) — pior que devolver menos jogos. Quem chama compara
-  // `games.length` com o pedido para avisar o usuário; ver `maxDistinctGames`.
-  const effectiveCount = Math.min(count, maxDistinctGames(lottery, eligible.length));
+  // No modo disjunto, cada jogo retira `numbersPerBet` dezenas de um bolo que
+  // não se repõe, então o lote satura em `floor(elegíveis / numbersPerBet)`.
+  // Sem esse teto, os jogos seguintes sairiam incompletos (o sorteio
+  // simplesmente fica sem dezenas disponíveis) — pior que devolver menos
+  // jogos. Quem chama compara `games.length` com o pedido para avisar o
+  // usuário; ver `maxDistinctGames`.
+  const effectiveCount = disjoint
+    ? Math.min(count, maxDistinctGames(lottery, eligible.length))
+    : count;
 
   for (let index = 0; index < effectiveCount; index++) {
     if (strategy === 'UNPOPULAR') {
-      const game = buildUnpopularGame(
+      const available = disjoint
+        ? eligible.map((performance) => performance.number).filter((n) => !usedNumbersGlobal.has(n))
+        : eligible.map((performance) => performance.number);
+      let game = buildUnpopularGame(
         lottery,
-        eligible.map((performance) => performance.number).filter((n) => !usedNumbersGlobal.has(n)),
+        available,
         rules.numbersPerBet,
         candidateCount,
         recentNumbers,
         random,
       );
+      if (!disjoint) {
+        // Só evita o jogo exato repetido; compartilhar dezenas é permitido.
+        let attempts = 1;
+        while (attempts < MAX_DEDUP_ATTEMPTS && signatures.has(game.numbers.join('-'))) {
+          game = buildUnpopularGame(
+            lottery,
+            available,
+            rules.numbersPerBet,
+            candidateCount,
+            recentNumbers,
+            random,
+          );
+          attempts++;
+        }
+      }
+      signatures.add(game.numbers.join('-'));
       game.numbers.forEach((n) => usedNumbersGlobal.add(n));
       games.push(game);
       continue;

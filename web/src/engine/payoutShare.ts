@@ -1,6 +1,6 @@
 import { GameBatch, Lottery } from '../types/domain';
-import { binomial } from './hypergeometric';
-import { hasTrevos, lotteryRules } from './prizeRules';
+import { binomial, prizeProbabilities } from './hypergeometric';
+import { hasTrevos, lotteryRules, prizeTiers } from './prizeRules';
 import { createSeededRandom, RandomSource } from './random';
 import { unpopularityPenalty } from './unpopularity';
 
@@ -210,6 +210,26 @@ export interface PayoutAssessment {
   baselineCrowding: number;
   /** Ganho no valor esperado condicional a ganhar, frente à média. */
   conditionalGain: number;
+  /**
+   * Fração da probabilidade de prêmio que está em faixas de **rateio** — as
+   * únicas em que a popularidade importa. 1,0 na Mega-Sena; ~0,01 na
+   * +Milionária (as faixas 7–10, de prêmio fixo, concentram 99% dos casos).
+   */
+  rateioProbabilityShare: number;
+}
+
+/**
+ * Fração da probabilidade de "qualquer prêmio" que vem de faixas de rateio
+ * (não fixas). Ver `PrizeTier.fixed`.
+ */
+export function rateioProbabilityShare(lottery: Lottery): number {
+  const probabilities = prizeProbabilities(lottery);
+  const total = Object.values(probabilities).reduce((sum, p) => sum + p, 0);
+  if (total <= 0) return 1;
+  const rateio = prizeTiers(lottery)
+    .filter((tier) => tier.fixed !== true)
+    .reduce((sum, tier) => sum + (probabilities[tier.key] ?? 0), 0);
+  return rateio / total;
 }
 
 /** true quando o jogo é menos disputado que a combinação média. */
@@ -220,11 +240,22 @@ export function isBetterThanAverage(assessment: PayoutAssessment): boolean {
 /**
  * A frase que a interface deve exibir — inclui a ressalva, sempre. Sem ela o
  * número vira promessa, que é o que este app existe para não fazer.
+ *
+ * WHY (qualificação por faixa): na +Milionária, 99% da probabilidade de
+ * prêmio está nas faixas 7–10, de valor fixo — onde a popularidade não muda
+ * nada. O ganho vale só sobre as faixas de rateio, e a frase diz isso; sem a
+ * qualificação, o app estaria vendendo um ganho maior do que o real.
  */
 export function payoutSummary(assessment: PayoutAssessment): string {
   const pct = assessment.conditionalGain * 100;
   const direction = pct >= 0 ? 'a mais' : 'a menos';
-  return `${Math.abs(pct).toFixed(1)}% ${direction} de prêmio se ganhar, pela mesma chance de ganhar.`;
+  const base = `${Math.abs(pct).toFixed(1)}% ${direction} de prêmio nas faixas de rateio se ganhar, pela mesma chance de ganhar.`;
+  if (assessment.rateioProbabilityShare >= 1 - 1e-12) return base;
+  const fixedPct = ((1 - assessment.rateioProbabilityShare) * 100).toFixed(0);
+  return (
+    `${base} As faixas de prêmio fixo — ${fixedPct}% dos casos de prêmio — ` +
+    'não mudam em nada.'
+  );
 }
 
 /**
@@ -247,6 +278,7 @@ export function evaluatePayoutShare(
     crowding: crowdingFactor(Math.min(q0 * m, 1), tickets),
     baselineCrowding: crowdingFactor(q0, tickets),
     conditionalGain: conditionalPayoutGain(lottery, m, tickets),
+    rateioProbabilityShare: rateioProbabilityShare(lottery),
   };
 }
 
