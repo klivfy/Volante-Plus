@@ -292,11 +292,13 @@ export function verifyClosure(design: ClosureDesign, pool: readonly number[]): b
 /**
  * Garantias que fazem sentido oferecer numa loteria: só as que, ao se
  * concretizarem, ainda podem pagar prêmio. Na Mega-Sena 3 acertos não pagam
- * nada — garantir "terno" seria vender um contrato sem valor.
+ * nada — garantir "terno" seria vender um contrato sem valor. Na +Milionária
+ * (com as 10 faixas oficiais), 2, 3 e 4 dezenas podem pagar — e o contrato
+ * inclui a condição de trevo (ver `generateClosure`).
  */
 export function offeredGuarantees(lottery: Lottery): number[] {
   const { numbersPerBet } = lotteryRules(lottery);
-  const candidates = [3, 4].filter((t) => t < numbersPerBet);
+  const candidates = [2, 3, 4].filter((t) => t < numbersPerBet);
   return candidates.filter((t) => isPrized(lottery, t, 0) || isPrized(lottery, t, 1));
 }
 
@@ -311,8 +313,12 @@ export interface ClosureOptions {
 
 /**
  * Lote de fechamento para o app: valida o pool contra as regras da loteria,
- * projeta a cobertura e anexa os trevos (sorteados uniformemente) na
- * +Milionária. O resultado carrega o contrato em `closure`.
+ * projeta a cobertura e, na +Milionária, repete cada jogo em **3 cores** de
+ * trevos (duplas disjuntas que cobrem os 6 trevos) — assim, para todo
+ * subconjunto S de `guarantee` dezenas do pool, os jogos que contêm S
+ * carregam juntos os 6 trevos, e qualquer dupla sorteada acerta ≥1 trevo em
+ * algum deles (R11 da spec 002). O custo é 3× o fechamento de dezenas e está
+ * declarado no contrato. O resultado carrega o contrato em `closure`.
  */
 export function generateClosure(
   lottery: Lottery,
@@ -341,37 +347,103 @@ export function generateClosure(
   const design = designClosure(pool, rules.numbersPerBet, guarantee, (numbers) =>
     unpopularityPenalty(lottery, numbers),
   );
+  const sortedPool = [...pool].sort((a, b) => a - b);
 
-  const games: GeneratedGame[] = design.games.map((numbers) => {
-    if (!hasTrevos(lottery)) return { numbers };
-    const universe = Array.from({ length: rules.trevoUniverse }, (_, i) => i + 1);
-    const pair: number[] = [];
-    while (pair.length < rules.trevosPerBet) {
-      const pick = universe[random.nextInt(universe.length)];
-      if (!pair.includes(pick)) pair.push(pick);
+  if (!hasTrevos(lottery)) {
+    return {
+      lottery,
+      games: design.games.map((numbers) => ({ numbers })),
+      strategyLabel: 'Fechamento',
+      sourcePool: sortedPool,
+      closure: { guarantee, poolSize: pool.length, cost: closureCost(design.games.length) },
+    };
+  }
+
+  // 3 cores: partição aleatória dos 6 trevos em 3 duplas disjuntas. A
+  // aleatoriedade evita concentrar os usuários do app nas mesmas duplas; a
+  // garantia é idêntica para qualquer partição.
+  const trevos = [1, 2, 3, 4, 5, 6];
+  for (let i = trevos.length - 1; i > 0; i--) {
+    const j = random.nextInt(i + 1);
+    [trevos[i], trevos[j]] = [trevos[j], trevos[i]];
+  }
+  const colors: [number, number][] = [
+    [Math.min(trevos[0], trevos[1]), Math.max(trevos[0], trevos[1])],
+    [Math.min(trevos[2], trevos[3]), Math.max(trevos[2], trevos[3])],
+    [Math.min(trevos[4], trevos[5]), Math.max(trevos[4], trevos[5])],
+  ];
+
+  const games: GeneratedGame[] = [];
+  for (const numbers of design.games) {
+    for (const [a, b] of colors) {
+      games.push({ numbers, trevoDuplas: [[a, b]] });
     }
-    return { numbers, trevoDuplas: [[pair[0], pair[1]] as [number, number]] };
-  });
+  }
+
+  if (!verifyTrevoClosure(games, pool, guarantee)) {
+    // Nunca deveria acontecer — o desenho é por construção. Falhar aqui seria
+    // entregar um contrato falso.
+    throw new Error('Falha interna: fechamento com trevos não verificado');
+  }
 
   return {
     lottery,
     games,
     strategyLabel: 'Fechamento',
-    sourcePool: [...pool].sort((a, b) => a - b),
-    closure: { guarantee, poolSize: pool.length, cost: closureCost(games.length) },
+    sourcePool: sortedPool,
+    closure: {
+      guarantee,
+      poolSize: pool.length,
+      cost: closureCost(games.length),
+      trevoClosure: true,
+    },
   };
 }
 
 /**
+ * Prova exaustiva do contrato com trevos: para **todo** subconjunto S de
+ * `guarantee` dezenas do pool, a união dos trevos dos jogos que contêm S
+ * precisa cobrir os 6 trevos. Assim, qualquer dupla sorteada acerta pelo
+ * menos 1 trevo em algum jogo que contém S.
+ */
+export function verifyTrevoClosure(
+  games: readonly GeneratedGame[],
+  pool: readonly number[],
+  guarantee: number,
+): boolean {
+  const sorted = [...pool].sort((a, b) => a - b);
+  const index = new Map(sorted.map((n, i) => [n, i]));
+  const gameMasks = games.map((game) =>
+    game.numbers.reduce((mask, n) => mask | (1 << (index.get(n) ?? MAX_POOL)), 0),
+  );
+  const pairMasks = games.map((game) =>
+    (game.trevoDuplas ?? []).flat().reduce((mask, t) => mask | (1 << (t - 1)), 0),
+  );
+  const FULL_TREVO_MASK = 0b111111;
+  return combinationMasks(sorted.length, guarantee).every((target) => {
+    let union = 0;
+    for (let i = 0; i < games.length; i++) {
+      if ((gameMasks[i] & target) === target) union |= pairMasks[i];
+    }
+    return union === FULL_TREVO_MASK;
+  });
+}
+
+/**
  * Confere o contrato contra um sorteio real: se `draw` tem `guarantee` ou mais
- * dezenas do pool, algum jogo precisa acertar `guarantee` ou mais.
+ * dezenas do pool, algum jogo precisa acertar `guarantee` ou mais — e, no
+ * fechamento com trevos, acertar também pelo menos 1 trevo.
  */
 export function closureHoldsFor(batch: GameBatch, draw: Draw): boolean {
   const closure = batch.closure;
   if (!closure || !batch.sourcePool) return true;
   const inPool = draw.numbers.filter((n) => batch.sourcePool!.includes(n)).length;
   if (inPool < closure.guarantee) return true;
-  return batch.games.some(
-    (game) => game.numbers.filter((n) => draw.numbers.includes(n)).length >= closure.guarantee,
-  );
+  const drawTrevos = new Set(draw.trevos ?? []);
+  return batch.games.some((game) => {
+    const numberHits = game.numbers.filter((n) => draw.numbers.includes(n)).length;
+    if (numberHits < closure.guarantee) return false;
+    if (!closure.trevoClosure) return true;
+    return (game.trevoDuplas ?? []).some((dupla) => dupla.some((t) => drawTrevos.has(t)));
+  });
 }
