@@ -7,7 +7,7 @@ import { getDraws, saveDraws, setLastSyncAt } from './storage';
 /** Intervalo do `chrome.alarms` de sincronização — o histórico é conferido de 6 em 6 horas. */
 export const SYNC_PERIOD_MINUTES = 6 * 60;
 
-const ALL_LOTTERIES = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA];
+const ALL_LOTTERIES = Object.values(Lottery);
 
 /**
  * Completa o histórico de todas as loterias até o ÚLTIMO concurso e faz upsert

@@ -31,7 +31,7 @@ const LAST_SYNC_CONFIG_KEY = 'lastSyncAt';
 const STATUS_KEY_PREFIX = 'historyStatus:';
 const ALARM_NAME = 'volante-plus-sync';
 
-const ALL_LOTTERIES = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA];
+const ALL_LOTTERIES = Object.values(Lottery);
 
 export interface SyncOptions {
   /** Fontes a tentar, em ordem; padrão `defaultSources()`. Injetável para testes. */

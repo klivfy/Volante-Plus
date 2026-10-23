@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T03:46:07.114Z",
+  "generatedAt": "2026-10-23T20:52:14.364Z",
   "source": "loteriascaixa-api (arquivo local)",
   "lotteries": {
     "megasena": {
@@ -15,6 +15,13 @@
       "lastContest": 393,
       "lastDate": "2026-09-27",
       "crossChecked": 199
+    },
+    "quina": {
+      "count": 7149,
+      "firstContest": 1,
+      "lastContest": 7149,
+      "lastDate": "2026-10-22",
+      "crossChecked": 7149
     }
   }
 }

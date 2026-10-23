@@ -69,6 +69,14 @@ export const MAIS_MILIONARIA_TIERS: readonly PrizeTier[] = [
   { key: '4+0', label: '4 dezenas', numberHits: 4, trevoHits: 0 },
 ];
 
+/** Quina: quina, quadra, terno e duque (sem trevos). */
+export const QUINA_TIERS: readonly PrizeTier[] = [
+  { key: '5', label: 'Quina', numberHits: 5 },
+  { key: '4', label: 'Quadra', numberHits: 4 },
+  { key: '3', label: 'Terno', numberHits: 3 },
+  { key: '2', label: 'Duque', numberHits: 2 },
+];
+
 const RULES: Readonly<Record<Lottery, LotteryRules>> = {
   [Lottery.MEGA_SENA]: {
     numberUniverse: 60,
@@ -93,6 +101,18 @@ const RULES: Readonly<Record<Lottery, LotteryRules>> = {
     maxSelection: 12,
     betPriceBrl: 6,
     tiers: MAIS_MILIONARIA_TIERS,
+  },
+  [Lottery.QUINA]: {
+    numberUniverse: 80,
+    numbersDrawn: 5,
+    numbersPerBet: 5,
+    trevoUniverse: 0,
+    trevosDrawn: 0,
+    trevosPerBet: 0,
+    minSelection: 5,
+    maxSelection: 15,
+    betPriceBrl: 3,
+    tiers: QUINA_TIERS,
   },
 };
 

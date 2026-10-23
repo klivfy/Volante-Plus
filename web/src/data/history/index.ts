@@ -25,11 +25,12 @@ export interface HistorySeedMeta {
 export const HISTORY_SEED_META: Record<Lottery, HistorySeedMeta> = {
   [Lottery.MEGA_SENA]: meta.lotteries.megasena,
   [Lottery.MAIS_MILIONARIA]: meta.lotteries.maismilionaria,
+  [Lottery.QUINA]: meta.lotteries.quina,
 };
 
 /** Identifica a versão do seed embutido; muda quando `meta.json` é regenerado. */
 export function historySeedVersion(): string {
-  return `${HISTORY_SEED_META[Lottery.MEGA_SENA].lastContest}-${HISTORY_SEED_META[Lottery.MAIS_MILIONARIA].lastContest}`;
+  return `${HISTORY_SEED_META[Lottery.MEGA_SENA].lastContest}-${HISTORY_SEED_META[Lottery.MAIS_MILIONARIA].lastContest}-${HISTORY_SEED_META[Lottery.QUINA].lastContest}`;
 }
 
 type Tuple = [number, string, number[]] | [number, string, number[], number[]];
@@ -51,7 +52,7 @@ export async function loadHistorySeed(lottery: Lottery): Promise<Draw[]> {
       return expand(lottery, (await import('./megasena.json')).default as unknown as Tuple[]);
     case Lottery.MAIS_MILIONARIA:
       return expand(lottery, (await import('./maismilionaria.json')).default as unknown as Tuple[]);
-    default:
-      return [];
+    case Lottery.QUINA:
+      return expand(lottery, (await import('./quina.json')).default as unknown as Tuple[]);
   }
 }

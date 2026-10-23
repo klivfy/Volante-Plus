@@ -28,7 +28,7 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const LOTTERIES = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA];
+const LOTTERIES = Object.values(Lottery);
 
 describe.each(LOTTERIES)('tema — acessibilidade (%s)', (lottery) => {
   const theme = createLotteryTheme(lottery) as unknown as CssVarsTheme;

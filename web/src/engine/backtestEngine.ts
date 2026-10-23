@@ -33,6 +33,7 @@ import { createSeededRandom, defaultRandom, RandomSource } from './random';
 export const MIN_CUTOFF_DATES: Record<Lottery, string> = {
   [Lottery.MEGA_SENA]: '1995-03-11',
   [Lottery.MAIS_MILIONARIA]: '2022-05-28',
+  [Lottery.QUINA]: '1994-03-13',
 };
 
 export interface BacktestOptions {

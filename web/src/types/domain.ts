@@ -5,6 +5,7 @@
 export enum Lottery {
   MEGA_SENA = 'megasena',
   MAIS_MILIONARIA = 'maismilionaria',
+  QUINA = 'quina',
 }
 
 /**

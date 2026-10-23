@@ -4,6 +4,20 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
 ## [Unreleased]
 
+### Added
+- Modalidade **Quina** na web (5 dezenas de 1–80, aposta de 5 a 15, R$ 3,00, quatro
+  faixas): regras e chances exatas, histórico embutido (7.149 concursos, 1994-03-13 a
+  2026-10-22, conferido concurso a concurso contra o portal da Caixa em dezenas e
+  datas), sincronização, geração de jogos e fechamento (terno e quadra).
+- `web/scripts/collect-portal-snapshot.mjs` e `update-history-seed.mjs --only`.
+
+### Fixed
+- `isValidDraw` aceitava trevos em modalidades sem trevo.
+
+### Changed
+- Preço da aposta simples e dezenas sorteadas passam a ser por modalidade (sem mudar
+  Mega-Sena nem +Milionária). Android e desktop ainda não têm a Quina.
+
 ## [2.3.0] - 2026-10-06
 
 Laboratório web (`web/`): consolida segurança, precisão das sugestões, métodos

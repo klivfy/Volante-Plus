@@ -422,16 +422,22 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
   // máxima é rateada entre todos os acertadores.
   const [tickets, setTickets] = useState('');
 
-  const topTierKey = lottery === Lottery.MEGA_SENA ? '6' : '6+2';
-  const midTierKey = lottery === Lottery.MEGA_SENA ? '5' : '5+0';
-  const lowTierKey = lottery === Lottery.MEGA_SENA ? '4' : '4+0';
-
-  // Prêmios médios de referência — dado externo ao engine (não vem de nenhum
+  // Faixas de referência (máxima, intermediária, mais baixa) e prêmios médios
+  // ilustrativos por modalidade — dado externo ao engine (não vem de nenhum
   // histórico), só uma estimativa razoável para ilustrar o cálculo.
+  const REFERENCE_TIERS: Record<Lottery, { top: string; mid: string; low: string; midPrize: number; lowPrize: number }> = {
+    [Lottery.MEGA_SENA]: { top: '6', mid: '5', low: '4', midPrize: 50000, lowPrize: 1000 },
+    [Lottery.MAIS_MILIONARIA]: { top: '6+2', mid: '5+0', low: '4+0', midPrize: 30000, lowPrize: 800 },
+    [Lottery.QUINA]: { top: '5', mid: '4', low: '3', midPrize: 7000, lowPrize: 150 },
+  };
+  const ref = REFERENCE_TIERS[lottery];
+  const topTierKey = ref.top;
+  const midTierKey = ref.mid;
+  const lowTierKey = ref.low;
   const prizeAverages: PrizeAverage[] = [
     { tier: topTierKey, averagePrize: 0 }, // a faixa máxima só entra via `accumulatedPrize`
-    { tier: midTierKey, averagePrize: lottery === Lottery.MEGA_SENA ? 50000 : 30000 },
-    { tier: lowTierKey, averagePrize: lottery === Lottery.MEGA_SENA ? 1000 : 800 },
+    { tier: midTierKey, averagePrize: ref.midPrize },
+    { tier: lowTierKey, averagePrize: ref.lowPrize },
   ];
 
   const cost = Number(ticketCost) || 0;
