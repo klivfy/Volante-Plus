@@ -32,10 +32,11 @@ class QuinaRulesTest {
     @Test
     fun `chances exatas da aposta simples`() {
         val d = Hypergeometric.distributionFor(Lottery.QUINA)
-        assertEquals(1.0 / total, d.getValue(5), 1e-18)
-        assertEquals(375.0 / total, d.getValue(4), 1e-15)
-        assertEquals(27_750.0 / total, d.getValue(3), 1e-14)
-        assertEquals(675_250.0 / total, d.getValue(2), 1e-13)
+        // Tolerância relativa: a implementação usa exp(ln C), não inteiros exatos.
+        mapOf(5 to 1.0, 4 to 375.0, 3 to 27_750.0, 2 to 675_250.0).forEach { (acertos, combinacoes) ->
+            val esperado = combinacoes / total
+            assertEquals("$acertos acertos", esperado, d.getValue(acertos), esperado * 1e-8)
+        }
         assertEquals(1.0, d.values.sum(), 1e-12)
     }
 
