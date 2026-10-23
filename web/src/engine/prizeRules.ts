@@ -38,6 +38,8 @@ export interface LotteryRules {
   readonly minSelection: number;
   /** Máximo de dezenas marcáveis no volante. */
   readonly maxSelection: number;
+  /** Preço da aposta simples, em reais. */
+  readonly betPriceBrl: number;
   /** Faixas de premiação, da mais alta para a mais baixa. */
   readonly tiers: readonly PrizeTier[];
 }
@@ -77,6 +79,7 @@ const RULES: Readonly<Record<Lottery, LotteryRules>> = {
     trevosPerBet: 0,
     minSelection: 8,
     maxSelection: 15,
+    betPriceBrl: 6,
     tiers: MEGA_SENA_TIERS,
   },
   [Lottery.MAIS_MILIONARIA]: {
@@ -88,6 +91,7 @@ const RULES: Readonly<Record<Lottery, LotteryRules>> = {
     trevosPerBet: 2,
     minSelection: 8,
     maxSelection: 12,
+    betPriceBrl: 6,
     tiers: MAIS_MILIONARIA_TIERS,
   },
 };

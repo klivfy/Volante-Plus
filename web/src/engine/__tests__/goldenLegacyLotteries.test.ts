@@ -28,7 +28,10 @@ function performances(lottery: Lottery): NumberPerformance[] {
 
 describe.each(LEGACY)('golden %s', (lottery) => {
   it('regras e probabilidades por faixa', () => {
-    expect(lotteryRules(lottery)).toMatchSnapshot();
+    // `betPriceBrl` entrou na Fase 1: o snapshot cobre só os campos originais.
+    const { betPriceBrl, ...original } = lotteryRules(lottery);
+    expect(betPriceBrl).toBe(6);
+    expect(original).toMatchSnapshot();
     expect(prizeProbabilities(lottery)).toMatchSnapshot();
     expect(expectedNumberHits(lottery)).toMatchSnapshot();
   });

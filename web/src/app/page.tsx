@@ -331,7 +331,7 @@ export default function VolantePage() {
             <br />
             {t('fechamento.contract', {
               games: generatedBatch.games.length,
-              cost: closureCost(generatedBatch.games.length).toFixed(2).replace('.', ','),
+              cost: closureCost(generatedBatch.games.length, generatedBatch.lottery).toFixed(2).replace('.', ','),
               t: generatedBatch.closure.guarantee,
               pool: generatedBatch.closure.poolSize,
             })}

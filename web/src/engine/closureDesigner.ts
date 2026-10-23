@@ -301,8 +301,9 @@ export function offeredGuarantees(lottery: Lottery): number[] {
 }
 
 /** Custo total do fechamento, em reais. */
-export function closureCost(gamesCount: number): number {
-  return gamesCount * SIMPLE_BET_PRICE_BRL;
+export function closureCost(gamesCount: number, lottery?: Lottery): number {
+  const price = lottery === undefined ? SIMPLE_BET_PRICE_BRL : lotteryRules(lottery).betPriceBrl;
+  return gamesCount * price;
 }
 
 export interface ClosureOptions {
@@ -358,7 +359,7 @@ export function generateClosure(
     games,
     strategyLabel: 'Fechamento',
     sourcePool: [...pool].sort((a, b) => a - b),
-    closure: { guarantee, poolSize: pool.length, cost: closureCost(games.length) },
+    closure: { guarantee, poolSize: pool.length, cost: closureCost(games.length, lottery) },
   };
 }
 
