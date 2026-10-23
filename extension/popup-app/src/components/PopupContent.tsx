@@ -22,9 +22,10 @@ type Status = 'loading' | 'ready' | 'generating' | 'error';
 const LOTTERY_LABEL: Record<Lottery, string> = {
   [Lottery.MEGA_SENA]: 'Mega-Sena',
   [Lottery.MAIS_MILIONARIA]: '+Milionária',
+  [Lottery.QUINA]: 'Quina',
 };
 
-const LOTTERY_OPTIONS = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA];
+const LOTTERY_OPTIONS = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA, Lottery.QUINA];
 
 function formatGame(
   lottery: Lottery,
