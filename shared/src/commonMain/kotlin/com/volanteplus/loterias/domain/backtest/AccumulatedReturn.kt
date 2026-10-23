@@ -81,7 +81,7 @@ object AccumulatedReturn {
 
     /** Quantidade de apostas simples distintas da loteria. */
     fun distinctSimpleBets(lottery: Lottery): Long {
-        val numbers = binomial(lottery.numberRange.count(), 6)
+        val numbers = binomial(lottery.numberRange.count(), lottery.numbersDrawn)
         val trevos = if (lottery.hasTrevos) {
             binomial(Lottery.TREVO_RANGE.count(), Lottery.TREVOS_REQUIRED)
         } else {

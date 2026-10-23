@@ -1,7 +1,5 @@
 package com.volanteplus.loterias.domain.backtest
 
-import com.volanteplus.loterias.domain.generator.GameGenerator
-import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import kotlin.math.exp
 import kotlin.math.sqrt
@@ -59,15 +57,15 @@ object Hypergeometric {
 
     /** Distribuição exata dos acertos de um jogo simples em [lottery]. */
     fun distributionFor(lottery: Lottery): Map<Int, Double> =
-        distribution(universe(lottery), Draw.NUMBERS_DRAWN, GameGenerator.GAME_SIZE)
+        distribution(universe(lottery), lottery.numbersDrawn, lottery.numbersDrawn)
 
     /** E[acertos] de um jogo simples: 0,60 na Mega-Sena e 0,72 na +Milionária. */
     fun meanFor(lottery: Lottery): Double =
-        mean(universe(lottery), Draw.NUMBERS_DRAWN, GameGenerator.GAME_SIZE)
+        mean(universe(lottery), lottery.numbersDrawn, lottery.numbersDrawn)
 
     /** Var[acertos] de um jogo simples. */
     fun varianceFor(lottery: Lottery): Double =
-        variance(universe(lottery), Draw.NUMBERS_DRAWN, GameGenerator.GAME_SIZE)
+        variance(universe(lottery), lottery.numbersDrawn, lottery.numbersDrawn)
 
     fun stdDeviationFor(lottery: Lottery): Double = sqrt(varianceFor(lottery))
 

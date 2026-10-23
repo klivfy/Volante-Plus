@@ -260,8 +260,8 @@ object PayoutShare {
                 val universe = lottery.numberRange.toList()
                 val stats = Statistics.ofDoubles(
                     List(SAMPLES) {
-                        val game = LinkedHashSet<Int>(GAME_SIZE)
-                        while (game.size < GAME_SIZE) {
+                        val game = LinkedHashSet<Int>(lottery.numbersDrawn)
+                        while (game.size < lottery.numbersDrawn) {
                             game += universe[random.nextInt(universe.size)]
                         }
                         Unpopularity.penalty(lottery, game.toList())
@@ -270,7 +270,6 @@ object PayoutShare {
                 return PopularityReference(stats.mean, stats.sampleStdDeviation)
             }
 
-            private const val GAME_SIZE = 6
         }
     }
 }

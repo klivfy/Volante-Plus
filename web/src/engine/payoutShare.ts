@@ -123,19 +123,18 @@ interface PopularityReference {
 /** Amostras da varredura. 20 mil dá erro padrão da média ~0,4%. */
 export const POPULARITY_REFERENCE_SAMPLES = 20_000;
 const POPULARITY_REFERENCE_SEED = 20260910;
-const GAME_SIZE = 6;
 
 const referenceCache = new Map<Lottery, PopularityReference>();
 
 function buildPopularityReference(lottery: Lottery): PopularityReference {
   const random: RandomSource = createSeededRandom(POPULARITY_REFERENCE_SEED);
-  const { numberUniverse } = lotteryRules(lottery);
+  const { numberUniverse, numbersPerBet } = lotteryRules(lottery);
   const universe = Array.from({ length: numberUniverse }, (_, i) => i + 1);
 
   const penalties = new Array<number>(POPULARITY_REFERENCE_SAMPLES);
   for (let i = 0; i < POPULARITY_REFERENCE_SAMPLES; i += 1) {
     const game = new Set<number>();
-    while (game.size < GAME_SIZE) {
+    while (game.size < numbersPerBet) {
       game.add(universe[random.nextInt(universe.length)]);
     }
     penalties[i] = unpopularityPenalty(lottery, [...game]);
