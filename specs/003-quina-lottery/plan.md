@@ -81,7 +81,7 @@ seeds/snapshots novos + testes + docs. Detalhado em *Project Structure*.
 | Princípio | Aplica-se? | Avaliação |
 |---|---|---|
 | I. Sem alegação preditiva sem evidência replicada (NÃO NEGOCIÁVEL) | **Sim** | A Quina reutiliza as estratégias atuais ("Mais sorteadas" etc.), que já são rotuladas como hipótese sob teste. Nenhum texto novo pode sugerir vantagem; os textos que listam modalidades ("Gerador estatístico para Mega-Sena e +Milionária") são atualizados sem adjetivo novo. Tarefa explícita de varrer UI/docs. |
-| II. Pré-registro antes do dado | **Sim** | Os limiares dos controles da Quina (taxa de falso positivo, tamanho do viés injetado, nº de réplicas) são escritos e commitados **antes** de qualquer execução sobre o histórico real da Quina; a ordem das tarefas reflete isso. Os parâmetros hipergeométricos mudam (K=5, N=80); a repetição esperada `K²/N` passa a 25/80. |
+| II. Pré-registro antes do dado | **Sim** | Os critérios (`ALPHA`, réplicas, viés alternativo) já são constantes globais de `preregistration.ts` e as grandezas por modalidade são derivadas das regras; a Quina **não cria critério novo** nem muda `PREREGISTRATION_VERSION`. O que se registra **antes** de qualquer execução sobre o histórico real da Quina são os valores derivados esperados (K=5, N=80: repetição `K²/N` = 25/80, soma 202,5, variância 2531,25) e o desenho dos controles, em `contracts/quina-preregistration.md`; a ordem das tarefas reflete isso. |
 | III. Controles negativo e positivo (NÃO NEGOCIÁVEL) | **Sim — vincula o desenho de testes** | (1) Controle negativo: histórico simulado i.i.d. de Quina não acusa sinal além do falso positivo declarado. (2) Controle positivo: viés injetado de tamanho conhecido é detectado. (3) Fórmulas novas — probabilidades por faixa, `C(80,5)`, esperança de retorno — são conferidas contra cálculo independente (soma binomial/Monte Carlo) e contra a tabela oficial da Caixa. (4) Testes do seed rejeitam seed corrompido (lacuna, dezena fora de 1–80, 6 dezenas), como em `SeedHistoryIntegrityTest`. |
 | IV. Procedência e limitações sempre declaradas | **Sim** | O seed da Quina vem da API de terceiros (`loteriascaixa-api`) e é rotulado `third_party_mirror`; a conferência contra o portal da Caixa é registrada em `meta.json` (`crossChecked`) e **não** promove o rótulo a `official`. As datas da Quina são reais (diferente do espelho antigo, de datas sintéticas) e entram na comparação. |
 | V. Domínio único compartilhado entre plataformas (eixo da feature) | **Sim** | Uma implementação por linguagem (`shared/` e `web/src/engine/`), com constantes e fórmulas portadas byte a byte e testes de equivalência cruzados (mesmos casos nos dois lados). Histórico: `web/src/data/history/quina.json` é a fonte; o CSV do Android é **gerado** dele. Tabelas de fechamento para k=5 geradas **uma vez** por script e emitidas para TS e Kotlin a partir do mesmo dado. |
@@ -122,7 +122,8 @@ specs/003-quina-lottery/
 ├── contracts/
 │   ├── quina-official-rules.md   # regras, faixas, preço, chances (verificáveis)
 │   ├── history-seed.md           # fonte única → web JSON → CSV Android; meta.json
-│   └── cross-platform-parity.md  # o que Kotlin e TS devem provar igual
+│   ├── cross-platform-parity.md  # o que Kotlin e TS devem provar igual
+│   └── quina-preregistration.md  # criado em T004: valores derivados e controles, antes do dado real
 ├── quickstart.md        # Fase 1 — roteiro de validação ponta a ponta
 └── tasks.md             # Fase 2 (/speckit-tasks, não criado aqui)
 ```
