@@ -10,6 +10,8 @@ enum class Lottery(
     val minSelection: Int,
     val maxSelection: Int,
     val hasTrevos: Boolean,
+    /** Dezenas sorteadas por concurso (K) e de uma aposta simples (n). */
+    val numbersDrawn: Int,
 ) {
     MEGA_SENA(
         displayName = "Mega-Sena",
@@ -17,6 +19,7 @@ enum class Lottery(
         minSelection = 8,
         maxSelection = 15,
         hasTrevos = false,
+        numbersDrawn = 6,
     ),
     MAIS_MILIONARIA(
         displayName = "+Milionária",
@@ -24,6 +27,7 @@ enum class Lottery(
         minSelection = 8,
         maxSelection = 12,
         hasTrevos = true,
+        numbersDrawn = 6,
     );
 
     companion object {

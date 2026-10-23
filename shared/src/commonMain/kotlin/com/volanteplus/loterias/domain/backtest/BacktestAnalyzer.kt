@@ -41,7 +41,7 @@ class BacktestAnalyzer(private val random: Random = SecureRandom()) {
             lottery = config.lottery,
             universe = config.lottery.numberRange.toList(),
             observations = draws.map { it.numbers },
-            sampleSize = Draw.NUMBERS_DRAWN,
+            sampleSize = config.lottery.numbersDrawn,
             rounds = config.simulationRounds,
         )
 

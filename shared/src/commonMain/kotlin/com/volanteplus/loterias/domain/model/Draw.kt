@@ -4,7 +4,7 @@ import java.time.LocalDate
 
 /**
  * Resultado histórico de um concurso. Toda sorteio tem exatamente
- * [NUMBERS_DRAWN] dezenas; a +Milionária sorteia adicionalmente
+ * [Lottery.numbersDrawn] dezenas; a +Milionária sorteia adicionalmente
  * [Lottery.TREVOS_REQUIRED] trevos.
  */
 data class Draw(
@@ -16,8 +16,8 @@ data class Draw(
 ) {
     init {
         require(contestNumber > 0) { "Número de concurso inválido: $contestNumber" }
-        require(numbers.size == NUMBERS_DRAWN) {
-            "Concurso $contestNumber: esperadas $NUMBERS_DRAWN dezenas, recebidas ${numbers.size}"
+        require(numbers.size == lottery.numbersDrawn) {
+            "Concurso $contestNumber: esperadas ${lottery.numbersDrawn} dezenas, recebidas ${numbers.size}"
         }
         require(numbers.toSet().size == numbers.size) {
             "Concurso $contestNumber: dezenas repetidas"
@@ -40,6 +40,7 @@ data class Draw(
     }
 
     companion object {
+        /** Dezenas da Mega-Sena e da +Milionária; use [Lottery.numbersDrawn] no código novo. */
         const val NUMBERS_DRAWN = 6
     }
 }

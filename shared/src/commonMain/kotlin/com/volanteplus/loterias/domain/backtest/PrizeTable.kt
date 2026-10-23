@@ -192,7 +192,10 @@ object PrizeTable {
     /** Preço da aposta simples de 6 dezenas, em reais. */
     const val SIMPLE_BET_PRICE = 6.0
 
-    fun betPrice(lottery: Lottery): Double = SIMPLE_BET_PRICE
+    /** Preço por modalidade; toda modalidade nova declara o seu aqui (o `when` é exaustivo). */
+    fun betPrice(lottery: Lottery): Double = when (lottery) {
+        Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA -> SIMPLE_BET_PRICE
+    }
 
     /**
      * Faixas com probabilidade exata já calculada por [Hypergeometric].

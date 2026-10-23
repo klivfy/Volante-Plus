@@ -14,7 +14,7 @@ import java.util.logging.Logger
 import kotlin.math.ceil
 
 /**
- * Gerador de lotes de jogos simples ([Draw.NUMBERS_DRAWN] dezenas).
+ * Gerador de lotes de jogos simples ([Lottery.numbersDrawn] dezenas).
  *
  * Fonte única de dados: a lista de [NumberPerformance] produzida pelo
  * `BacktestAnalyzer`. Não existem mais estratégias selecionáveis — todo lote
@@ -114,7 +114,7 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         val eligible = performances
             .filter { it.number in lottery.numberRange }
             .filter { source == null || it.number in source }
-        require(eligible.size >= GAME_SIZE) {
+        require(eligible.size >= lottery.numbersDrawn) {
             "Desempenho insuficiente para formar um jogo (dezenas elegíveis: ${eligible.size})"
         }
 
@@ -200,8 +200,8 @@ class GameGenerator(private val random: Random = SecureRandom()) {
         trevoStrategy: TrevoStrategy,
         trevoTiers: List<List<NumberPerformance>>,
     ): GeneratedGame {
-        val picked = LinkedHashSet<Int>(GAME_SIZE)
-        while (picked.size < GAME_SIZE) {
+        val picked = LinkedHashSet<Int>(lottery.numbersDrawn)
+        while (picked.size < lottery.numbersDrawn) {
             picked += pickFromTiers(numberTiers, picked) ?: break
         }
         return GeneratedGame(
@@ -325,6 +325,7 @@ class GameGenerator(private val random: Random = SecureRandom()) {
     companion object {
         private val logger: Logger = Logger.getLogger(GameGenerator::class.java.name)
 
+        /** Dezenas da Mega-Sena e da +Milionária; use [Lottery.numbersDrawn] no código novo. */
         const val GAME_SIZE = Draw.NUMBERS_DRAWN
 
         // WHY: teto reduzido de 10 para 5 — lotes maiores raramente eram usados e
