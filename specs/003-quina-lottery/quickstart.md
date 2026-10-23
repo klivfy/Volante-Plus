@@ -16,9 +16,9 @@ implementação: remete aos contratos e ao modelo de dados.
 Capturar o **teste dourado** de Mega-Sena e +Milionária (backtest com
 semente fixa, chances e retorno esperado por faixa, lote gerado) nos dois
 lados (Kotlin e TypeScript) e commitá-lo antes de qualquer refatoração.
-Também commitar os critérios dos controles da Quina (taxa de falso positivo,
-tamanho do viés injetado, nº de réplicas) antes de rodá-los sobre o histórico
-real (Princípio II).
+Também commitar `contracts/quina-preregistration.md` (valores derivados
+esperados e desenho dos controles; as constantes de `preregistration.ts` não
+mudam) antes de trazer o histórico real da Quina (Princípio II).
 
 ## Passo 1 — Gerar o histórico (web, fonte única)
 
