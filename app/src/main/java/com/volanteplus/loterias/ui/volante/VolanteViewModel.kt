@@ -399,6 +399,18 @@ class VolanteViewModel(
             }
             return
         }
+        // As tabelas de cobertura do ClosureDesigner são de jogos de 6 dezenas
+        // (C(v,6,t)); numa modalidade de 5 dezenas elas não valem, e entregar
+        // um desdobramento k=6 seria uma promessa falsa.
+        if (state.lottery.numbersDrawn != 6) {
+            _uiState.update {
+                it.copy(
+                    message = "Fechamento com garantia ainda não está disponível para a " +
+                        "${state.lottery.displayName} neste app. Use os jogos avulsos."
+                )
+            }
+            return
+        }
         val marked = state.current.numbers
         if (marked.size < state.lottery.minSelection) {
             _uiState.update {

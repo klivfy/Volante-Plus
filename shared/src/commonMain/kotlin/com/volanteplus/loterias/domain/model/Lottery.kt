@@ -28,6 +28,16 @@ enum class Lottery(
         maxSelection = 12,
         hasTrevos = true,
         numbersDrawn = 6,
+    ),
+
+    /** Quina: 5 dezenas sorteadas de 1–80, aposta de 5 a 15, sem trevo. Declarada por último (a UI usa o ordinal como índice de aba). */
+    QUINA(
+        displayName = "Quina",
+        numberRange = 1..80,
+        minSelection = 5,
+        maxSelection = 15,
+        hasTrevos = false,
+        numbersDrawn = 5,
     );
 
     companion object {

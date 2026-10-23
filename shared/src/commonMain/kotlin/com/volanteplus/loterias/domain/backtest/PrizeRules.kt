@@ -56,6 +56,7 @@ object PrizeRules {
     fun isPrize(lottery: Lottery, numberHits: Int, trevoHits: Int): Boolean = when (lottery) {
         Lottery.MEGA_SENA -> numberHits >= 4
         Lottery.MAIS_MILIONARIA -> (numberHits to trevoHits) in maisMilionariaPares
+        Lottery.QUINA -> numberHits in 2..5
     }
 
     /**
@@ -74,11 +75,21 @@ object PrizeRules {
             .indexOfFirst { (dezenas, trevos) -> dezenas == numberHits && trevoHits in trevos }
             .takeIf { it >= 0 }
             ?.plus(1)
+
+        // Quina: 5 acertos = faixa 1 (quina), 4 = quadra, 3 = terno, 2 = duque.
+        Lottery.QUINA -> when (numberHits) {
+            5 -> 1
+            4 -> 2
+            3 -> 3
+            2 -> 4
+            else -> null
+        }
     }
 
-    /** Quantidade de faixas da loteria: 3 na Mega-Sena, 10 na +Milionária. */
+    /** Quantidade de faixas da loteria: 3 na Mega-Sena, 10 na +Milionária, 4 na Quina. */
     fun tierCount(lottery: Lottery): Int = when (lottery) {
         Lottery.MEGA_SENA -> 3
         Lottery.MAIS_MILIONARIA -> maisMilionariaFaixas.size
+        Lottery.QUINA -> 4
     }
 }

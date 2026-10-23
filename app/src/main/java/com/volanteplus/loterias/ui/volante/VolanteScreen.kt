@@ -197,7 +197,7 @@ private fun VolanteContent(
     val selection = state.current
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(NUMBER_GRID_COLUMNS),
+        columns = GridCells.Fixed(numberGridColumns(lottery)),
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -948,7 +948,8 @@ private fun TrevoSection(
     }
 }
 
-private const val NUMBER_GRID_COLUMNS = 6
+/** O volante da Quina tem 8 colunas; os das outras duas, 6. */
+private fun numberGridColumns(lottery: Lottery): Int = if (lottery == Lottery.QUINA) 8 else 6
 
 @Preview(showBackground = true)
 @Composable

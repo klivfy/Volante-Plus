@@ -16,7 +16,7 @@ class LotteryParametersTest {
 
     @Test
     fun `mega-sena e +milionaria seguem com 6 dezenas e preco de 6 reais`() {
-        for (lottery in Lottery.values()) {
+        for (lottery in listOf(Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA)) {
             assertEquals(6, lottery.numbersDrawn)
             assertEquals(6.0, PrizeTable.betPrice(lottery), 0.0)
         }

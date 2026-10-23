@@ -186,15 +186,38 @@ object PrizeTable {
     /** Data da última conferência dos percentuais contra as fontes acima. */
     const val REFERENCE_DATE = "2026-09-03"
 
-    /** Fração da arrecadação destinada à premiação bruta, nas duas loterias. */
+    /** Fração da arrecadação destinada à premiação bruta na Mega-Sena e na +Milionária (a Quina tem a sua). */
     const val PRIZE_SHARE_OF_COLLECTION = 0.4335
 
     /** Preço da aposta simples de 6 dezenas, em reais. */
     const val SIMPLE_BET_PRICE = 6.0
 
+    /** Preço da aposta simples de 5 dezenas da Quina, em reais. */
+    const val QUINA_BET_PRICE = 3.0
+
+    /** Prêmio bruto da Quina: 43,79% da arrecadação. */
+    const val QUINA_PRIZE_SHARE_OF_COLLECTION = 0.4379
+
+    /**
+     * Rateio da Quina, como fração do prêmio bruto: 35% quina, 15% quadra, 10%
+     * terno, 10% duque. Os 30% restantes acumulam (final 5 e Quina de São João)
+     * e ficam FORA das faixas, como o acúmulo da Mega-Sena — sem inventar destino.
+     */
+    private const val QUINA_QUINA_SHARE = 0.35
+    private const val QUINA_QUADRA_SHARE = 0.15
+    private const val QUINA_TERNO_SHARE = 0.10
+    private const val QUINA_DUQUE_SHARE = 0.10
+
     /** Preço por modalidade; toda modalidade nova declara o seu aqui (o `when` é exaustivo). */
     fun betPrice(lottery: Lottery): Double = when (lottery) {
         Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA -> SIMPLE_BET_PRICE
+        Lottery.QUINA -> QUINA_BET_PRICE
+    }
+
+    /** Fração da arrecadação destinada à premiação bruta, por modalidade. */
+    fun prizeShareOfCollection(lottery: Lottery): Double = when (lottery) {
+        Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA -> PRIZE_SHARE_OF_COLLECTION
+        Lottery.QUINA -> QUINA_PRIZE_SHARE_OF_COLLECTION
     }
 
     /**
@@ -226,6 +249,15 @@ object PrizeTable {
                     payout = spec.payout,
                 )
             }
+
+            Lottery.QUINA -> listOf(
+                Triple("Quina (5 acertos)", 5, Payout.Share(QUINA_QUINA_SHARE)),
+                Triple("Quadra (4 acertos)", 4, Payout.Share(QUINA_QUADRA_SHARE)),
+                Triple("Terno (3 acertos)", 3, Payout.Share(QUINA_TERNO_SHARE)),
+                Triple("Duque (2 acertos)", 2, Payout.Share(QUINA_DUQUE_SHARE)),
+            ).mapIndexed { i, (label, hits, payout) ->
+                PrizeTier(i + 1, label, hits, emptySet(), p(hits, emptySet()), payout)
+            }
         }
     }
 
@@ -233,6 +265,7 @@ object PrizeTable {
     fun shareBase(lottery: Lottery): ShareBase = when (lottery) {
         Lottery.MEGA_SENA -> ShareBase.GROSS_PRIZE
         Lottery.MAIS_MILIONARIA -> ShareBase.NET_OF_FIXED_AND_RESERVE
+        Lottery.QUINA -> ShareBase.GROSS_PRIZE
     }
 
     /** Fração do bolo de rateio retida como reserva e não paga neste concurso. */
@@ -242,6 +275,8 @@ object PrizeTable {
         // faixas — o complemento sai naturalmente da soma das frações.
         Lottery.MEGA_SENA -> 0.0
         Lottery.MAIS_MILIONARIA -> MILIONARIA_RESERVE_SHARE
+        // Quina: o que não é pago agora é acúmulo, ausente da lista de faixas.
+        Lottery.QUINA -> 0.0
     }
 
     /**
@@ -263,7 +298,7 @@ object PrizeTable {
      */
     fun expectedReturn(lottery: Lottery): ExpectedReturn {
         val tiers = tiers(lottery)
-        val gross = betPrice(lottery) * PRIZE_SHARE_OF_COLLECTION
+        val gross = betPrice(lottery) * prizeShareOfCollection(lottery)
         val fixed = tiers.sumOf { tier ->
             when (val payout = tier.payout) {
                 is Payout.Fixed -> tier.probability * payout.amount
@@ -286,7 +321,7 @@ object PrizeTable {
         return ExpectedReturn(
             lottery = lottery,
             betPrice = betPrice(lottery),
-            prizeShareOfCollection = PRIZE_SHARE_OF_COLLECTION,
+            prizeShareOfCollection = prizeShareOfCollection(lottery),
             shareBase = base,
             reserveShare = reserve,
             fixedTierReturn = fixed,

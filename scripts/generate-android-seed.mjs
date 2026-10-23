@@ -29,6 +29,7 @@ const outDir = path.join(root, 'app/src/main/assets/seed');
 const RULES = {
   megasena: { key: 'megasena', file: 'megasena.csv', drawn: 6, universe: 60, trevoDrawn: 0, trevoUniverse: 0 },
   maismilionaria: { key: 'maismilionaria', file: 'maismilionaria.csv', drawn: 6, universe: 50, trevoDrawn: 2, trevoUniverse: 6 },
+  quina: { key: 'quina', file: 'quina.csv', drawn: 5, universe: 80, trevoDrawn: 0, trevoUniverse: 0 },
 };
 
 const distinctInRange = (list, size, max) =>
