@@ -1,14 +1,17 @@
 // Gera o histórico embutido (`src/data/history/`) a partir da API pública de loterias.
 //
 //   node scripts/update-history-seed.mjs                       # baixa da API
-//   node scripts/update-history-seed.mjs --from-dir <dir>      # usa megasena.json/maismilionaria.json já baixados
+//   node scripts/update-history-seed.mjs --from-dir <dir>      # usa <modalidade>.json já baixados
+//   node scripts/update-history-seed.mjs --only quina          # só essa modalidade; as demais ficam intactas
 //
 // Regras (o script ABORTA, sem gravar nada, se qualquer uma falhar):
 //   1. histórico contíguo do concurso 1 ao último, sem duplicatas;
 //   2. cada concurso respeita as regras da modalidade (dezenas, universo, trevos);
 //   3. datas válidas;
 //   4. onde houver, dezenas e trevos coincidem com o espelho independente em
-//      `src/data/mirrorSnapshot/` (segunda fonte, coletada por outro caminho).
+//      `src/data/mirrorSnapshot/` (segunda fonte, coletada por outro caminho);
+//      quando o espelho traz datas reais (`date`, caso da Quina, coletado do portal
+//      da Caixa por `collect-portal-snapshot.mjs`), as datas também são conferidas.
 // A fonte é uma API de terceiros (loteriascaixa-api), NÃO a Caixa: o app a trata
 // como tal e a sincronização em runtime a sobrescreve com o que a API devolver.
 import fs from 'node:fs';
@@ -21,9 +24,12 @@ const mirrorDir = path.join(root, 'src/data/mirrorSnapshot');
 const BASE = process.env.CAIXA_API_BASE_URL ?? 'https://loteriascaixa-api.herokuapp.com/api';
 const fromDir = process.argv.includes('--from-dir') ? process.argv[process.argv.indexOf('--from-dir') + 1] : null;
 
+const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
+
 const RULES = {
   megasena: { key: 'megasena', drawn: 6, universe: 60, trevoDrawn: 0, trevoUniverse: 0, mirror: 'megasena.json' },
   maismilionaria: { key: 'maismilionaria', drawn: 6, universe: 50, trevoDrawn: 2, trevoUniverse: 6, mirror: 'maismilionaria.json' },
+  quina: { key: 'quina', drawn: 5, universe: 80, trevoDrawn: 0, trevoUniverse: 0, mirror: 'quina.json' },
 };
 
 function toIso(value) {
@@ -44,9 +50,12 @@ async function load(rule) {
   return response.json();
 }
 
-const meta = { generatedAt: new Date().toISOString(), source: `loteriascaixa-api (${fromDir ? 'arquivo local' : BASE})`, lotteries: {} };
+if (only && !RULES[only]) throw new Error(`--only: modalidade desconhecida (${only})`);
+const metaPath = path.join(outDir, 'meta.json');
+const previous = only && fs.existsSync(metaPath) ? JSON.parse(fs.readFileSync(metaPath, 'utf8')) : null;
+const meta = previous ?? { generatedAt: new Date().toISOString(), source: `loteriascaixa-api (${fromDir ? 'arquivo local' : BASE})`, lotteries: {} };
 
-for (const rule of Object.values(RULES)) {
+for (const rule of Object.values(RULES).filter((r) => !only || r.key === only)) {
   const raw = await load(rule);
   const draws = raw
     .map((x) => ({
@@ -71,6 +80,7 @@ for (const rule of Object.values(RULES)) {
     if (!m) continue;
     compared++;
     if (JSON.stringify([...m.numbers].sort((a, b) => a - b)) !== JSON.stringify(d.numbers)) errors.push(`concurso ${d.contest}: dezenas divergem do espelho`);
+    if (m.date && m.date !== d.date) errors.push(`concurso ${d.contest}: data ${d.date} diverge do espelho (${m.date})`);
     if (rule.trevoDrawn && JSON.stringify([...(m.trevos ?? [])].sort((a, b) => a - b)) !== JSON.stringify(d.trevos)) errors.push(`concurso ${d.contest}: trevos divergem do espelho`);
   }
   if (errors.length) {
@@ -85,4 +95,5 @@ for (const rule of Object.values(RULES)) {
   meta.lotteries[rule.key] = { count: draws.length, firstContest: 1, lastContest: last.contest, lastDate: last.date, crossChecked: compared };
   console.log(`${rule.key}: ${draws.length} concursos (1..${last.contest}, até ${last.date}); ${compared} conferidos contra o espelho independente, 0 divergências.`);
 }
-fs.writeFileSync(path.join(outDir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
+if (only) meta.generatedAt = new Date().toISOString();
+fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n');

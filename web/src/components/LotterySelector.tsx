@@ -22,6 +22,7 @@ export default function LotterySelector({ value, onChange, disabled = false }: L
       options={[
         { value: Lottery.MEGA_SENA, label: t('lottery.megaSena') },
         { value: Lottery.MAIS_MILIONARIA, label: t('lottery.maisMilionaria') },
+        { value: Lottery.QUINA, label: t('lottery.quina') },
       ]}
     />
   );

@@ -9,6 +9,7 @@ import { Draw, Lottery, NextDrawInfo } from '../types/domain';
 export const API_PATH: Record<Lottery, string> = {
   [Lottery.MEGA_SENA]: 'megasena',
   [Lottery.MAIS_MILIONARIA]: 'maismilionaria',
+  [Lottery.QUINA]: 'quina',
 };
 
 /**

@@ -13,7 +13,7 @@ import { defaultRandom, RandomSource } from './random';
 import { unpopularityPenalty } from './unpopularity';
 
 /**
- * Gerador de lotes de jogos simples (6 dezenas).
+ * Gerador de lotes de jogos simples (6 dezenas na Mega-Sena e +Milionária, 5 na Quina).
  *
  * Fonte única de dados: a lista de `NumberPerformance` produzida pelo
  * `analyzeBacktest`. Não existem estratégias selecionáveis — todo lote é

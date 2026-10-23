@@ -20,6 +20,8 @@ import { Lottery } from './types/domain';
  * | Mega-Sena, escuro  | #40BE00 | #0B2000 7,03:1 | 7,00:1 sobre #1C1B1F |
  * | +Milionária, claro | #005CA9 | branco 6,77:1  | 6,60:1 sobre #FFFBFE |
  * | +Milionária, escuro| #48ACFF | #001D36 7,01:1 | 7,03:1 sobre #1C1B1F |
+ * | Quina, claro       | #5E35B1 | branco 8,02:1  | 7,82:1 sobre #FFFBFE |
+ * | Quina, escuro      | #C4A5FF | #2A0A5E 7,80:1 | 8,30:1 sobre #1C1B1F |
  *
  * O verde anterior (#39A900) dava 3,07:1 com branco e 2,99:1 como texto; o azul
  * na aparência escura (#005CA9 sobre #1C1B1F) dava 2,53:1.
@@ -49,6 +51,10 @@ const BRAND: Record<Lottery, { light: BrandColors; dark: BrandColors }> = {
   [Lottery.MAIS_MILIONARIA]: {
     light: { main: '#005CA9', light: '#3D87CC', dark: '#003F75', contrastText: '#FFFFFF' },
     dark: { main: '#48ACFF', light: '#8AC8FF', dark: '#1A7FD0', contrastText: '#001D36' },
+  },
+  [Lottery.QUINA]: {
+    light: { main: '#5E35B1', light: '#8E65D6', dark: '#3F1D82', contrastText: '#FFFFFF' },
+    dark: { main: '#C4A5FF', light: '#DCC8FF', dark: '#9A74E0', contrastText: '#2A0A5E' },
   },
 };
 

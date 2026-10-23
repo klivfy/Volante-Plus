@@ -7,7 +7,8 @@
   },
   "lottery": {
     "megaSena": "Mega-Sena",
-    "maisMilionaria": "+Milionária"
+    "maisMilionaria": "+Milionária",
+    "quina": "Quina"
   },
   "volante": {
     "title": "Volante+",
@@ -79,7 +80,7 @@
   },
   "sobre": {
     "title": "Sobre o Volante+",
-    "subtitle": "Gerador estatístico para Mega-Sena e +Milionária. Sem palpite, sem número quente.",
+    "subtitle": "Gerador estatístico para Mega-Sena, +Milionária e Quina. Sem palpite, sem número quente.",
     "missionTitle": "Missão",
     "missionBody": "Usar o histórico das loterias para testar, validar ou refutar empiricamente modelos matemáticos via backtesting transparente — sem promessas de \"números quentes\". Cada sorteio é um evento independente: nenhuma dezena carrega memória do que saiu antes.",
     "howTitle": "Como os jogos são gerados",

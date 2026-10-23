@@ -37,7 +37,7 @@ export interface ConfigRecord {
 }
 
 const HISTORY_SEED_KEY = 'historySeedVersion';
-const ALL_LOTTERIES = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA];
+const ALL_LOTTERIES = Object.values(Lottery);
 
 /**
  * Validade padrão de um cache `manual`: 24h. O histórico é ressincronizado com

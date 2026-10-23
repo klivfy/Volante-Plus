@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import maisMirror from '../../mirrorSnapshot/maismilionaria.json';
 import megaMirror from '../../mirrorSnapshot/megasena.json';
+import quinaMirror from '../../mirrorSnapshot/quina.json';
 import { Draw, Lottery } from '../../../types/domain';
 import { isValidDraw } from '../../../services/drawSources';
 import { HISTORY_SEED_META, historySeedVersion, loadHistorySeed } from '..';
@@ -8,6 +9,7 @@ import { HISTORY_SEED_META, historySeedVersion, loadHistorySeed } from '..';
 describe.each([
   [Lottery.MEGA_SENA, megaMirror as Draw[]],
   [Lottery.MAIS_MILIONARIA, maisMirror as Draw[]],
+  [Lottery.QUINA, quinaMirror as Draw[]],
 ])('seed embutido — %s', (lottery, mirror) => {
   it('é COMPLETO: contíguo do concurso 1 ao último declarado no meta', async () => {
     const draws = await loadHistorySeed(lottery);
@@ -28,6 +30,10 @@ describe.each([
     for (const m of mirror) {
       const s = seed.get(m.contestNumber)!;
       expect(s.numbers, `concurso ${m.contestNumber}`).toEqual([...m.numbers].sort((a, b) => a - b));
+      if (lottery === Lottery.QUINA) {
+        // Espelho coletado do portal da Caixa: traz datas reais.
+        expect(s.date, `data do concurso ${m.contestNumber}`).toBe(m.date);
+      }
       if (lottery === Lottery.MAIS_MILIONARIA) {
         expect(s.trevos).toEqual([...(m.trevos ?? [])].sort((a, b) => a - b));
       }
@@ -40,8 +46,31 @@ describe.each([
   });
 });
 
-it('a versão do seed identifica os dois últimos concursos', () => {
+it('a versão do seed identifica o último concurso de cada modalidade', () => {
   expect(historySeedVersion()).toBe(
-    `${HISTORY_SEED_META[Lottery.MEGA_SENA].lastContest}-${HISTORY_SEED_META[Lottery.MAIS_MILIONARIA].lastContest}`,
+    `${HISTORY_SEED_META[Lottery.MEGA_SENA].lastContest}-${HISTORY_SEED_META[Lottery.MAIS_MILIONARIA].lastContest}-${HISTORY_SEED_META[Lottery.QUINA].lastContest}`,
   );
+});
+
+describe('controle positivo: histórico corrompido da Quina é rejeitado', () => {
+  const ok: Draw = { lottery: Lottery.QUINA, contestNumber: 1, date: '1994-03-13', numbers: [5, 20, 33, 61, 80] };
+
+  it('aceita um concurso válido', () => {
+    expect(isValidDraw(Lottery.QUINA, ok)).toBe(true);
+  });
+
+  it.each([
+    ['6 dezenas', { ...ok, numbers: [1, 2, 3, 4, 5, 6] }],
+    ['dezena 81', { ...ok, numbers: [5, 20, 33, 61, 81] }],
+    ['dezena 0', { ...ok, numbers: [0, 20, 33, 61, 80] }],
+    ['dezenas repetidas', { ...ok, numbers: [5, 5, 33, 61, 80] }],
+    ['trevo presente', { ...ok, trevos: [1, 2] }],
+  ])('rejeita %s', (_, draw) => {
+    expect(isValidDraw(Lottery.QUINA, draw as Draw)).toBe(false);
+  });
+
+  it('o seed não tem lacuna nem duplicata', async () => {
+    const draws = await loadHistorySeed(Lottery.QUINA);
+    expect(new Set(draws.map((d) => d.contestNumber)).size).toBe(draws.length);
+  });
 });

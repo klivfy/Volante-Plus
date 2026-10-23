@@ -61,7 +61,7 @@ describe('syncNow', () => {
     expect(mega.map((d) => d.contestNumber)).toEqual(mega.map((_, i) => i + 1)); // contíguo desde o 1
     const mais = await getDraws(Lottery.MAIS_MILIONARIA);
     expect(mais[mais.length - 1].contestNumber).toBe(MAIS_LAST + 1);
-    expect(reports.map((r) => r.added)).toEqual([2, 1]);
+    expect(reports.map((r) => r.added)).toEqual([2, 1, 0]); // Mega-Sena, +Milionária, Quina (já completa no seed)
     // Não rebaixou o histórico: só o concurso que faltava entre o seed e o último
     // (o último em si veio do pedido "latest"; a +Milionária só tinha o último a buscar).
     expect(source.calls.filter((c) => c.startsWith('byContest'))).toEqual([

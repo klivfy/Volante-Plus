@@ -61,8 +61,9 @@ export function isValidDraw(lottery: Lottery, draw: Draw): boolean {
     /^\d{4}-\d{2}-\d{2}/.test(draw.date) &&
     !Number.isNaN(Date.parse(draw.date)) &&
     distinctInRange(draw.numbers, rules.numbersDrawn, rules.numberUniverse) &&
-    (rules.trevoUniverse === 0 ||
-      distinctInRange(draw.trevos, rules.trevosDrawn, rules.trevoUniverse))
+    (rules.trevoUniverse === 0
+      ? (draw.trevos ?? []).length === 0 // modalidade sem trevo: qualquer trevo é rejeitado
+      : distinctInRange(draw.trevos, rules.trevosDrawn, rules.trevoUniverse))
   );
 }
 

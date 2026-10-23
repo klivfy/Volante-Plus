@@ -26,7 +26,7 @@ import NotificationOptIn from '@/components/NotificationOptIn';
 import PayoutSharePanel from '@/components/PayoutSharePanel';
 import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } from '@/services/analytics';
 import { reportUserError, addBreadcrumb } from '@/services/errorReporter';
-import { closureCost, generateClosure, offeredGuarantees, SIMPLE_BET_PRICE_BRL } from '@/engine/closureDesigner';
+import { closureCost, generateClosure, offeredGuarantees } from '@/engine/closureDesigner';
 import { generateGames, maxDistinctGames } from '@/engine/gameGenerator';
 import { bayesEvidenceFromPerformances } from '@/engine/bayesEvidence';
 import { guaranteeProbability } from '@/engine/betPlanning';
@@ -274,7 +274,7 @@ export default function VolantePage() {
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
                   {pool.length < minPool
                     ? t('fechamento.needMore', { min: minPool })
-                    : t('fechamento.costNote', { price: SIMPLE_BET_PRICE_BRL })}
+                    : t('fechamento.costNote', { price: rules.betPriceBrl })}
                 </Typography>
               </>
             ) : (

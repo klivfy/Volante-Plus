@@ -50,9 +50,9 @@ export interface BenchmarkResult {
 
 const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
   'tier-weighted': 'Método do app: 70% top / 20% mid / 10% low, ponderado por desempenho',
-  'frequency-pure': 'Sempre as 6 dezenas historicamente mais frequentes',
+  'frequency-pure': 'Sempre as dezenas de um jogo historicamente mais frequentes',
   'cold-numbers': 'Favorece as dezenas menos frequentes ("atrasadas")',
-  'random-uniform': 'Baseline: 6 dezenas uniformemente aleatórias (sem uso do histórico)',
+  'random-uniform': 'Baseline: dezenas de um jogo uniformemente aleatórias (sem uso do histórico)',
   'gap-maximizer': 'Maximiza a distância mínima entre as dezenas escolhidas',
 };
 
