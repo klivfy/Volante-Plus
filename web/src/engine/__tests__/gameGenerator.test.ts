@@ -10,7 +10,6 @@ import {
 } from '../../types/domain';
 import {
   STRATEGY_LABEL,
-  UNPOPULAR_STRATEGY_LABEL,
   allTrevoPairs,
   generateGames,
 } from '../gameGenerator';
@@ -188,7 +187,10 @@ describe('generateGames — forma do jogo', () => {
 
 describe('generateGames — distribuição por tiers', () => {
   it('tira ~70% das dezenas do tier top, ~20% do mid e ~10% do low', () => {
-    const source = megaPerformances();
+    // Pesos estritamente decrescentes: o ranking por peso é o próprio número,
+    // então o tier gravado pelo helper reflete o recorte 40/30/30. Pesos
+    // iguais degenerariam em tier único (ver teste de degeneração).
+    const source = performances(60, (n) => 61 - n);
     const tierOf = new Map(source.map((p) => [p.number, p.tier]));
     const tally: Record<PerformanceTier, number> = { top: 0, mid: 0, low: 0 };
 
@@ -230,8 +232,28 @@ describe('generateGames — distribuição por tiers', () => {
     expect(counts.get(1)!).toBeGreaterThan(counts.get(2) ?? 0);
   });
 
-  it('degenera em sorteio uniforme quando todos os pesos são zero', () => {
+  it('degenera em sorteio uniforme quando todos os pesos são iguais', () => {
     const source = performances(60, () => 0);
+    // Sem informação de peso, o sorteio não pode concentrar nas dezenas
+    // baixas — o antigo viés do tier por desempate numérico (1..24 pegava
+    // 70% das vagas). Porta do `GameGenerator.kt#UNINFORMATIVE_WEIGHT_SPREAD`.
+    // A uniformidade se verifica no caminho puro (FREQUENCY_TIERS, sem
+    // desempate): no padrão BACKTEST_TIERS o desempate de popularidade
+    // desloca a distribuição para longe dos números populares por construção.
+    const rnd = createSeededRandom(11);
+    let low = 0;
+    let total = 0;
+    for (let i = 0; i < 1500; i++) {
+      const options = { ...seeded(), random: rnd };
+      for (const g of generateGames(Lottery.MEGA_SENA, 2, source, options).games) {
+        low += g.numbers.filter((n) => n <= 24).length;
+        total += 6;
+      }
+    }
+    // Esperado uniforme: 24/60 = 0,4. O viés antigo dava ~0,7.
+    expect(low / total).toBeGreaterThan(0.3);
+    expect(low / total).toBeLessThan(0.5);
+
     const batch = generateGames(Lottery.MEGA_SENA, MAX_GAMES, source, seeded());
 
     expect(batch.games).toHaveLength(MAX_GAMES);
@@ -362,7 +384,7 @@ describe('generateGames — trevos', () => {
   });
 });
 
-describe('generateGames — estratégia UNPOPULAR (padrão)', () => {
+describe('generateGames — estratégia padrão (BACKTEST_TIERS)', () => {
   const unpopularPenalty = (games: GeneratedGame[]) =>
     games.reduce((sum, g) => sum + unpopularityPenalty(Lottery.MEGA_SENA, g.numbers), 0) / games.length;
 
@@ -370,7 +392,7 @@ describe('generateGames — estratégia UNPOPULAR (padrão)', () => {
     const batch = generateGames(Lottery.MEGA_SENA, 3, megaPerformances(), {
       random: createSeededRandom(1),
     });
-    expect(batch.strategyLabel).toBe(UNPOPULAR_STRATEGY_LABEL);
+    expect(batch.strategyLabel).toBe(STRATEGY_LABEL);
   });
 
   it('mantém os invariantes: 6 dezenas distintas, dezenas sem repetição entre jogos', () => {
@@ -400,11 +422,13 @@ describe('generateGames — estratégia UNPOPULAR (padrão)', () => {
       while (s.size < 6) s.add(1 + rnd.nextInt(60));
       uniform.push({ numbers: [...s] });
     }
-    expect(unpopularPenalty(unpopular)).toBeLessThan(unpopularPenalty(uniform) * 0.85);
+    expect(unpopularPenalty(unpopular)).toBeLessThan(unpopularPenalty(uniform) * 0.93);
   });
 
-  it('ignora os pesos do histórico (nenhuma dezena é favorecida por frequência)', () => {
-    // Pesos extremamente enviesados para 1..10 não podem mudar a frequência de escolha.
+  it('reflete os pesos do backtest nas combinações geradas', () => {
+    // Pesos extremamente enviesados para 1..10 têm de aumentar a presença
+    // dessas dezenas — é exatamente o que torna o botão "Usar estes dados
+    // para gerar jogos" ter efeito real na geração.
     const skewed = performances(60, (n) => (n <= 10 ? 100 : 1));
     const flat = megaPerformances();
     const share = (perf: NumberPerformance[]) => {
@@ -419,7 +443,9 @@ describe('generateGames — estratégia UNPOPULAR (padrão)', () => {
       }
       return low / total;
     };
-    expect(Math.abs(share(skewed) - share(flat))).toBeLessThan(0.02);
+    // Uniforme: 10/60 ≈ 0,167. Com pesos 100× nas dez primeiras dezenas, a
+    // presença sobe bem acima disso mesmo com deduplicação absoluta.
+    expect(share(skewed)).toBeGreaterThan(share(flat) + 0.2);
   });
 
   it('+Milionária: trevos uniformes entre 1..6', () => {

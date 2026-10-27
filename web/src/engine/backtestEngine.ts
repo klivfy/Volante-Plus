@@ -102,8 +102,9 @@ export function runBacktest(
       trevoPerformances,
       trevoStrategy,
       random,
-      // O backtest existe para medir a estratégia por frequência histórica —
-      // não a de baixa popularidade, que por construção não usa o histórico.
+      // O backtest mede o método por frequência pura (tiers sem o desempate
+      // de popularidade) — isolar o mecanismo é o que torna o relatório
+      // interpretável contra o baseline hipergeométrico.
       strategy: 'FREQUENCY_TIERS',
     });
 

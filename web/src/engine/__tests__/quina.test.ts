@@ -87,7 +87,7 @@ function performances(): NumberPerformance[] {
 
 describe('geração e fechamento da Quina', () => {
   it('gera jogos de 5 dezenas distintas em 1..80, sem trevo', () => {
-    for (const strategy of ['UNPOPULAR', 'FREQUENCY_TIERS'] as const) {
+    for (const strategy of ['BACKTEST_TIERS', 'FREQUENCY_TIERS'] as const) {
       const batch = generateGames(Lottery.QUINA, 4, performances(), {
         strategy,
         random: createSeededRandom(1),

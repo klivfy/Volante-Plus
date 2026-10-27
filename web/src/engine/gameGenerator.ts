@@ -16,53 +16,62 @@ import { unpopularityPenalty } from './unpopularity';
  * Gerador de lotes de jogos simples (6 dezenas na Mega-Sena e +Milionária, 5 na Quina).
  *
  * Fonte única de dados: a lista de `NumberPerformance` produzida pelo
- * `analyzeBacktest`. Não existem estratégias selecionáveis — todo lote é
- * `STRATEGY_LABEL`.
+ * `analyzeBacktest` — do cache `auto` ou do cache `manual` gravado pelo
+ * backtesting (botão "Usar estes dados para gerar jogos"; ver
+ * `usePerformanceCache`). Todo lote é `STRATEGY_LABEL`.
  *
- * ALGORITMO
+ * ALGORITMO (porta direta do `GameGenerator.kt`)
  * 1. As dezenas elegíveis são ordenadas por `weight` e fatiadas em três tiers
- *    por percentil: 40% top, 30% mid, 30% low.
+ *    por percentil: 40% top, 30% mid, 30% low. Pesos todos iguais (histórico
+ *    vazio) degeneram em tier único — sorteio uniforme, sem viés inventado.
  * 2. Cada vaga do jogo sorteia primeiro um tier (`TOP_TIER_SHARE` = 70%,
  *    `MID_TIER_SHARE` = 20%, o restante 10% para o low) e depois uma dezena
  *    *dentro* do tier, com probabilidade proporcional ao peso.
- * 3. Jogo repetido dentro do lote é resorteado até `MAX_DEDUP_ATTEMPTS` vezes;
- *    passando disso, o jogo é aceito.
+ * 3. No padrão (`BACKTEST_TIERS`), cada jogo avalia `PAYOUT_CANDIDATES`
+ *    candidatas e fica com a de menor `unpopularityPenalty` — não muda a
+ *    chance de ganhar (teorema da invariância), só com quanta gente o prêmio
+ *    seria dividido.
+ * 4. Web-only (extensão da deduplicação do Kotlin): nenhuma dezena se repete
+ *    entre os jogos do lote — o lote satura em `maxDistinctGames`.
  *
  * WHY (tiers recalculados aqui): o tier gravado em cada `NumberPerformance` é
  * relativo ao universo inteiro da loteria. No modo Fechamento o universo
  * encolhe para as dezenas marcadas no volante, então as fatias 40/30/30
  * precisam ser recalculadas sobre o conjunto elegível — caso contrário um
  * fechamento só com dezenas "frias" ficaria sem tier top algum.
- *
- * Porta direta do `GameGenerator.kt` do app Android.
  */
 
-/** Rótulo do lote gerado pela estratégia legada por tiers de frequência. */
+/** Rótulo do lote gerado a partir do desempenho do backtest. */
 export const STRATEGY_LABEL = 'Backtest-Driven';
 
-/** Rótulo do lote gerado pela estratégia padrão, de baixa popularidade. */
-export const UNPOPULAR_STRATEGY_LABEL = 'Baixa popularidade';
-
 /**
- * - `UNPOPULAR` (padrão): dezenas sorteadas uniformemente; entre
- *   `UNPOPULAR_CANDIDATES` candidatos por jogo fica o menos popular segundo
- *   `unpopularityPenalty`. Não altera a chance de ganhar (teorema da
- *   invariância) — só reduz com quantos apostadores o prêmio seria dividido.
- * - `FREQUENCY_TIERS`: a estratégia anterior, por tiers de frequência
- *   histórica. Mantida para o backtest e o benchmark, que existem justamente
- *   para medir que ela não supera o acaso.
+ * - `BACKTEST_TIERS` (padrão): sorteio por tiers ponderados pelo desempenho
+ *   do backtest + desempate de popularidade entre `PAYOUT_CANDIDATES`
+ *   candidatas — a mesma lógica do `GameGenerator.kt`. É o caminho que faz o
+ *   botão "Usar estes dados para gerar jogos" refletir de fato os dados na
+ *   geração das combinações.
+ * - `FREQUENCY_TIERS`: só os tiers, sem desempate de popularidade. Mantido
+ *   para o backtest e o benchmark, que medem o método por frequência pura.
  */
-export type GenerationStrategy = 'UNPOPULAR' | 'FREQUENCY_TIERS';
+export type GenerationStrategy = 'BACKTEST_TIERS' | 'FREQUENCY_TIERS';
 
 /**
- * Candidatos avaliados por jogo na estratégia `UNPOPULAR`.
+ * Candidatas avaliadas por jogo no desempate de popularidade (`BACKTEST_TIERS`).
  *
- * WHY 64 e não o mínimo global: escolher sempre a combinação menos popular
+ * WHY 12 e não o mínimo global: escolher sempre a combinação menos popular
  * faria todo usuário do app jogar o mesmo bilhete — e o app, ele mesmo,
- * viraria a fonte de popularidade. Com 64 sorteios uniformes o jogo escolhido
- * cai, em média, entre os ~2% menos populares, mas continua aleatório.
+ * viraria a fonte de popularidade. Com 12 candidatas sorteadas pelos tiers o
+ * jogo escolhido continua aleatório, mas cai entre as menos disputadas.
+ * Mesmo valor de `GameGenerator.kt#PAYOUT_CANDIDATES`.
  */
-export const UNPOPULAR_CANDIDATES = 64;
+export const PAYOUT_CANDIDATES = 12;
+
+/**
+ * Espalhamento de pesos abaixo do qual o ranking é considerado sem
+ * informação e o sorteio degenera em tier único (uniforme). Mesmo valor de
+ * `GameGenerator.kt#UNINFORMATIVE_WEIGHT_SPREAD`.
+ */
+export const UNINFORMATIVE_WEIGHT_SPREAD = 1e-9;
 
 /** Proporção-alvo de vagas por tier (o low fica com o restante, 10%). */
 export const TOP_TIER_SHARE = 0.7;
@@ -84,7 +93,7 @@ export interface GenerateOptions {
   pool?: Iterable<number>;
   /** Injetável para lotes reproduzíveis e testes determinísticos. */
   random?: RandomSource;
-  /** Estratégia de sorteio; padrão `UNPOPULAR`. */
+  /** Estratégia de sorteio; padrão `BACKTEST_TIERS`. */
   strategy?: GenerationStrategy;
 }
 
@@ -156,13 +165,21 @@ export function generateGames(
     );
   }
 
-  const strategy = options.strategy ?? 'UNPOPULAR';
+  const strategy = options.strategy ?? 'BACKTEST_TIERS';
   const numberTiers = tiersOf(eligible);
   const trevoTiers = buildTrevoTiers(lottery, options.trevoPerformances ?? []);
 
   // DEDUPLICAÇÃO ABSOLUTA: compartilhamos um Set de dezenas usadas entre todos os jogos
   const usedNumbersGlobal = new Set<number>();
   const games: GeneratedGame[] = [];
+  const context: BuildContext = {
+    gameSize: rules.numbersPerBet,
+    numberTiers,
+    lottery,
+    trevoStrategy,
+    trevoTiers,
+    random,
+  };
 
   // Cada jogo retira `numbersPerBet` dezenas de um bolo que não se repõe, então
   // o lote satura em `floor(elegíveis / numbersPerBet)`. Sem esse teto, os
@@ -172,81 +189,50 @@ export function generateGames(
   const effectiveCount = Math.min(count, maxDistinctGames(lottery, eligible.length));
 
   for (let index = 0; index < effectiveCount; index++) {
-    if (strategy === 'UNPOPULAR') {
-      const game = buildUnpopularGame(
-        lottery,
-        eligible.map((performance) => performance.number).filter((n) => !usedNumbersGlobal.has(n)),
-        rules.numbersPerBet,
-        trevoStrategy,
-        random,
-      );
-      game.numbers.forEach((n) => usedNumbersGlobal.add(n));
-      games.push(game);
-      continue;
+    const candidate =
+      strategy === 'BACKTEST_TIERS'
+        ? leastPopularCandidate(usedNumbersGlobal, context)
+        : nextDistinctGameWithGlobalDedup(games, usedNumbersGlobal, context);
+    for (const number of candidate.numbers) {
+      usedNumbersGlobal.add(number);
     }
-    games.push(
-      nextDistinctGameWithGlobalDedup(games, usedNumbersGlobal, {
-        gameSize: rules.numbersPerBet,
-        numberTiers,
-        lottery,
-        trevoStrategy,
-        trevoTiers,
-        random,
-      }),
-    );
+    games.push(candidate);
   }
 
   return {
     lottery,
     games,
-    strategyLabel: strategy === 'UNPOPULAR' ? UNPOPULAR_STRATEGY_LABEL : STRATEGY_LABEL,
+    strategyLabel: STRATEGY_LABEL,
     performancesSnapshot: eligible,
     ...(pool === null ? {} : { sourcePool: [...pool].sort((a, b) => a - b) }),
   };
 }
 
-/** `k` elementos distintos de `pool`, uniformes (Fisher-Yates parcial). */
-function sampleDistinct(pool: readonly number[], k: number, random: RandomSource): number[] {
-  const copy = [...pool];
-  for (let i = 0; i < k; i++) {
-    const j = i + random.nextInt(copy.length - i);
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy.slice(0, k).sort((a, b) => a - b);
-}
-
 /**
- * Jogo da estratégia `UNPOPULAR`: o de menor `unpopularityPenalty` entre
- * `UNPOPULAR_CANDIDATES` sorteios uniformes das dezenas ainda disponíveis.
- * Os trevos são sorteados uniformemente — não há evidência de viés de
- * popularidade neles, e ranquear por frequência seria a mesma ilusão das dezenas.
+ * Porta de `GameGenerator.kt#leastPopularCandidate`: sorteia
+ * `PAYOUT_CANDIDATES` jogos pelos tiers (evitando dezenas já usadas no lote —
+ * a extensão web da deduplicação absoluta) e devolve o de menor
+ * `unpopularityPenalty`.
+ *
+ * A probabilidade de ganhar é idêntica para todas as candidatas — é o
+ * teorema da invariância —, então o desempate não a altera. O que ele altera
+ * é com quanta gente o prêmio seria dividido.
  */
-function buildUnpopularGame(
-  lottery: Lottery,
-  available: readonly number[],
-  gameSize: number,
-  trevoStrategy: TrevoStrategy,
-  random: RandomSource,
+function leastPopularCandidate(
+  usedGlobally: Set<number>,
+  context: BuildContext,
 ): GeneratedGame {
-  let best: number[] = [];
+  let best: GeneratedGame | null = null;
   let bestPenalty = Infinity;
-  for (let i = 0; i < UNPOPULAR_CANDIDATES; i++) {
-    const candidate = sampleDistinct(available, gameSize, random);
-    const penalty = unpopularityPenalty(lottery, candidate);
+  for (let i = 0; i < PAYOUT_CANDIDATES; i++) {
+    const candidate = buildGameAvoidingUsedNumbers(context, usedGlobally);
+    const penalty = unpopularityPenalty(context.lottery, candidate.numbers);
     if (penalty < bestPenalty) {
-      best = candidate;
       bestPenalty = penalty;
+      best = candidate;
     }
   }
-  if (!hasTrevos(lottery)) {
-    return { numbers: best };
-  }
-  const universe = Array.from({ length: lotteryRules(lottery).trevoUniverse }, (_, i) => i + 1);
-  const duplas: [number, number][] =
-    trevoStrategy === TrevoStrategy.COBERTURA_TOTAL
-      ? allTrevoPairs(lottery)
-      : [sampleDistinct(universe, lotteryRules(lottery).trevosPerBet, random) as [number, number]];
-  return { numbers: best, trevoDuplas: duplas };
+  return best as GeneratedGame;
 }
 
 interface BuildContext {
@@ -279,11 +265,6 @@ function nextDistinctGameWithGlobalDedup(
   ) {
     candidate = buildGameAvoidingUsedNumbers(context, usedNumbersGlobal);
     attempts++;
-  }
-
-  // Adiciona as dezenas desse jogo ao set global
-  for (const number of candidate.numbers) {
-    usedNumbersGlobal.add(number);
   }
 
   return candidate;
@@ -395,8 +376,26 @@ function weightedPick(candidates: NumberPerformance[], random: RandomSource): nu
   return candidates[candidates.length - 1].number;
 }
 
-/** Fatia o ranking em top/mid/low pelos percentis 40/30/30. */
+/**
+ * Fatia o ranking em top/mid/low pelos percentis 40/30/30.
+ *
+ * WHY (empate total vira tier único — porta do `GameGenerator.kt`): quando
+ * todas as dezenas têm o mesmo peso — o caso documentado de histórico vazio,
+ * em que o analisador declara devolver "sorteio puro" — o ranking é decidido
+ * inteiramente pelo desempate por número. Fatiar esse ranking criava três
+ * tiers arbitrários (1..24, 25..42, 43..60) e o sorteio de tier dava 70% das
+ * vagas às 24 primeiras dezenas: um viés forte, inventado a partir de zero
+ * informação, e ainda por cima concentrado na faixa de aniversário, a mais
+ * disputada de todas. Sem informação que ordene as dezenas, o único sorteio
+ * defensável é o uniforme, e é o que um tier único produz.
+ */
 function tiersOf(performances: NumberPerformance[]): NumberPerformance[][] {
+  const weights = performances.map((performance) => performance.weight);
+  const spread = Math.max(...weights) - Math.min(...weights);
+  if (spread <= UNINFORMATIVE_WEIGHT_SPREAD) {
+    return [performances];
+  }
+
   const ranked = [...performances].sort(
     (a, b) => b.weight - a.weight || a.number - b.number,
   );

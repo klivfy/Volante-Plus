@@ -29,7 +29,9 @@
     "generateError": "Não foi possível gerar os jogos.",
     "performanceError": "Não foi possível calcular o desempenho das dezenas.",
     "batchLimited": "Com {{available}} dezenas analisadas, é possível gerar até {{max}} jogo(s) sem repetição de dezenas.",
-    "strategyNote": "Cada jogo é sorteado entre combinações uniformes e fica com a menos disputada. Não aumenta a chance de ganhar — só reduz com quantos apostadores o prêmio seria dividido.",
+    "strategyNote": "Cada jogo é gerado a partir do desempenho medido pelo backtest (tiers 70/20/10 ponderados) e, entre as candidatas, fica com a menos disputada. O backtest mostra que isso não aumenta a chance de ganhar — o desempate só reduz com quantos apostadores o prêmio seria dividido.",
+    "dataSourceManual": "Dados do seu backtesting manual estão orientando a geração (expiram em 24 h).",
+    "dataSourceAuto": "Geração orientada pela análise automática do histórico salvo.",
     "modeAvulsos": "Jogos avulsos",
     "modeFechamento": "Fechamento",
     "modeLabel": "Modo de geração"

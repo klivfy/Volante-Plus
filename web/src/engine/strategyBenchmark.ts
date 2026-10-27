@@ -11,13 +11,13 @@ import { bonferroniCorrection, benjaminiHochberg } from './multipleComparisons';
 /**
  * Benchmark comparativo de estratégias de geração de jogos.
  *
- * O gerador atual (`gameGenerator.ts`) usa exclusivamente o tier-weighted
- * 70/20/10 sobre o desempenho medido em `backtestAnalyzer.ts` — não há como,
- * dentro do app, comparar esse método contra alternativas (frequência pura,
- * números frios, sorteio uniforme). Este módulo roda todas elas contra o
- * mesmo histórico de validação e aplica correção de múltiplas comparações,
- * para responder honestamente: "70/20/10 é melhor, ou só parece melhor
- * porque testamos só ele?"
+ * O gerador padrão (`gameGenerator.ts`, `BACKTEST_TIERS`) usa o tier-weighted
+ * 70/20/10 sobre o desempenho medido em `backtestAnalyzer.ts` + desempate de
+ * popularidade — não há como, dentro do app, comparar esse método contra
+ * alternativas (frequência pura, números frios, sorteio uniforme). Este
+ * módulo roda todas elas contra o mesmo histórico de validação e aplica
+ * correção de múltiplas comparações, para responder honestamente:
+ * "70/20/10 é melhor, ou só parece melhor porque testamos só ele?"
  */
 
 export type StrategyName =

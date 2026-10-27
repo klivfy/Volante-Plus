@@ -79,7 +79,7 @@ export default function VolantePage() {
   const [guarantee, setGuarantee] = useState<number>(4);
 
   const nextDraw = useNextDraw(lottery);
-  const { performances, trevoPerformances, loading, error } = usePerformanceCache(lottery);
+  const { performances, trevoPerformances, source, loading, error } = usePerformanceCache(lottery);
   const evidence = useMemo(
     () => (performances.length > 0 ? numberEvidence(lottery, performances) : null),
     [lottery, performances],
@@ -163,7 +163,7 @@ export default function VolantePage() {
 
       trackBacktestDataUsage({
         lottery: lottery.toString(),
-        dataSource: performances.length > 0 ? 'cached' : 'worker-computed',
+        dataSource: source === 'manual' ? 'manual' : source === 'auto' ? 'auto' : 'worker-computed',
       });
       const batch = closureMode
         ? generateClosure(lottery, pool, guarantee)
@@ -282,6 +282,15 @@ export default function VolantePage() {
                 <GameCountControl value={batchCount} onChange={setBatchCount} disabled={isBusy} />
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                   {t('volante.strategyNote')}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ display: 'block', mt: 0.5 }}
+                  data-testid="data-source-indicator"
+                >
+                  {source === 'manual'
+                    ? t('volante.dataSourceManual')
+                    : t('volante.dataSourceAuto')}
                 </Typography>
               </>
             )}

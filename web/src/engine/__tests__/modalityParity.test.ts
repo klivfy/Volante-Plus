@@ -47,7 +47,7 @@ describe.each(LOTTERIES)('paridade — %s', (lottery) => {
     const draws = honest(lottery, 400, 1);
     const perf = analyzeBacktest(draws, lottery, 0);
     const trevoPerf = analyzeTrevoBacktest(draws, lottery, 0);
-    for (const strategy of ['UNPOPULAR', 'FREQUENCY_TIERS'] as const) {
+    for (const strategy of ['BACKTEST_TIERS', 'FREQUENCY_TIERS'] as const) {
       const batch = generateGames(lottery, 4, perf, {
         trevoPerformances: trevoPerf,
         strategy,
