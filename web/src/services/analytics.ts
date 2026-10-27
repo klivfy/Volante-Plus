@@ -57,7 +57,7 @@ export function trackBacktestAnalysis(params: {
  */
 export function trackBacktestDataUsage(params: {
   lottery: string;
-  dataSource: 'cached' | 'worker-computed';
+  dataSource: 'manual' | 'auto' | 'worker-computed';
 }): void {
   trackEvent({
     name: 'backtest_data_usage',

@@ -37,7 +37,7 @@ describe.each(LEGACY)('golden %s', (lottery) => {
   });
 
   it('lote com semente fixa, por estratégia', () => {
-    for (const strategy of ['UNPOPULAR', 'FREQUENCY_TIERS'] as const) {
+    for (const strategy of ['BACKTEST_TIERS', 'FREQUENCY_TIERS'] as const) {
       const batch = generateGames(lottery, 4, performances(lottery), {
         strategy,
         random: createSeededRandom(20261023),
