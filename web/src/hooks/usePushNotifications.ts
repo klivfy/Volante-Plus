@@ -6,6 +6,7 @@ import {
   getVapidPublicKey,
   isPushSupported,
   isSubscribed as isSubscribedNow,
+  repostSubscription,
   subscribeToPush,
   unsubscribeFromPush,
 } from '../services/pushService';
@@ -39,6 +40,9 @@ export function usePushNotifications(): UsePushNotificationsResult {
     // setState dentro de callback assíncrono (não no corpo síncrono do efeito) —
     // evita o cascading render que o `react-hooks/set-state-in-effect` flagra.
     void (async () => {
+      // Cold start do backend esvaziou o store? Reenvia a inscrição que o
+      // navegador já tem — idempotente, sem pedir permissão de novo.
+      await repostSubscription();
       const subscribed = await isSubscribedNow();
       if (!active) return;
       setPermission(getPermission());

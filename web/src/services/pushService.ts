@@ -93,6 +93,33 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
   return subscription;
 }
 
+/**
+ * Reenvia a inscrição de push existente ao backend, sem pedir permissão nem
+ * criar inscrição nova — idempotente.
+ *
+ * WHY: o store de inscrições vive na memória do processo serverless e não
+ * sobrevive a cold starts. A inscrição do navegador continua válida no
+ * serviço de push do navegador, mas ninguém a dispararia — reenviá-la no
+ * startup do app recupera o par navegador/backend automaticamente.
+ */
+export async function repostSubscription(): Promise<void> {
+  if (!isPushSupported()) return;
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return;
+
+  try {
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(subscription),
+    });
+  } catch {
+    // Best-effort: ver subscribeToPush — sem backend de push, a inscrição
+    // local continua válida para notificações locais.
+  }
+}
+
 /** Cancela a inscrição de push, se houver. Retorna `true` se algo foi cancelado. */
 export async function unsubscribeFromPush(): Promise<boolean> {
   if (!isPushSupported()) return false;

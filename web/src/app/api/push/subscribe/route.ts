@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { PushSubscription } from 'web-push';
-import { addSubscription, removeSubscriptionIfAuthMatches, subscriptionCount } from '@/server/pushStore';
+import { addSubscription, configureWebPush, removeSubscriptionIfAuthMatches, subscriptionCount } from '@/server/pushStore';
 import { clientIp, hasValidKeys, isValidPushEndpoint, rateLimited, readJsonBody } from '@/server/pushSecurity';
 
 // web-push é um pacote Node (usa `crypto`), então esta rota precisa do runtime
@@ -26,6 +26,16 @@ export async function POST(request: Request): Promise<NextResponse> {
   // encher o store com inscrições falsas e esgotar as vagas das legítimas.
   if (rateLimited(`subscribe:${clientIp(request)}`)) {
     return NextResponse.json({ error: 'Muitas requisições.' }, { status: 429 });
+  }
+
+  // Sem chaves VAPID no ambiente o backend não conseguiria jamais disparar
+  // nada — aceitar a inscrição seria guardar um bilhete sem sorteio. 503 diz
+  // ao cliente que o serviço de push não está configurado neste deployment.
+  if (!configureWebPush()) {
+    return NextResponse.json(
+      { error: 'Push não configurado neste servidor (VAPID ausente).' },
+      { status: 503 },
+    );
   }
 
   const subscription = await readJsonBody<PushSubscription>(request);
