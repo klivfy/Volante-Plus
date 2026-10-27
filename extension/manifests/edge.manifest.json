@@ -21,6 +21,13 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage", "alarms"],
-  "host_permissions": ["https://loteriascaixa-api.herokuapp.com/*"]
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://loteriascaixa-api.herokuapp.com/*",
+    "https://guidi.dev.br/*",
+    "https://servicebus2.caixa.gov.br/*"
+  ]
 }
