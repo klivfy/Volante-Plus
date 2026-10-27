@@ -36,7 +36,9 @@ export const sentryConfig = {
   ],
 
   // Dados sensíveis a não capturar
-  beforeSend(event: Sentry.Event) {
+  // WHY `ErrorEvent`: `Sentry.Event` é uma união larga (transaction, session,
+  // check-in...); `request.headers` só existe de forma confiável no erro.
+  beforeSend(event: Sentry.ErrorEvent) {
     if (!event.request) return event;
 
     // Não capturar credenciais
