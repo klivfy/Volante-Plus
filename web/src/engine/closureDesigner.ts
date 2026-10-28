@@ -32,9 +32,6 @@ import { unpopularityPenalty } from './unpopularity';
  * dezenas rápidos (o guloso de `wheelingSystems.ts` explodia acima de 12).
  */
 
-/** Preço da aposta simples, em reais. Valor de referência; a Caixa pode reajustá-lo. */
-export const SIMPLE_BET_PRICE_BRL = 6;
-
 /** Pool máximo do desenho (bitmask de 15 posições). */
 const MAX_POOL = 15;
 
@@ -300,10 +297,16 @@ export function offeredGuarantees(lottery: Lottery): number[] {
   return candidates.filter((t) => isPrized(lottery, t, 0) || isPrized(lottery, t, 1));
 }
 
-/** Custo total do fechamento, em reais. */
-export function closureCost(gamesCount: number, lottery?: Lottery): number {
-  const price = lottery === undefined ? SIMPLE_BET_PRICE_BRL : lotteryRules(lottery).betPriceBrl;
-  return gamesCount * price;
+/**
+ * Custo total do fechamento, em reais.
+ *
+ * A fonte única do preço é `lotteryRules(lottery).betPriceBrl` (R$ 6,00 na
+ * Mega-Sena e +Milionária, R$ 3,00 na Quina) — o mesmo valor usado pela
+ * UI, pela tabela de faixas e pelo app Android. O parâmetro é obrigatório:
+ * um fallback genérico custeava a Quina pelo preço errado.
+ */
+export function closureCost(gamesCount: number, lottery: Lottery): number {
+  return gamesCount * lotteryRules(lottery).betPriceBrl;
 }
 
 export interface ClosureOptions {

@@ -16,7 +16,7 @@ export interface SplashScreenProps {
 }
 
 /**
- * Tela de boas-vindas (splash) que aparece por 2.5 segundos no primeiro
+ * Tela de boas-vindas (splash) que aparece por 0,7 s no primeiro
  * carregamento. Usa localStorage para não mostrar em recarregamentos
  * subsequentes da mesma sessão.
  */
@@ -90,7 +90,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           de cabeçalho. Este texto é a marca dentro de uma sobreposição de
           carregamento, não um título do documento: como <h3> ele duplicava o
           nome acessível do <h1> da página (que fica montada por baixo durante
-          os 2,5 s do splash) e ainda punha um h3 antes do h1 na ordem de
+          os 0,7 s do splash) e ainda punha um h3 antes do h1 na ordem de
           cabeçalhos, que é justamente o que leitores de tela usam para
           navegar.
         */}

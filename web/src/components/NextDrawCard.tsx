@@ -10,34 +10,13 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 import { NextDrawInfo } from '../types/domain';
+import { formatDrawMoment } from './drawMoment';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
   maximumFractionDigits: 0,
 });
-
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
-  day: '2-digit',
-  month: 'long',
-  year: 'numeric',
-});
-
-const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-/**
- * Algumas fontes trazem só a data (sem horário), outras trazem data e hora do
- * sorteio. Meia-noite exata é ambígua demais para exibir como "hora do
- * sorteio" — nesse caso mostramos só a data.
- */
-function formatDrawMoment(drawDate: string): { date: string; time: string | null } {
-  const parsed = new Date(drawDate.length <= 10 ? `${drawDate}T00:00:00` : drawDate);
-  const hasTime = parsed.getHours() !== 0 || parsed.getMinutes() !== 0;
-  return {
-    date: dateFormatter.format(parsed),
-    time: hasTime ? timeFormatter.format(parsed) : null,
-  };
-}
 
 export interface NextDrawCardProps {
   nextDraw: NextDrawInfo | null;

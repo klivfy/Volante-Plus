@@ -24,8 +24,10 @@ import { useTranslation } from 'react-i18next';
 import LotterySelector from '@/components/LotterySelector';
 import { getDraws } from '@/services/db';
 import { Draw, Lottery } from '@/types/domain';
+import { trackLotterySelection } from '@/services/analytics';
+import { useLotteryTheme } from '@/context/LotteryThemeContext';
 import { calculateEV, kellySimulation, PrizeAverage } from '@/engine/expectedValue';
-import { MAIS_MILIONARIA_FIXED_PRIZES } from '@/engine/prizeRules';
+import { MAIS_MILIONARIA_FIXED_PRIZES, lotteryRules } from '@/engine/prizeRules';
 import { frequencyFairnessTest, gapTest, serialCorrelationTest } from '@/engine/fairnessTests';
 import { expectedHitsFor, powerTable } from '@/engine/powerAnalysis';
 import { BenchmarkResult, runStrategyBenchmark } from '@/engine/strategyBenchmark';
@@ -55,7 +57,16 @@ const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
  */
 export default function AnaliseAvancadaPage() {
   const { t } = useTranslation();
+  const { setLottery: setThemeLottery } = useLotteryTheme();
   const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
+
+  // Mesmo contrato das telas / e /backtesting: a troca recolore o tema global
+  // e registra o evento de telemetria — não é só estado local desta página.
+  const handleLotteryChange = (newLottery: Lottery) => {
+    setLottery(newLottery);
+    setThemeLottery(newLottery);
+    trackLotterySelection(newLottery);
+  };
 
   return (
     <Container component="main" maxWidth="md" sx={{ py: 3, pb: 10 }}>
@@ -69,7 +80,7 @@ export default function AnaliseAvancadaPage() {
           </Typography>
         </Box>
 
-        <LotterySelector value={lottery} onChange={setLottery} />
+        <LotterySelector value={lottery} onChange={handleLotteryChange} />
 
         <PowerAnalysisSection lottery={lottery} />
         <FairnessSection lottery={lottery} />
@@ -423,13 +434,24 @@ function WheelingSection() {
 /** Valor esperado e Kelly Criterion, com entrada manual de prêmios médios. */
 function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
   const { t } = useTranslation();
-  const [ticketCost, setTicketCost] = useState('5');
+  // Preço oficial da modalidade como default: R$ 6,00 (Mega-Sena e
+  // +Milionária) ou R$ 3,00 (Quina) — não um valor que não bata com nenhuma.
+  const [ticketCost, setTicketCost] = useState(String(lotteryRules(lottery).betPriceBrl));
   const [accumulated, setAccumulated] = useState('0');
   const [bankroll, setBankroll] = useState('1000');
   // Apostas do concurso. Sem esse número o acumulado entra como se fosse pago
   // por inteiro a quem acertar, o que é um teto, não uma estimativa — a faixa
   // máxima é rateada entre todos os acertadores.
   const [tickets, setTickets] = useState('');
+
+  // Troca de modalidade: o preço da aposta é dado oficial de cada uma, o valor
+  // digitado para a anterior não faz sentido continuar em tela. Ajuste durante
+  // a renderização (mesmo padrão de page.tsx), não em efeito.
+  const [trackedLottery, setTrackedLottery] = useState(lottery);
+  if (lottery !== trackedLottery) {
+    setTrackedLottery(lottery);
+    setTicketCost(String(lotteryRules(lottery).betPriceBrl));
+  }
 
   // Faixas de referência (máxima, intermediária, mais baixa) e prêmios médios
   // ilustrativos por modalidade — dado externo ao engine (não vem de nenhum

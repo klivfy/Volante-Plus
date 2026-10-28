@@ -25,7 +25,7 @@ export default function GameCountControl({ value, onChange, disabled = false }: 
   const { t } = useTranslation();
   return (
     <>
-      <Typography id="game-count-label" variant="subtitle2" gutterBottom>
+      <Typography variant="subtitle2" gutterBottom>
         {t('volante.howManyGames')}
       </Typography>
       <SegmentedControl

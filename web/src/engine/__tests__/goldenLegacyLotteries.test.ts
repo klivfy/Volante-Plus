@@ -54,6 +54,6 @@ describe.each(LEGACY)('golden %s', (lottery) => {
       });
       expect({ games: batch.games, closure: batch.closure }).toMatchSnapshot(`t${guarantee}`);
     }
-    expect(closureCost(10)).toMatchSnapshot();
+    expect(closureCost(10, lottery)).toMatchSnapshot();
   });
 });

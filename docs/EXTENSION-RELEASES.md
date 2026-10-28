@@ -12,32 +12,31 @@ Volante+ usa **Semantic Versioning** (semver): `MAJOR.MINOR.PATCH`
 
 ### Versão única para todo o projeto
 
-A versão é centralizada em dois locais:
+A versão vigente do projeto é a de `web/package.json` (hoje `2.3.0`), replicada
+manualmente nos manifests da extensão:
 
-1. **`README.md`** — campo `version:` no frontmatter
-   ```markdown
-   ---
-   version: 2.0.1
-   ---
-   ```
+1. **`web/package.json`** — campo `version` (fonte de referência).
 
-2. **Todos os `manifests/*.json`** — campo `"version"` é atualizado automaticamente durante build
+2. **Todos os `extension/manifests/*.json`** — campo `"version"`, sincronizado
+   pelo script `scripts/sync-extension-versions.mjs`:
 
-Há um script que sincroniza: `scripts/sync-versions.mjs` (a ser implementado em CI se necessário).
+```bash
+node scripts/sync-extension-versions.mjs 2.3.0
+```
 
 ### Exemplo de bump
 
 Para liberar versão `2.1.0`:
 
 ```bash
-# 1. Atualizar README.md
-# version: 2.1.0
+# 1. Atualizar web/package.json
+# "version": "2.1.0"
 
 # 2. Sincronizar versão em todos os manifests da extensão
 node scripts/sync-extension-versions.mjs 2.1.0
 
 # 3. Commitar
-git add README.md extension/manifests/
+git add web/package.json extension/manifests/
 git commit -m "chore: bump version to 2.1.0"
 
 # 4. Criar tag

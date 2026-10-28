@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { Lottery } from '../../types/domain';
 import { CLOSURE_TABLES } from '../closureTables';
 import {
-  SIMPLE_BET_PRICE_BRL,
   closureCost,
   closureHoldsFor,
   designClosure,
@@ -11,6 +10,7 @@ import {
   schonheimBound,
   verifyClosure,
 } from '../closureDesigner';
+import { lotteryRules } from '../prizeRules';
 import { createSeededRandom } from '../random';
 
 const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
@@ -62,7 +62,7 @@ describe('generateClosure', () => {
     const pool = [3, 9, 14, 21, 27, 33, 38, 44, 51, 58];
     const batch = generateClosure(Lottery.MEGA_SENA, pool, 4, { random });
     expect(batch.closure?.guarantee).toBe(4);
-    expect(batch.closure?.cost).toBe(closureCost(batch.games.length));
+    expect(batch.closure?.cost).toBe(closureCost(batch.games.length, Lottery.MEGA_SENA));
     for (let i = 0; i < 3000; i++) {
       const drawn = new Set<number>();
       while (drawn.size < 6) drawn.add(1 + random.nextInt(60));
@@ -97,8 +97,9 @@ describe('generateClosure', () => {
     expect(() => generateClosure(Lottery.MAIS_MILIONARIA, range(1, 13), 4)).toThrow(RangeError);
   });
 
-  it('custo = jogos × preço de referência', () => {
-    expect(closureCost(20)).toBe(20 * SIMPLE_BET_PRICE_BRL);
+  it('custo = jogos × preço oficial da modalidade', () => {
+    expect(closureCost(20, Lottery.MEGA_SENA)).toBe(20 * lotteryRules(Lottery.MEGA_SENA).betPriceBrl);
+    expect(closureCost(10, Lottery.QUINA)).toBe(30);
   });
 });
 

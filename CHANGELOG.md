@@ -17,6 +17,11 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 ### Changed
 - Preço da aposta simples e dezenas sorteadas passam a ser por modalidade (sem mudar
   Mega-Sena nem +Milionária). Android e desktop ainda não têm a Quina.
+- (Onda 1 da revisão, já em `volante-fixes`) O sorteio da tela principal passou a ser
+  **dirigido pelo backtest** (`BACKTEST_TIERS`): cada jogo sai de 12 candidatas
+  geradas pelos tiers de desempenho, ficando com a menos popular — no lugar das 64
+  candidatas uniformes com estratégia fixa `UNPOPULAR` descritas no bloco 2.3.0.
+  `strategyLabel` virou rótulo de exibição; não há mais seleção de estratégia na UI.
 
 ## [2.3.0] - 2026-10-06
 

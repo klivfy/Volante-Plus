@@ -72,7 +72,10 @@ Volante-Plus/
 |---|---|---|---|---|
 | Mega-Sena | 01–60 | 8 | 15 | — |
 | +Milionária | 01–50 | 8 | 12 | exatamente 2 (de 1–6) |
-| Quina | 01–80 | 5 | 15 | — |
+| Quina *(só web)* | 01–80 | 5 | 15 | — |
+
+> A Quina hoje existe apenas na versão web (`web/`); Android e desktop ainda
+> não têm a modalidade (ver CHANGELOG, `[Unreleased]`).
 
 - Abas principais: **Mega-Sena** / **+Milionária** (seleção preservada ao alternar).
 - Sub-abas: **Jogos avulsos** / **Fechamento**.

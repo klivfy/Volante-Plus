@@ -4,9 +4,10 @@
 
 1. **Nasce completo.** O app embute o histórico REAL de cada modalidade, do
    concurso 1 até o da geração do seed (`web/src/data/history/`, ver
-   `meta.json`): Mega-Sena 1..3063 e +Milionária 1..393 (até 27/09/2026). Antes,
-   o "seed offline" era sintético (50 concursos inventados por PRNG) e um usuário
-   sem rede analisava sorteios que nunca existiram. O sintético foi movido para
+   `meta.json`): Mega-Sena 1..3063 e +Milionária 1..393 (até 27/09/2026) e
+   Quina 1..7149 (até 22/10/2026). Antes, o "seed offline" era sintético
+   (50 concursos inventados por PRNG) e um usuário sem rede analisava
+   sorteios que nunca existiram. O sintético foi movido para
    `data/syntheticFixture/` e só serve à guarda de procedência da auditoria.
 2. **Fica no último concurso.** A sincronização descobre o último concurso
    realizado e busca **só o que falta**.
@@ -57,7 +58,9 @@ ou dezenas/trevos divergirem do espelho independente (`data/mirrorSnapshot/`,
 coletado por outro caminho) nos concursos em comum. Na geração atual: 3.063 +
 393 concursos, **0 divergências** em 2.797 + 199 comparados. Duas fontes de
 terceiros concordarem não é prova de que batem com a Caixa, mas descarta erro de
-transcrição de uma delas.
+transcrição de uma delas. O seed da Quina (7.149 concursos) foi conferido
+concurso a concurso — dezenas e datas — contra o portal da Caixa, como registrado
+no CHANGELOG (`[Unreleased]`).
 
 ```
 node scripts/update-history-seed.mjs                    # baixa da API e regenera

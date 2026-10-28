@@ -13,6 +13,7 @@ web/
 │   ├── app/                # Rotas (App Router)
 │   │   ├── page.tsx        # Volante — geração de jogos
 │   │   ├── backtesting/    # Backtesting
+│   │   ├── analise-avancada/ # Poder, fairness, walk-forward, benchmark, wheeling, EV/Kelly
 │   │   └── sobre/          # Sobre
 │   ├── engine/              # Motor de análise/geração — TypeScript puro,
 │   │                        # sem import de UI/Node. Roda em navegador ou
@@ -21,16 +22,24 @@ web/
 │   │   ├── backtestAnalyzer.ts  # Ranking de dezenas por desempenho histórico
 │   │   ├── gameGenerator.ts     # Geração de jogos ponderada por tier
 │   │   ├── backtestEngine.ts    # Simulação treino/validação com métricas
-│   │   ├── prizeRules.ts        # Faixas de premiação por loteria
+│   │   ├── prizeRules.ts        # Faixas de premiação e preços por loteria
+│   │   ├── closureDesigner.ts   # Fechamento por cobertura combinatória C(v,k,t)
+│   │   ├── walkForwardMulti.ts  # Walk-forward multi-corte (aritmética UTC)
 │   │   └── random.ts            # RandomSource (crypto.getRandomValues + fallback)
 │   ├── services/
 │   │   ├── caixaApi.ts      # Busca do próximo concurso (API pública de terceiros)
-│   │   └── db.ts            # Persistência local (Dexie/IndexedDB)
-│   ├── hooks/useNextDraw.ts # Cache em memória (6h) sobre caixaApi
-│   ├── components/          # NextDrawCard, BottomNav
+│   │   ├── drawSources.ts   # Fontes de histórico com fallback entre elas
+│   │   ├── historySync.ts   # Preenche lacunas 1..último (dirigido por diff)
+│   │   ├── syncService.ts   # Orquestra a sincronização (abertura/aba/30 min)
+│   │   ├── db.ts            # Persistência local (Dexie/IndexedDB)
+│   │   └── pushService.ts   # Opt-in e inscrição de push
+│   ├── hooks/               # useNextDraw, usePerformanceCache, useBacktestWorker…
+│   ├── components/          # NextDrawCard, BottomNav, EvidencePanel, …
+│   ├── worker/index.ts      # Handlers de push/notificationclick/periodicsync do SW
 │   ├── types/domain.ts      # Tipos e enums compartilhados
-│   └── theme.ts             # Temas MD3 claro/escuro
+│   └── theme.ts             # Temas MD3 claro/escuro por loteria
 ├── e2e/                     # Testes end-to-end (Playwright)
+├── locales/pt-BR/           # Textos da UI (pt-BR único)
 └── public/manifest.json     # Manifest do PWA
 ```
 
@@ -41,20 +50,26 @@ sem Node), o mesmo código serve tanto a UI quanto o service worker.
 
 ### Fluxo de dados
 
-1. `caixaApi.fetchNextDraw()` busca o próximo concurso numa API pública de
-   terceiros (não o serviço oficial da Caixa — ver [Variáveis de ambiente](#variáveis-de-ambiente)).
-   Falha de rede/parsing devolve `null`, nunca lança — a UI trata isso como
-   "indisponível", não como erro.
-2. `db.ts` (Dexie) guarda o histórico de concursos (`draws`) e o desempenho
-   calculado por dezena (`performances`) no IndexedDB do navegador. Todo o
-   histórico usado pelo backtesting vem de aqui — o app não faz sync
-   automático de histórico completo hoje (isso existe no Android via seed
-   local; na web, a tela de Backtesting é quem popula o cache de performances
-   a partir do que estiver salvo).
-3. `analyzeBacktest()`/`analyzeTrevoBacktest()` transformam o histórico em
-   `NumberPerformance[]` (peso 0–1 e tier top/mid/low por dezena).
-4. `generateGames()` sorteia jogos priorizando o tier `top`, com não-repetição
-   entre jogos do mesmo lote.
+1. **Nasce completo.** O histórico REAL de cada modalidade vem embutido no
+   build (`src/data/history/`, do concurso 1 até a geração do seed — ver
+   [historico.md](./historico.md)). O "seed offline" sintético (50 concursos
+   inventados por PRNG) foi aposentado e sobrevive só como fixture de
+   auditoria em `src/data/syntheticFixture/`.
+2. **Fica no último.** Ao abrir o app, ao voltar à aba e a cada 30 min com o
+   app aberto, `syncService`/`historySync` descobrem o último concurso
+   realizado e baixam **só o que falta** (uma fonte cai, a próxima assume).
+   No PWA, `periodicsync` repete em segundo plano a cada 6 h.
+3. `caixaApi.fetchNextDraw()` busca o próximo concurso numa API pública de
+   terceiros (não o serviço oficial da Caixa — ver [Variáveis de
+   ambiente](#variáveis-de-ambiente)). Falha de rede/parsing devolve `null`,
+   nunca lança — a UI trata isso como "indisponível", não como erro.
+4. `db.ts` (Dexie) guarda o histórico e o desempenho calculado por dezena
+   (`performances`) no IndexedDB do navegador. `analyzeBacktest()`/
+   `analyzeTrevoBacktest()` transformam o histórico em `NumberPerformance[]`
+   (peso 0–1 e tier top/mid/low por dezena), direto ou via Web Worker.
+5. `generateGames()` sorteia jogos pelos tiers de desempenho do backtest; no
+   modo Fechamento, `generateClosure()` constrói lote com garantia
+   combinatória provada.
 
 ## Rodando localmente
 

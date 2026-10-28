@@ -14,44 +14,32 @@ Hilt/Koin). Este documento cobre o app Android — para web e desktop, ver
 
 ## Gerador de Jogos
 
-`domain/generator/GameGenerator.kt` concentra toda a geração de jogos
-simples (sempre 6 dezenas). Duas famílias de algoritmo convivem hoje:
+`domain/generator/GameGenerator.kt` concentra toda a geração de jogos simples.
+Desde a unificação das estratégias, existe **uma única forma de gerar** — a
+partir do desempenho medido no backtesting (`strategyLabel` em `GameBatch` é
+rótulo de exibição, não uma escolha do usuário):
 
-- **`generate(lottery, strategy, gameCount, ...)`** — estratégias clássicas
-  (ver seção "Estratégias" abaixo), com a **regra de repetição mínima**:
-  nenhuma dezena se repete entre os jogos do lote enquanto houver dezena
-  inédita disponível no pool.
-- **`generateWithPerformances(lottery, performances, gameCount, ...)`** —
-  algoritmo **baseado em tiers**: recebe uma `List<NumberPerformance>`
-  (uma dezena, um `score` de 0 a 1 e um `PerformanceTier`) produzida pelo
-  `BacktestAnalyzer` e monta cada jogo priorizando o tier `TOP`. A fração-alvo
-  de dezenas do tier `TOP` por jogo é `GameGenerator.TOP_TIER_TARGET_RATIO`
-  (0.7, ou seja, ~4 das 6 dezenas); o restante vem dos demais tiers. Ao
-  contrário de `generate()`, não há repetição mínima entre jogos do lote —
-  cada jogo é sorteado de forma independente a partir do mesmo ranking.
+- **Entrada:** uma `List<NumberPerformance>` (uma dezena, um `score` de 0 a 1
+  e um `PerformanceTier`) produzida pelo `BacktestAnalyzer` a partir da
+  janela de treino.
+- **Sorteio por tier:** cada vaga do jogo sorteia primeiro um tier
+  (`TOP_TIER_SHARE` = 70%, `MID_TIER_SHARE` = 20%, o restante 10% para o
+  `LOW`) e depois uma dezena dentro do tier, sem repetição no jogo.
+- **Seleção anti-popular:** geram-se `PAYOUT_CANDIDATES` (12) jogos pelo
+  processo acima e fica com o **menos popular** entre eles (menor expectativa
+  de divisão de prêmio, ver `unpopularity`), não com o "melhor" — a chance de
+  acerto é idêntica para qualquer combinação, e o app não promete o contrário.
+- **Jogo repetido:** candidato igual a outro já no lote é resorteado até
+  `MAX_DEDUP_ATTEMPTS` (10) vezes; passando disso, é aceito com aviso no log.
+  (A versão web vai além — deduplicação absoluta de dezenas entre os jogos do
+  lote, ver `gameGenerator.ts`.)
+- **Modo Fechamento:** todos os métodos aceitam `pool` — restringe o sorteio
+  às dezenas marcadas no volante.
 
-Ambos os métodos aceitam `pool` (modo Fechamento): restringe o sorteio às
-dezenas marcadas no volante.
-
-## Estratégias
-
-`domain/model/Generation.kt` define `GenerationStrategy`:
-
-| Estratégia | Uso | Histórico exigido? |
-|---|---|---|
-| `RANDOM` (Aleatório puro) | RNG criptográfico (`SecureRandom`), zero viés | Não |
-| `BALANCED` (Equilibrado) | 3 dezenas pares + 3 ímpares por jogo | Não |
-| `FREQUENCY` (Mais sorteadas) | Prioriza as dezenas mais frequentes da janela de treino — hipótese que o backtesting existe para refutar | Sim (só roda na tela de Backtesting) |
-| **`BACKTEST_DRIVEN` (Backtest-Driven)** | Usa o `List<NumberPerformance>` de um backtest já executado (ver "Próximo Concurso"/fluxo abaixo) para priorizar dezenas do tier `TOP` | Não no momento da geração — o histórico já foi consumido ao rodar o backtest |
-
-**Fluxo do Backtest-Driven**: na tela de Backtesting, após rodar um
-backtest, o `BacktestAnalyzer` calcula o desempenho de cada dezena na janela
-de treino; o botão "Usar estes dados para gerar jogos" grava esse resultado
-no `PerformanceCache` (`ui/navigation/NavGraph.kt`) e navega para a tela de
-Volante. Lá, selecionando a estratégia Backtest-Driven, `generateBatch()`
-lê o cache e chama `generateWithPerformances`. Sem um backtest rodado antes,
-a tela mostra uma mensagem pedindo para rodar o backtest primeiro — não há
-crash nem geração com dados incompletos.
+Na web, o fluxo é o mesmo (`gameGenerator.ts` espelha estas constantes); o
+botão "Usar estes dados" na tela de Backtesting dirige o sorteio com o
+resultado do backtest (na web via `PerformanceCache`/IndexedDB, no Android
+via `PerformanceCache` em `ui/navigation/NavGraph.kt`).
 
 ## Próximo Concurso
 
@@ -71,9 +59,10 @@ auxiliares.
 - `GameGenerator.MIN_GAMES = 2` — lote mínimo (evita lote degenerado de 1 jogo).
 - `GameGenerator.MAX_GAMES = 5` — teto do lote (antes era 10; reduzido por
   custo de geração/renderização de lotes grandes).
-- `GameGenerator.GAME_SIZE = 6` — dezenas por jogo (fixo, `Draw.NUMBERS_DRAWN`).
-- `GameGenerator.TOP_TIER_TARGET_RATIO = 0.7` — fração-alvo de dezenas do
-  tier `TOP` por jogo na geração Backtest-Driven.
+- `GameGenerator.TOP_TIER_SHARE = 0.7` / `MID_TIER_SHARE = 0.2` — fração-alvo
+  de dezenas por tier em cada jogo (o restante, 0.1, vem do tier `LOW`).
+- `GameGenerator.PAYOUT_CANDIDATES = 12` — jogos candidatos gerados por lote
+  para escolher o menos popular.
 
 ## Estrutura de diretórios (resumo)
 

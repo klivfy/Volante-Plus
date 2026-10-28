@@ -9,6 +9,23 @@ abaixo prevê sorteios**. Eles melhoram a *precisão do que o app afirma* e o
 
 ## O que foi adicionado
 
+### Onde cada módulo mora no app
+
+| Módulo | Exposto na UI? |
+|---|---|
+| `bayesEvidence.ts` + `numberEvidence.ts` | Sim — painel de evidência da tela principal e Análise Avançada |
+| `betPlanning.ts` (`guaranteeProbability`) | Sim — contrato do fechamento |
+| `closureTables.ts` | Sim — tabelas do modo Fechamento |
+| `drawDependence.ts` (colisão, sobreposição) | **Não** — ferramenta de auditoria/offline; sem caminho de produção até a UI |
+| `advancedFeatures.ts` (`compositeScore`, `extractAdvancedFeatures`) | **Não** — ídem |
+| `bankrollSimulation.ts` (`simulateBankroll`, `monteCarloBankroll`) | **Não** — ídem; o EV/Kelly da Análise Avançada usa `expectedValue.ts` |
+
+Os módulos "Não" são motor puro com cobertura de testes e documentação aqui —
+disponíveis para auditoria e uso programático/offline, mas nenhum botão do app
+os alcança hoje. Integrá-los (ex.: colisão na seção de fairness da Análise
+Avançada) é extensão natural; até lá, a ausência na UI é deliberada e não um
+caminho vivo esquecido.
+
 ### 1. Fator de Bayes para uniformidade (`engine/bayesEvidence.ts`)
 Um p-valor grande não é evidência a favor do acaso, só ausência de evidência
 contra. O fator de Bayes é a única medida que pode dizer "os dados sustentam

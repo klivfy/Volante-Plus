@@ -31,11 +31,14 @@ export interface PayoutSharePanelProps {
  *
  * Porta direta do `PayoutSharePanel` (Compose) do app Android.
  */
+/** Içado para escopo de módulo: formatador não depende de estado e criar
+ * `Intl.NumberFormat` a cada render é desperdício (padrão das outras telas). */
+const numberFormat = new Intl.NumberFormat('pt-BR');
+
 export default function PayoutSharePanel({ assessment }: PayoutSharePanelProps) {
   const { t } = useTranslation();
   const gainPercent = averageConditionalGain(assessment) * 100;
   const positive = gainPercent >= 0;
-  const numberFormat = new Intl.NumberFormat('pt-BR');
   const games = assessment.games.length;
 
   return (

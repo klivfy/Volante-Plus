@@ -4,6 +4,7 @@
  */
 
 import * as Sentry from '@sentry/nextjs';
+import pkg from './package.json';
 
 export const sentryConfig = {
   enabled: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -13,8 +14,10 @@ export const sentryConfig = {
   // Ambiente de deployment
   environment: process.env.NODE_ENV || 'development',
 
-  // Release version — use como Git commit hash ou semver
-  release: process.env.NEXT_PUBLIC_APP_VERSION || '2.0.0',
+  // Release version — use como Git commit hash ou semver. Sem a env, cai na
+  // versão do `package.json` (evita eventos agrupados num release fantasma
+  // desatualizado).
+  release: process.env.NEXT_PUBLIC_APP_VERSION || pkg.version,
 
   // Amostragem: % de transações a rastrear (0-1)
   // 1.0 = 100%, 0.1 = 10% (para reduzir quota em produção)

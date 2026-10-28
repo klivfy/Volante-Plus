@@ -35,21 +35,21 @@ Volante+ rastreia automaticamente:
 
 | Evento | Propriedades | Quando |
 |--------|-------------|--------|
-| `lottery_selection` | `lottery` | Usuário muda de loteria (Mega-Sena ↔ +Milionária) |
-| `backtest_analysis` | `lottery`, `source` | Performance cache carregado (cached/manual/auto/seed) |
-| `backtest_data_usage` | `lottery`, `data_source` | Dados de backtesting usados em geração (cached/worker-computed) |
+| `lottery_selection` | `lottery` | Usuário muda de loteria (Mega-Sena, +Milionária ou Quina) |
+| `backtest_analysis` | `lottery`, `source` | Performance cache carregado (`auto`/`manual`/`seed`) |
+| `backtest_data_usage` | `lottery`, `data_source` | Dados de backtesting usados em geração (`manual`/`auto`/`worker-computed`) |
 | `game_generation` | `lottery`, `batch_size` | Jogos gerados com sucesso |
 
 ### Fontes de backtest (`source`)
 
-- `cached`: Resultado já estava em cache (IndexedDB ou chrome.storage.local)
-- `auto`: Recompilado automaticamente pelo Web Worker
-- `manual`: Usuário rodou um backtesting explícito (se implementado futuramente)
-- `seed`: Dados offline iniciais (seed)
+- `auto`: Recompilado automaticamente (Web Worker ou ajuste durante a renderização)
+- `manual`: Usuário rodou um backtesting explícito na tela de Backtesting
+- `seed`: Dados offline iniciais (seed embutido)
 
 ### Fontes de dados (`data_source`)
 
-- `cached`: Performance vinha de cache (salvo anteriormente)
+- `manual`: Backtest explícito do usuário, usado pelo botão "Usar estes dados"
+- `auto`: Cache de desempenho recalculado automaticamente
 - `worker-computed`: Acabou de ser calculado pelo Web Worker
 
 ## Dashboard & Relatórios
