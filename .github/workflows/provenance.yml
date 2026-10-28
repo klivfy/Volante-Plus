@@ -1,0 +1,61 @@
+name: Procedência do histórico
+
+# Fase 4 do plano de confiabilidade, frente 2: a conferência concurso a
+# concurso do histórico (docs/historico.md) vira verificação AGENDADA —
+# semanal contra o espelho independente versionado e, quando respondem,
+# contra as fontes ao vivo que o app usa. Alarme = job vermelho: uma fonte
+# divergiu do espelho ou de outra fonte num concurso em comum. Fonte que
+# NÃO responde não acende alarme (indisponibilidade é declarada no JSON, e
+# o gate agendado não pode tremer por rede).
+on:
+  schedule:
+    # Quintas-feiras, 04:00 UTC (01:00 em Brasília) — um dia depois do gate
+    # de calibração, para não competir com ele pelo runner.
+    - cron: "0 4 * * 4"
+  workflow_dispatch:
+  push:
+    paths:
+      - "web/src/data/history/**"
+      - "web/src/data/mirrorSnapshot/**"
+      - "scripts/provenance-check.mjs"
+      - ".github/workflows/provenance.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  procedencia:
+    name: Seed × espelho × fontes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Dependências
+        run: npm ci --prefix web
+
+      - name: Verifica a procedência (offline + fontes ao vivo)
+        # O relatório JSON fica como artefato mesmo quando diverge — é a
+        # evidência que alguém precisa para reproduzir e diagnosticar.
+        run: node scripts/provenance-check.mjs
+
+      - name: Relatório como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance-report
+          path: provenance-reports/
+          retention-days: 90

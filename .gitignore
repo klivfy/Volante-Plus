@@ -60,6 +60,7 @@ keystore.properties
 # Relatórios de auditoria gerados por scripts/audit-report.mjs (Fase 2 do
 # plano de confiabilidade) — evidência regenerável, nunca versionada
 /audit-reports/
+/provenance-reports/
 
 # Pacote temporário que o @netlify/mcp gera na raiz do repo ao empacotar um
 # deploy (não é um artefato do projeto, some sozinho ao final do deploy)

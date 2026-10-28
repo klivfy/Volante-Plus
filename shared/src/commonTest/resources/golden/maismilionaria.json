@@ -1,0 +1,465 @@
+{
+  "schema": "volante-plus/golden-parity@1",
+  "lottery": "maismilionaria",
+  "rules": {
+    "numberUniverse": 50,
+    "numbersDrawn": 6,
+    "numbersPerBet": 6,
+    "trevoUniverse": 6,
+    "trevosDrawn": 2,
+    "trevosPerBet": 2,
+    "minSelection": 8,
+    "maxSelection": 12,
+    "betPriceBrl": 6
+  },
+  "tiers": [
+    {
+      "key": "6+2",
+      "numberHits": 6,
+      "trevoHits": 2
+    },
+    {
+      "key": "6+1",
+      "numberHits": 6,
+      "trevoHits": 1
+    },
+    {
+      "key": "6+0",
+      "numberHits": 6,
+      "trevoHits": 0
+    },
+    {
+      "key": "5+2",
+      "numberHits": 5,
+      "trevoHits": 2
+    },
+    {
+      "key": "5+1",
+      "numberHits": 5,
+      "trevoHits": 1
+    },
+    {
+      "key": "5+0",
+      "numberHits": 5,
+      "trevoHits": 0
+    },
+    {
+      "key": "4+2",
+      "numberHits": 4,
+      "trevoHits": 2
+    },
+    {
+      "key": "4+1",
+      "numberHits": 4,
+      "trevoHits": 1
+    },
+    {
+      "key": "4+0",
+      "numberHits": 4,
+      "trevoHits": 0
+    },
+    {
+      "key": "3+2",
+      "numberHits": 3,
+      "trevoHits": 2
+    },
+    {
+      "key": "3+1",
+      "numberHits": 3,
+      "trevoHits": 1
+    },
+    {
+      "key": "2+2",
+      "numberHits": 2,
+      "trevoHits": 2
+    },
+    {
+      "key": "2+1",
+      "numberHits": 2,
+      "trevoHits": 1
+    }
+  ],
+  "classification": [
+    {
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 0,
+      "trevoHits": 1,
+      "tier": null
+    },
+    {
+      "numberHits": 0,
+      "trevoHits": 2,
+      "tier": null
+    },
+    {
+      "numberHits": 1,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 1,
+      "trevoHits": 1,
+      "tier": null
+    },
+    {
+      "numberHits": 1,
+      "trevoHits": 2,
+      "tier": null
+    },
+    {
+      "numberHits": 2,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 2,
+      "trevoHits": 1,
+      "tier": "2+1"
+    },
+    {
+      "numberHits": 2,
+      "trevoHits": 2,
+      "tier": "2+2"
+    },
+    {
+      "numberHits": 3,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 3,
+      "trevoHits": 1,
+      "tier": "3+1"
+    },
+    {
+      "numberHits": 3,
+      "trevoHits": 2,
+      "tier": "3+2"
+    },
+    {
+      "numberHits": 4,
+      "trevoHits": 0,
+      "tier": "4+0"
+    },
+    {
+      "numberHits": 4,
+      "trevoHits": 1,
+      "tier": "4+1"
+    },
+    {
+      "numberHits": 4,
+      "trevoHits": 2,
+      "tier": "4+2"
+    },
+    {
+      "numberHits": 5,
+      "trevoHits": 0,
+      "tier": "5+0"
+    },
+    {
+      "numberHits": 5,
+      "trevoHits": 1,
+      "tier": "5+1"
+    },
+    {
+      "numberHits": 5,
+      "trevoHits": 2,
+      "tier": "5+2"
+    },
+    {
+      "numberHits": 6,
+      "trevoHits": 0,
+      "tier": "6+0"
+    },
+    {
+      "numberHits": 6,
+      "trevoHits": 1,
+      "tier": "6+1"
+    },
+    {
+      "numberHits": 6,
+      "trevoHits": 2,
+      "tier": "6+2"
+    }
+  ],
+  "exactTierProbabilities": [
+    {
+      "tier": "6+2",
+      "numerator": "1",
+      "denominator": "238360500"
+    },
+    {
+      "tier": "6+1",
+      "numerator": "2",
+      "denominator": "59590125"
+    },
+    {
+      "tier": "6+0",
+      "numerator": "1",
+      "denominator": "39726750"
+    },
+    {
+      "tier": "5+2",
+      "numerator": "22",
+      "denominator": "19863375"
+    },
+    {
+      "tier": "5+1",
+      "numerator": "176",
+      "denominator": "19863375"
+    },
+    {
+      "tier": "5+0",
+      "numerator": "44",
+      "denominator": "6621125"
+    },
+    {
+      "tier": "4+2",
+      "numerator": "473",
+      "denominator": "7945350"
+    },
+    {
+      "tier": "4+1",
+      "numerator": "1892",
+      "denominator": "3972675"
+    },
+    {
+      "tier": "4+0",
+      "numerator": "473",
+      "denominator": "1324225"
+    },
+    {
+      "tier": "3+2",
+      "numerator": "1892",
+      "denominator": "1702575"
+    },
+    {
+      "tier": "3+1",
+      "numerator": "15136",
+      "denominator": "1702575"
+    },
+    {
+      "tier": "2+2",
+      "numerator": "19393",
+      "denominator": "2270100"
+    },
+    {
+      "tier": "2+1",
+      "numerator": "38786",
+      "denominator": "567525"
+    }
+  ],
+  "exactPrizeProbability": {
+    "numerator": "99653",
+    "denominator": "1135050"
+  },
+  "exactExpectedNumberHits": {
+    "numerator": "18",
+    "denominator": "25"
+  },
+  "canonicalBets": [
+    [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    [
+      7,
+      13,
+      21,
+      33,
+      44,
+      49
+    ],
+    [
+      5,
+      10,
+      15,
+      25,
+      35,
+      50
+    ]
+  ],
+  "canonicalBetsTrevos": [
+    [
+      1,
+      2
+    ],
+    [
+      3,
+      6
+    ],
+    [
+      2,
+      5
+    ]
+  ],
+  "canonicalDraws": [
+    {
+      "contestNumber": 2001,
+      "numbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "trevos": [
+        1,
+        2
+      ]
+    },
+    {
+      "contestNumber": 2002,
+      "numbers": [
+        7,
+        13,
+        21,
+        33,
+        44,
+        49
+      ],
+      "trevos": [
+        3,
+        6
+      ]
+    },
+    {
+      "contestNumber": 2003,
+      "numbers": [
+        9,
+        18,
+        27,
+        36,
+        45,
+        50
+      ],
+      "trevos": [
+        2,
+        5
+      ]
+    }
+  ],
+  "betOutcomes": [
+    {
+      "betIndex": 0,
+      "drawIndex": 0,
+      "numberHits": 6,
+      "trevoHits": 2,
+      "tier": "6+2",
+      "prized": true
+    },
+    {
+      "betIndex": 0,
+      "drawIndex": 1,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 0,
+      "drawIndex": 2,
+      "numberHits": 0,
+      "trevoHits": 1,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 1,
+      "drawIndex": 0,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 1,
+      "drawIndex": 1,
+      "numberHits": 6,
+      "trevoHits": 2,
+      "tier": "6+2",
+      "prized": true
+    },
+    {
+      "betIndex": 1,
+      "drawIndex": 2,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 2,
+      "drawIndex": 0,
+      "numberHits": 1,
+      "trevoHits": 1,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 2,
+      "drawIndex": 1,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 2,
+      "drawIndex": 2,
+      "numberHits": 1,
+      "trevoHits": 2,
+      "tier": null,
+      "prized": false
+    }
+  ],
+  "closureCases": [
+    {
+      "pool": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "gameSize": 6,
+      "guarantee": 3,
+      "totalSubsets": 120
+    },
+    {
+      "pool": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "gameSize": 6,
+      "guarantee": 4,
+      "totalSubsets": 210
+    }
+  ],
+  "offeredGuarantees": [
+    3,
+    4
+  ]
+}

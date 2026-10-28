@@ -31,8 +31,11 @@ jobs:
       - name: Setup Gradle (com cache)
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Testes unitários
-        run: ./gradlew :app:testDebugUnitTest
+      - name: Testes unitários (app + teste dourado web–Kotlin)
+        # :shared:desktopTest roda o teste dourado de paridade (Fase 4) no
+        # alvo JVM do módulo compartilhado — o mesmo arquivo que o script
+        # local scripts/kotlin-golden-check.sh valida sem Android SDK.
+        run: ./gradlew :app:testDebugUnitTest :shared:desktopTest
 
       - name: Build do APK de debug
         run: ./gradlew :app:assembleDebug

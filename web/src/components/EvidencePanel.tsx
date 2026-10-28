@@ -37,6 +37,14 @@ const SEVERITY = {
 
 const percent = (fraction: number): string => (fraction * 100).toFixed(1).replace('.', ',');
 
+/** Frequência esperada da dezena, em fração (K/N) — para o texto do IC. */
+function expectedShareOf(
+  row: { expected: number },
+  draws: number,
+): number {
+  return draws > 0 ? row.expected / draws : 0;
+}
+
 /**
  * Responde, com teste de hipótese, à pergunta que o ranking de frequência não
  * responde: alguma dezena se afasta do acaso? Ver `numberEvidence.ts`.
@@ -113,6 +121,29 @@ export default function EvidencePanel({
                     number: hottest.number,
                     hits: hottest.hitCount,
                     expected: hottest.expected.toFixed(0),
+                  })}
+                </Typography>
+              )}
+              {/* Fase 4 (clareza da UI): a incerteza da estimativa junto da
+                  conclusão — IC de Wilson 95% da frequência observada. Como
+                  1 em cada 20 intervalos fica fora por construção, o texto
+                  declara isso em vez de vender precisão que não existe. */}
+              {testable && hottest && hottest.ciLower !== null && hottest.ciUpper !== null && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {t(k('evidence.ci'), {
+                    number: hottest.number,
+                    share: percent(hottest.hitCount / summary.draws),
+                    lower: percent(hottest.ciLower),
+                    upper: percent(hottest.ciUpper),
+                    expected: percent(expectedShareOf(hottest, summary.draws)),
+                  })}
+                </Typography>
+              )}
+              {testable && summary.rows.length > 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {t(k('evidence.sample'), {
+                    draws: summary.draws,
+                    minimum: summary.minimumDraws,
                   })}
                 </Typography>
               )}

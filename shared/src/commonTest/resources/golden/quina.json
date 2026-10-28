@@ -1,0 +1,237 @@
+{
+  "schema": "volante-plus/golden-parity@1",
+  "lottery": "quina",
+  "rules": {
+    "numberUniverse": 80,
+    "numbersDrawn": 5,
+    "numbersPerBet": 5,
+    "trevoUniverse": 0,
+    "trevosDrawn": 0,
+    "trevosPerBet": 0,
+    "minSelection": 5,
+    "maxSelection": 15,
+    "betPriceBrl": 3
+  },
+  "tiers": [
+    {
+      "key": "5",
+      "numberHits": 5,
+      "trevoHits": null
+    },
+    {
+      "key": "4",
+      "numberHits": 4,
+      "trevoHits": null
+    },
+    {
+      "key": "3",
+      "numberHits": 3,
+      "trevoHits": null
+    },
+    {
+      "key": "2",
+      "numberHits": 2,
+      "trevoHits": null
+    }
+  ],
+  "classification": [
+    {
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 1,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 2,
+      "trevoHits": 0,
+      "tier": "2"
+    },
+    {
+      "numberHits": 3,
+      "trevoHits": 0,
+      "tier": "3"
+    },
+    {
+      "numberHits": 4,
+      "trevoHits": 0,
+      "tier": "4"
+    },
+    {
+      "numberHits": 5,
+      "trevoHits": 0,
+      "tier": "5"
+    }
+  ],
+  "exactTierProbabilities": [
+    {
+      "tier": "5",
+      "numerator": "1",
+      "denominator": "24040016"
+    },
+    {
+      "tier": "4",
+      "numerator": "375",
+      "denominator": "24040016"
+    },
+    {
+      "tier": "3",
+      "numerator": "13875",
+      "denominator": "12020008"
+    },
+    {
+      "tier": "2",
+      "numerator": "337625",
+      "denominator": "12020008"
+    }
+  ],
+  "exactPrizeProbability": {
+    "numerator": "43961",
+    "denominator": "1502501"
+  },
+  "exactExpectedNumberHits": {
+    "numerator": "5",
+    "denominator": "16"
+  },
+  "canonicalBets": [
+    [
+      5,
+      20,
+      33,
+      61,
+      80
+    ],
+    [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    [
+      10,
+      30,
+      50,
+      70,
+      80
+    ]
+  ],
+  "canonicalBetsTrevos": [],
+  "canonicalDraws": [
+    {
+      "contestNumber": 3001,
+      "numbers": [
+        5,
+        20,
+        33,
+        61,
+        80
+      ],
+      "trevos": []
+    },
+    {
+      "contestNumber": 3002,
+      "numbers": [
+        1,
+        2,
+        44,
+        55,
+        66
+      ],
+      "trevos": []
+    },
+    {
+      "contestNumber": 3003,
+      "numbers": [
+        10,
+        25,
+        50,
+        70,
+        79
+      ],
+      "trevos": []
+    }
+  ],
+  "betOutcomes": [
+    {
+      "betIndex": 0,
+      "drawIndex": 0,
+      "numberHits": 5,
+      "trevoHits": 0,
+      "tier": "5",
+      "prized": true
+    },
+    {
+      "betIndex": 0,
+      "drawIndex": 1,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 0,
+      "drawIndex": 2,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 1,
+      "drawIndex": 0,
+      "numberHits": 1,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 1,
+      "drawIndex": 1,
+      "numberHits": 2,
+      "trevoHits": 0,
+      "tier": "2",
+      "prized": true
+    },
+    {
+      "betIndex": 1,
+      "drawIndex": 2,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 2,
+      "drawIndex": 0,
+      "numberHits": 1,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 2,
+      "drawIndex": 1,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 2,
+      "drawIndex": 2,
+      "numberHits": 3,
+      "trevoHits": 0,
+      "tier": "3",
+      "prized": true
+    }
+  ],
+  "closureCases": [],
+  "offeredGuarantees": [
+    3,
+    4
+  ]
+}

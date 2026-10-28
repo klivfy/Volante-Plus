@@ -106,3 +106,40 @@ export function shuffleArray<T>(items: readonly T[], random: RandomSource = defa
   }
   return copy;
 }
+
+/**
+ * Intervalo de confiança de 95% (Wilson score) para uma proporção de
+ * contagens — usado pela camada de UI para exibir a incerteza da frequência
+ * de uma dezena/trevo ao lado da conclusão (Fase 4 do plano de
+ * confiabilidade: clareza da interface).
+ *
+ * WHY redefinir aqui e não importar: a fórmula já existe em dois lugares
+ * calibrados por contrato (`statisticalTests.ts` privado e
+ * `calibration/runner.ts` exportado); mover qualquer um deles mexe em código
+ * cujo FPR é medido por gate de CI. Uma terceira cópia documentada em
+ * `statUtils.ts` — o módulo de matemática compartilhada — é o custo menor,
+ * e os testes de referência em três casas decimais pegam qualquer deriva.
+ *
+ * @param successes contagens observadas (0..trials).
+ * @param trials tamanho da amostra (inteiro positivo).
+ * @returns limites inferior e superior da proporção, sempre dentro de [0, 1].
+ */
+export function wilsonInterval95(
+  successes: number,
+  trials: number,
+): { lower: number; upper: number } {
+  if (!Number.isInteger(trials) || trials <= 0) {
+    throw new RangeError(`trials deve ser inteiro positivo (recebido: ${trials})`);
+  }
+  if (successes < 0 || successes > trials) {
+    throw new RangeError(`successes fora de [0, trials] (${successes}/${trials})`);
+  }
+  const z = 1.959963984540054; // quantil 97,5% da normal padrão
+  const n = trials;
+  const p = successes / n;
+  const z2 = z * z;
+  const denominator = 1 + z2 / n;
+  const center = (p + z2 / (2 * n)) / denominator;
+  const half = (z / denominator) * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n));
+  return { lower: Math.max(0, center - half), upper: Math.min(1, center + half) };
+}

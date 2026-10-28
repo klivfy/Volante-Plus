@@ -90,8 +90,22 @@ Requer JDK 17+ e Android SDK (compileSdk 35).
 
 ```bash
 ./gradlew :app:assembleDebug      # build
-./gradlew :app:testDebugUnitTest  # testes unitários
+./gradlew :app:testDebugUnitTest :shared:desktopTest  # testes unitários + teste dourado web–Kotlin
 ```
+
+## Confiabilidade (plano de estatística)
+
+O projeto carrega um programa permanente de confiabilidade com quatro fases
+implementadas: calibração Monte Carlo dos métodos de significância (Fase 1),
+relatório de auditoria reciclável (Fase 2, `node scripts/audit-report.mjs`),
+gate de CI semanal do contrato (Fase 3, `calibration.yml`) e a Fase 4 —
+**testes dourados de paridade web–Kotlin** (fixtures JSON compartilhadas,
+`docs/golden-parity.md`; local sem Android SDK: `bash
+scripts/kotlin-golden-check.sh`), **procedência automatizada do histórico**
+(`provenance.yml` semanal; `node scripts/provenance-check.mjs`,
+`docs/historico.md`) e **clareza da interface** (IC de Wilson, potência e
+tamanho de amostra exibidos junto das conclusões). Política do contrato de
+calibração: [`docs/calibration-contract.md`](docs/calibration-contract.md).
 
 ## Windows Desktop
 

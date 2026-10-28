@@ -56,4 +56,49 @@ describe('numberEvidence', () => {
     const empty: NumberPerformance[] = [];
     expect(numberEvidence(Lottery.MEGA_SENA, empty).verdict).toBe('AMOSTRA_INSUFICIENTE');
   });
+
+  it('cada linha traz o IC de Wilson 95% da frequência (Fase 4, clareza da UI)', () => {
+    const summary = numberEvidence(Lottery.MEGA_SENA, analyzeBacktest(honestDraws(1500, 3), Lottery.MEGA_SENA, 0));
+    expect(summary.draws).toBe(1500);
+    for (const row of summary.rows) {
+      expect(row.ciLower).not.toBeNull();
+      expect(row.ciUpper).not.toBeNull();
+      const share = row.hitCount / summary.draws;
+      // O intervalo contém a proporção observada e é ordenado.
+      expect(row.ciLower!).toBeLessThanOrEqual(share);
+      expect(row.ciUpper!).toBeGreaterThanOrEqual(share);
+      expect(row.ciLower!).toBeLessThan(row.ciUpper!);
+      expect(row.ciLower!).toBeGreaterThanOrEqual(0);
+      expect(row.ciUpper!).toBeLessThanOrEqual(1);
+      // Com n=1500 e p=0,1, a meia-largura fica na casa de 1,5 p.p.
+      const halfWidth = (row.ciUpper! - row.ciLower!) / 2;
+      expect(halfWidth).toBeGreaterThan(0.005);
+      expect(halfWidth).toBeLessThan(0.04);
+    }
+  });
+
+  it('IC de referência (Wilson): 15 acertos em 150 concursos = [0,0615; 0,1584]', () => {
+    // Performances sintéticas: 60 dezenas × 15 acertos = 900 = 150×6 →
+    // draws = 150 e toda linha tem exatamente a contagem de referência.
+    const perf: NumberPerformance[] = Array.from({ length: 60 }, (_, i) => ({
+      number: i + 1,
+      hitCount: 15,
+      simulatedHitRate: 0.1,
+      weight: 1,
+      tier: 'mid' as const,
+    }));
+    const summary = numberEvidence(Lottery.MEGA_SENA, perf);
+    expect(summary.draws).toBe(150);
+    expect(summary.verdict).toBe('COMPATIVEL_COM_ACASO');
+    // Referência: Wilson 95% de (15, 150), calculado à mão.
+    for (const row of summary.rows) {
+      expect(row.ciLower!).toBeCloseTo(0.061541, 4);
+      expect(row.ciUpper!).toBeCloseTo(0.158435, 4);
+    }
+  });
+
+  it('sem histórico: IC fica nulo, não quebra', () => {
+    const summary = numberEvidence(Lottery.MEGA_SENA, []);
+    expect(summary.rows).toHaveLength(0);
+  });
 });

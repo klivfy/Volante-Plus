@@ -89,3 +89,38 @@ do banco (só linhas idênticas à fixture; dado real nunca é tocado).
   android-seed.mjs`, a partir da raiz do repositório) — nunca uma segunda
   busca/validação separada, para as duas plataformas nunca divergirem
   silenciosamente uma da outra. Ver `app/src/main/assets/seed/README.md`.
+
+## Verificação agendada (Fase 4)
+
+A conferência do seed deixou de depender de alguém lembrar de rodar: o
+workflow `provenance.yml` executa `scripts/provenance-check.mjs` **toda
+quinta-feira às 04:00 UTC**, a cada push que toque os dados de histórico e
+sob demanda (`workflow_dispatch`). São duas camadas, com semântica de falha
+distinta:
+
+1. **Offline (sempre)** — o seed embutido contra as regras de cada
+   modalidade e contra o espelho independente versionado
+   (`data/mirrorSnapshot/`), mais a procedência SHA-256 do seed (por
+   arquivo e concatenação canônica — a mesma da auditoria). Qualquer
+   divergência num concurso em comum acende o alarme.
+2. **Fontes ao vivo (padrão; `--offline` pula)** — busca o concurso mais
+   recente em cada fonte configurada do app e cruza os resultados: fontes
+   que divergem entre si para o MESMO concurso, ou que devolvem resultado
+   diferente do seed para concurso que o seed já tem, **acendem o alarme**
+   (job vermelho). Fonte que não responde é indisponibilidade declarada no
+   relatório — nunca falha, porque o gate agendado não pode tremer por rede.
+
+O relatório JSON da execução fica como artefato do GitHub por 90 dias
+(inclusive quando há divergência), com commit, data UTC e digest do seed —
+a mesma disciplina de identidade do relatório de auditoria da calibração.
+
+```bash
+node scripts/provenance-check.mjs              # offline + fontes ao vivo
+node scripts/provenance-check.mjs --offline    # só seed × espelho versionado
+```
+
+Resultado da implementação (2026-10-28, seed 3063-393-7149): offline com
+**0 divergências** em 3.063 + 393 + 7.149 concursos (2.797 + 199 + 7.149
+comparados ao espelho); online com a fonte principal respondendo (13 + 8 + 4
+concursos além do seed, coerentes com a data de geração dele) e as outras
+duas sem resposta no ambiente — declaradas, sem alarme.

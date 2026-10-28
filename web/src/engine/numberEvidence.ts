@@ -1,7 +1,12 @@
 import { Lottery, NumberPerformance } from '../types/domain';
 import { bonferroniCorrection } from './multipleComparisons';
 import { DrawSpace, drawSpace } from './prizeRules';
-import { approxChi2Survival, approxNormalCDF, normalUpperTail } from './statUtils';
+import {
+  approxChi2Survival,
+  approxNormalCDF,
+  normalUpperTail,
+  wilsonInterval95,
+} from './statUtils';
 
 /**
  * Evidência estatística sobre a frequência das dezenas.
@@ -32,6 +37,13 @@ export interface NumberEvidenceRow {
   pValue: number;
   /** Significativa após Bonferroni sobre todas as dezenas do universo. */
   significant: boolean;
+  /**
+   * IC de Wilson 95% da frequência observada (`hitCount/draws`) — Fase 4
+   * (clareza da UI): a incerteza da estimativa aparece junto da conclusão.
+   * Amostra insuficiente (`draws = 0`) carrega null.
+   */
+  ciLower: number | null;
+  ciUpper: number | null;
 }
 
 export interface EvidenceSummary {
@@ -94,7 +106,17 @@ export function numberEvidence(
     // da Onda 3); o Kotlin já usava `erfc(|z|/√2)` — mesma matemática.
     const pValue =
       sd > 0 ? Math.min(1, 2 * normalUpperTail(Math.abs(z))) : 1;
-    return { number: row.number, hitCount: row.hitCount, expected, z, pValue, significant: false };
+    const ci = draws > 0 ? wilsonInterval95(row.hitCount, draws) : { lower: null, upper: null };
+    return {
+      number: row.number,
+      hitCount: row.hitCount,
+      expected,
+      z,
+      pValue,
+      significant: false,
+      ciLower: ci.lower,
+      ciUpper: ci.upper,
+    };
   });
 
   const correction = bonferroniCorrection(

@@ -5,15 +5,6 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 ## [Unreleased]
 
 ### Added
-- Modalidade **Quina** na web (5 dezenas de 1–80, aposta de 5 a 15, R$ 3,00, quatro
-  faixas): regras e chances exatas, histórico embutido (7.149 concursos, 1994-03-13 a
-  2026-10-22, conferido concurso a concurso contra o portal da Caixa em dezenas e
-  datas), sincronização, geração de jogos e fechamento (terno e quadra).
-- Modalidade **Quina** no Android e no desktop: regras e prêmios espelhando a web
-  (quatro faixas — quina, quadra, terno e duque —, aposta de R$ 3,00), seed de
-  7.149 concursos, volante e backtest. O fechamento com garantia segue
-  indisponível nessas plataformas (as tabelas de cobertura são de jogos de 6
-  dezenas): a guarda recusa em vez de prometer errado.
 - Harness de calibração estatística (Fase 1 do plano de confiabilidade,
   `web/src/engine/calibration/`): catálogo único do contrato de significância
   (`catalog.ts`), gerador determinístico de históricos honestos
@@ -42,6 +33,46 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   de artefato por 90 dias, inclusive em falha. FPR medido em N = 2.000:
   0,1–3,5% (walk-forward 0,3%), todos PASS; sonda 49,6% reprovada.
 - `web/scripts/collect-portal-snapshot.mjs` e `update-history-seed.mjs --only`.
+
+- **Testes dourados de paridade web–Kotlin** (Fase 4 do plano de
+  confiabilidade, frente 1 — `docs/golden-parity.md`): fixtures JSON
+  versionadas (`shared/src/commonTest/resources/golden/`) geradas pelo motor
+  TypeScript com a verdade matemática canônica — frações exatas de
+  probabilidade por faixa (BigInt/BigInteger reduzidos), grade completa de
+  classificação, apostas/concursos canônicos e invariantes de fechamento
+  C(10,6,3) e C(10,6,4). O motor Kotlin compartilhado reproduz a mesma
+  verdade nos dois alvos JVM (`:shared:desktopTest` no CI; local sem
+  Android SDK via `scripts/kotlin-golden-check.sh`), e o teste anti-deriva
+  da web re-gera as fixtures e exige igualdade byte a byte. Verificação
+  negativa executada: fração da Sena sabotada é rejeitada com as duas
+  divergências esperadas. Assimetrias declaradas no documento (fechamento
+  Kotlin só Mega-Sena; RNGs diferentes por projeto).
+- **Procedência automatizada do histórico** (Fase 4, frente 2 —
+  `docs/historico.md`): o workflow `provenance.yml` agenda
+  `scripts/provenance-check.mjs` semanalmente (quintas, 04:00 UTC), a cada
+  push nos dados e sob demanda — camada offline (seed × regras × espelho
+  independente versionado + SHA-256 de procedência) e camada online
+  (fontes ao vivo cruzadas por concurso; divergência entre fontes ou contra
+  o seed acende alarme; fonte sem resposta é declarada, nunca falha).
+  Relatório JSON como artefato por 90 dias, com commit e digest do seed.
+  Núcleo puro sob controle positivo e negativo (15 testes): seed real
+  aprovado, dezena sabotada detectada no concurso exato.
+- **Clareza da interface** (Fase 4, frente 3): o painel de evidência exibe
+  o IC de Wilson 95% da frequência da dezena mais observada junto da
+  conclusão — com a declaração de que 1 em cada 20 intervalos fica fora por
+  construção — e o tamanho da amostra com o mínimo para o teste valer,
+  ao lado do viés mínimo detectável que já existia (`numberEvidence`
+  ganha `ciLower`/`ciUpper` por linha).
+
+- Modalidade **Quina** na web (5 dezenas de 1–80, aposta de 5 a 15, R$ 3,00, quatro
+  faixas): regras e chances exatas, histórico embutido (7.149 concursos, 1994-03-13 a
+  2026-10-22, conferido concurso a concurso contra o portal da Caixa em dezenas e
+  datas), sincronização, geração de jogos e fechamento (terno e quadra).
+- Modalidade **Quina** no Android e no desktop: regras e prêmios espelhando a web
+  (quatro faixas — quina, quadra, terno e duque —, aposta de R$ 3,00), seed de
+  7.149 concursos, volante e backtest. O fechamento com garantia segue
+  indisponível nessas plataformas (as tabelas de cobertura são de jogos de 6
+  dezenas): a guarda recusa em vez de prometer errado.
 
 ### Fixed
 - `isValidDraw` aceitava trevos em modalidades sem trevo.

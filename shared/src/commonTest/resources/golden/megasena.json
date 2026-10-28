@@ -1,0 +1,272 @@
+{
+  "schema": "volante-plus/golden-parity@1",
+  "lottery": "megasena",
+  "rules": {
+    "numberUniverse": 60,
+    "numbersDrawn": 6,
+    "numbersPerBet": 6,
+    "trevoUniverse": 0,
+    "trevosDrawn": 0,
+    "trevosPerBet": 0,
+    "minSelection": 8,
+    "maxSelection": 15,
+    "betPriceBrl": 6
+  },
+  "tiers": [
+    {
+      "key": "6",
+      "numberHits": 6,
+      "trevoHits": null
+    },
+    {
+      "key": "5",
+      "numberHits": 5,
+      "trevoHits": null
+    },
+    {
+      "key": "4",
+      "numberHits": 4,
+      "trevoHits": null
+    }
+  ],
+  "classification": [
+    {
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 1,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 2,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 3,
+      "trevoHits": 0,
+      "tier": null
+    },
+    {
+      "numberHits": 4,
+      "trevoHits": 0,
+      "tier": "4"
+    },
+    {
+      "numberHits": 5,
+      "trevoHits": 0,
+      "tier": "5"
+    },
+    {
+      "numberHits": 6,
+      "trevoHits": 0,
+      "tier": "6"
+    }
+  ],
+  "exactTierProbabilities": [
+    {
+      "tier": "6",
+      "numerator": "1",
+      "denominator": "50063860"
+    },
+    {
+      "tier": "5",
+      "numerator": "81",
+      "denominator": "12515965"
+    },
+    {
+      "tier": "4",
+      "numerator": "4293",
+      "denominator": "10012772"
+    }
+  ],
+  "exactPrizeProbability": {
+    "numerator": "2179",
+    "denominator": "5006386"
+  },
+  "exactExpectedNumberHits": {
+    "numerator": "3",
+    "denominator": "5"
+  },
+  "canonicalBets": [
+    [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    [
+      4,
+      8,
+      15,
+      16,
+      23,
+      42
+    ],
+    [
+      10,
+      20,
+      30,
+      40,
+      50,
+      60
+    ]
+  ],
+  "canonicalBetsTrevos": [],
+  "canonicalDraws": [
+    {
+      "contestNumber": 1001,
+      "numbers": [
+        4,
+        8,
+        15,
+        16,
+        23,
+        42
+      ],
+      "trevos": []
+    },
+    {
+      "contestNumber": 1002,
+      "numbers": [
+        1,
+        2,
+        11,
+        22,
+        33,
+        44
+      ],
+      "trevos": []
+    },
+    {
+      "contestNumber": 1003,
+      "numbers": [
+        6,
+        16,
+        26,
+        36,
+        46,
+        60
+      ],
+      "trevos": []
+    }
+  ],
+  "betOutcomes": [
+    {
+      "betIndex": 0,
+      "drawIndex": 0,
+      "numberHits": 1,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 0,
+      "drawIndex": 1,
+      "numberHits": 2,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 0,
+      "drawIndex": 2,
+      "numberHits": 1,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 1,
+      "drawIndex": 0,
+      "numberHits": 6,
+      "trevoHits": 0,
+      "tier": "6",
+      "prized": true
+    },
+    {
+      "betIndex": 1,
+      "drawIndex": 1,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 1,
+      "drawIndex": 2,
+      "numberHits": 1,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 2,
+      "drawIndex": 0,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 2,
+      "drawIndex": 1,
+      "numberHits": 0,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    },
+    {
+      "betIndex": 2,
+      "drawIndex": 2,
+      "numberHits": 1,
+      "trevoHits": 0,
+      "tier": null,
+      "prized": false
+    }
+  ],
+  "closureCases": [
+    {
+      "pool": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "gameSize": 6,
+      "guarantee": 3,
+      "totalSubsets": 120
+    },
+    {
+      "pool": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "gameSize": 6,
+      "guarantee": 4,
+      "totalSubsets": 210
+    }
+  ],
+  "offeredGuarantees": [
+    4
+  ]
+}
