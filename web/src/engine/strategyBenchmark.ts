@@ -48,7 +48,7 @@ export interface BenchmarkResult {
   benjaminiHochberg: { strategy: StrategyName; significant: boolean }[];
 }
 
-const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
+export const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
   'tier-weighted': 'Método do app: 70% top / 20% mid / 10% low, ponderado por desempenho',
   'frequency-pure': 'Sempre as dezenas de um jogo historicamente mais frequentes',
   'cold-numbers': 'Favorece as dezenas menos frequentes ("atrasadas")',
