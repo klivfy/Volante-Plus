@@ -128,6 +128,7 @@
       "strategy": "Estratégia",
       "meanHits": "Acertos médios (esperado)",
       "prizeRate": "Taxa de prêmio",
+      "bonferroni": "Bonferroni",
       "significant": "significativo",
       "notSignificant": "não significativo",
       "footnote": "A coluna Bonferroni é a significância corrigida para múltiplas comparações — o critério certo quando 5 estratégias são testadas ao mesmo tempo. Esperado sob a hipótese nula: nenhuma estratégia significativa."

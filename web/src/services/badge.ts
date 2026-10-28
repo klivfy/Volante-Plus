@@ -1,5 +1,3 @@
-import { db } from './db';
-
 /**
  * Badging API (`navigator.setAppBadge`/`clearAppBadge`) — o "balãozinho" com
  * número sobre o ícone do PWA instalado. Best-effort: navegadores sem a API
@@ -37,9 +35,4 @@ export async function setBadge(count: number): Promise<void> {
 export async function clearBadge(): Promise<void> {
   const nav = badgingNavigator();
   await nav?.clearAppBadge?.();
-}
-
-/** Total de concursos salvos localmente — base para detectar novos sorteios após uma sincronização. */
-export async function totalDrawCount(): Promise<number> {
-  return db.draws.count();
 }

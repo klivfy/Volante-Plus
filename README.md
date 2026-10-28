@@ -1,18 +1,18 @@
 # Volante+ — Laboratório Estatístico de Loterias
 
-[![Android CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/android-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/android-ci.yml)
-[![Web CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/web-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/web-ci.yml)
-[![Desktop CI](https://github.com/Mestrys/Volante-Plus/actions/workflows/desktop-ci.yml/badge.svg)](https://github.com/Mestrys/Volante-Plus/actions/workflows/desktop-ci.yml)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Mestrys/Volante-Plus&root-directory=web)
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Mestrys/Volante-Plus)
+[![Android CI](https://github.com/klivfy/Volante-Plus/actions/workflows/android-ci.yml/badge.svg)](https://github.com/klivfy/Volante-Plus/actions/workflows/android-ci.yml)
+[![Web CI](https://github.com/klivfy/Volante-Plus/actions/workflows/web-ci.yml/badge.svg)](https://github.com/klivfy/Volante-Plus/actions/workflows/web-ci.yml)
+[![Desktop CI](https://github.com/klivfy/Volante-Plus/actions/workflows/desktop-ci.yml/badge.svg)](https://github.com/klivfy/Volante-Plus/actions/workflows/desktop-ci.yml)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/klivfy/Volante-Plus&root-directory=web)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/klivfy/Volante-Plus)
 
 App Android (Kotlin + Jetpack Compose, Material Design 3), versão web
 (Next.js + PWA, ver `web/`) e app desktop para Windows (Compose
 Multiplatform, ver `desktop/`) para teste de hipóteses estatísticas sobre
-Mega-Sena e +Milionária. O domínio (backtesting, geração de jogos) é
+Mega-Sena, +Milionária e Quina. O domínio (backtesting, geração de jogos) é
 compartilhado entre Android e desktop via `shared/` (Kotlin Multiplatform).
 
-> Gerador estatístico para Mega-Sena e +Milionária. Sem palpite, sem número quente.
+> Laboratório estatístico para Mega-Sena, +Milionária e Quina. Sem palpite, sem número quente.
 
 ## Missão
 
@@ -72,6 +72,7 @@ Volante-Plus/
 |---|---|---|---|---|
 | Mega-Sena | 01–60 | 8 | 15 | — |
 | +Milionária | 01–50 | 8 | 12 | exatamente 2 (de 1–6) |
+| Quina | 01–80 | 5 | 15 | — |
 
 - Abas principais: **Mega-Sena** / **+Milionária** (seleção preservada ao alternar).
 - Sub-abas: **Jogos avulsos** / **Fechamento**.
@@ -112,7 +113,7 @@ Microsoft Store).
 - [x] Setup MD3 + Open Sans + tela de Volante
 - [x] Persistência do histórico de concursos (Room SQLite)
 - [x] Importação do histórico oficial (API da Caixa + seed CSV em `assets/seed/`)
-- [x] Gerador de lotes (Aleatório puro RNG criptográfico / Equilibrado) sem repetição de dezenas
+- [x] Gerador de lotes (tiers ponderados por desempenho + desempate por popularidade, RNG criptográfico) sem repetição de dezenas
 - [x] Motor de backtesting (data de corte, eficácia, variância, desvio padrão)
 - [x] Tela de backtesting (configurar corte/estratégia, sincronizar histórico e visualizar relatório)
 - [x] Modo Fechamento (desdobra as dezenas marcadas no volante com repetição mínima)

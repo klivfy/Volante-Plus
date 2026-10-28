@@ -155,7 +155,7 @@ projeto — não bloqueiam publicação.
 |---|---|
 | `storage` | Guardar histórico sincronizado e desempenho cacheado (`chrome.storage.local`). |
 | `alarms` | Agendar a sincronização recorrente em segundo plano. |
-| `host_permissions` (`loteriascaixa-api.herokuapp.com`) | O service worker faz `fetch` direto pra API pública de resultados — sem essa permissão, o navegador aplicaria CORS normal de página comum e a chamada falharia se a API não responder com os headers certos. |
+| `host_permissions` (`loteriascaixa-api.herokuapp.com`, `api.guidi.dev.br`, `servicebus2.caixa.gov.br`) | O service worker faz `fetch` direto às 3 fontes de dados oficiais/espelho do histórico — sem a permissão do host, o MV3 aplica CORS normal de página e a fonte falha silenciosamente (o sync degrada para as demais). |
 
 ## Publicar nas lojas
 
