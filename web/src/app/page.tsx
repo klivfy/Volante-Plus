@@ -35,7 +35,7 @@ import { evaluatePayoutBatch } from '@/engine/payoutShare';
 import { hasTrevos, lotteryRules } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
 import { usePerformanceCache } from '@/hooks/usePerformanceCache';
-import { useLotteryTheme } from '@/context/LotteryThemeContext';
+import { pageLottery, useLotteryTheme } from '@/context/LotteryThemeContext';
 import { GameBatch, GameMode, GeneratedGame, Lottery, MIN_GAMES } from '@/types/domain';
 
 /**
@@ -63,8 +63,11 @@ function gameToText(lottery: Lottery, game: GeneratedGame): string {
 
 export default function VolantePage() {
   const { t } = useTranslation();
-  const { setLottery: setThemeLottery } = useLotteryTheme();
-  const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
+  const { lottery: themeLottery, setLottery: setThemeLottery } = useLotteryTheme();
+  // Abre na modalidade do tema global: chegar do backtesting de outra
+  // modalidade ("Usar estes dados") não pode aterrissar aqui preso na
+  // Mega-Sena — senão os pesos salvos daquela modalidade parecem ignorados.
+  const [lottery, setLottery] = useState<Lottery>(pageLottery(themeLottery));
   const [generating, setGenerating] = useState(false);
   const [batchCount, setBatchCount] = useState<number>(MIN_GAMES);
   const [generatedBatch, setGeneratedBatch] = useState<GameBatch | null>(null);

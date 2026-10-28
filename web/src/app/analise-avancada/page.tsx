@@ -25,7 +25,7 @@ import LotterySelector from '@/components/LotterySelector';
 import { getDraws } from '@/services/db';
 import { Draw, Lottery } from '@/types/domain';
 import { trackLotterySelection } from '@/services/analytics';
-import { useLotteryTheme } from '@/context/LotteryThemeContext';
+import { pageLottery, useLotteryTheme } from '@/context/LotteryThemeContext';
 import { calculateEV, kellySimulation, PrizeAverage } from '@/engine/expectedValue';
 import { MAIS_MILIONARIA_FIXED_PRIZES, lotteryRules } from '@/engine/prizeRules';
 import { frequencyFairnessTest, gapTest, serialCorrelationTest } from '@/engine/fairnessTests';
@@ -57,8 +57,10 @@ const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
  */
 export default function AnaliseAvancadaPage() {
   const { t } = useTranslation();
-  const { setLottery: setThemeLottery } = useLotteryTheme();
-  const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
+  const { lottery: themeLottery, setLottery: setThemeLottery } = useLotteryTheme();
+  // Mesmo contrato das telas / e /backtesting: abre na modalidade do tema
+  // global, não na Mega-Sena fixa.
+  const [lottery, setLottery] = useState<Lottery>(pageLottery(themeLottery));
 
   // Mesmo contrato das telas / e /backtesting: a troca recolore o tema global
   // e registra o evento de telemetria — não é só estado local desta página.

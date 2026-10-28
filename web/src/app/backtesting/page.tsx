@@ -23,7 +23,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import LotterySelector from '@/components/LotterySelector';
 import { useBacktestWorker } from '@/hooks/useBacktestWorker';
-import { useLotteryTheme } from '@/context/LotteryThemeContext';
+import { pageLottery, useLotteryTheme } from '@/context/LotteryThemeContext';
 import { trackLotterySelection } from '@/services/analytics';
 import { getDrawsAfter, getDrawsUpTo, savePerformances } from '@/services/db';
 import { Lottery, MAX_GAMES, MIN_GAMES } from '@/types/domain';
@@ -67,8 +67,10 @@ function formatHitDistribution(distribution: Record<number, number>): string {
 export default function BacktestingPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { setLottery: setThemeLottery } = useLotteryTheme();
-  const [lottery, setLottery] = useState<Lottery>(Lottery.MEGA_SENA);
+  const { lottery: themeLottery, setLottery: setThemeLottery } = useLotteryTheme();
+  // Mesmo contrato da home: abre na modalidade do tema global, não na
+  // Mega-Sena fixa — a experiência do backtest é por modalidade.
+  const [lottery, setLottery] = useState<Lottery>(pageLottery(themeLottery));
   const [cutoffDate, setCutoffDate] = useState('');
   const [gamesPerContest, setGamesPerContest] = useState(MIN_GAMES);
   const [submitting, setSubmitting] = useState(false);
@@ -144,6 +146,11 @@ export default function BacktestingPage() {
       source: 'manual',
       force: true,
     });
+    // A modalidade do backtest precisa chegar na home: o cache manual é
+    // gravado POR modalidade e a home lê o da modalidade selecionada. Sem
+    // propagar o tema, a home abria na Mega-Sena fixa e os pesos salvos
+    // desta modalidade pareciam ignorados na geração.
+    setThemeLottery(lottery);
     router.push('/');
   }
 
