@@ -2,6 +2,7 @@
 
 import { Component, ReactNode } from 'react';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { reportError } from '../services/errorReporter';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
@@ -26,8 +27,9 @@ interface ErrorBoundaryState {
  * equivalente em hooks — por isso este é o único componente de classe do
  * projeto.
  *
- * TODO: encaminhar `componentDidCatch` para o Sentry quando o projeto
- * adotar telemetria de erros; por ora só loga no console.
+ * Erros capturados aqui vão para a telemetria (`reportError`) com o component
+ * stack — sem ele, um crash de render é indistinguível de um crash em callback
+ * assíncrono. Sem DSN configurado, `reportError` degrada para `console.error`.
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
@@ -37,7 +39,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }): void {
-    console.error('ErrorBoundary capturou um erro:', error, info.componentStack);
+    reportError(error, 'error', {
+      tags: { context: 'react-error-boundary' },
+      extras: { componentStack: info.componentStack ?? undefined },
+    });
   }
 
   handleRetry = (): void => {

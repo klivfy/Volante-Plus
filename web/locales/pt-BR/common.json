@@ -66,7 +66,8 @@
     "disable": "Desativar notificações",
     "denied": "As notificações estão bloqueadas para este site. Ative-as nas configurações do navegador para receber avisos de novos sorteios.",
     "newDrawTitle": "Volante+",
-    "newDrawBody": "{{count}} novo(s) sorteio(s) disponível(is). Toque para gerar seus jogos."
+    "newDrawBody": "{{count}} novo(s) sorteio(s) disponível(is). Toque para gerar seus jogos.",
+    "error": "Não foi possível atualizar as notificações agora. Verifique a conexão e tente novamente."
   },
   "errorBoundary": {
     "title": "Algo deu errado",

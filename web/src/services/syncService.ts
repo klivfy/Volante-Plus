@@ -68,6 +68,15 @@ async function saveSyncStatus(report: SyncReport): Promise<void> {
   await db.config.put({ key: STATUS_KEY_PREFIX + report.lottery, value: JSON.stringify(status) });
 }
 
+/** Grava o status sem derrubar a sincronização: o registro é diagnóstico, não operacional. */
+async function saveSyncStatusBestEffort(report: SyncReport): Promise<void> {
+  try {
+    await saveSyncStatus(report);
+  } catch {
+    // IndexedDB indisponível — o relatório em memória já cobre o chamador.
+  }
+}
+
 async function readSyncStatus(lottery: Lottery): Promise<StoredSyncStatus | null> {
   const record = await db.config.get(STATUS_KEY_PREFIX + lottery);
   if (!record) return null;
@@ -134,10 +143,14 @@ export async function syncNow(options: SyncOptions = {}): Promise<SyncReport[]> 
       storedContests: getStoredContests,
       save: saveDraws,
     });
-    await saveSyncStatus(report);
+    await saveSyncStatusBestEffort(report);
     reports.push(report);
   }
-  await setLastSyncAt(Date.now());
+  try {
+    await setLastSyncAt(Date.now());
+  } catch {
+    // Mesmo contrato: falha ao carimbar o timestamp não deve lançar além daqui.
+  }
   if (reports.some((r) => r.added > 0)) announceHistoryUpdate();
   return reports;
 }
@@ -149,7 +162,11 @@ export async function syncNow(options: SyncOptions = {}): Promise<SyncReport[]> 
  * chave composta, só concursos realmente inéditos aumentam a contagem.
  */
 export async function syncAndCountNew(options: SyncOptions = {}): Promise<number> {
-  await seedIfEmpty();
+  try {
+    await seedIfEmpty();
+  } catch {
+    // Mesmo tratamento de `syncNow`: sem seed, a sincronização ainda tenta.
+  }
   const before = await db.draws.count();
   await syncNow(options);
   const after = await db.draws.count();

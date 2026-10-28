@@ -10,6 +10,7 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
 } from '../services/pushService';
+import { reportUserError } from '../services/errorReporter';
 
 export interface UsePushNotificationsResult {
   /** `false` quando o navegador não tem push/notification, ou não há chave VAPID configurada. */
@@ -17,6 +18,8 @@ export interface UsePushNotificationsResult {
   permission: NotificationPermission | 'unsupported';
   subscribed: boolean;
   busy: boolean;
+  /** `true` quando a última tentativa de ativar/desativar falhou de fato (exceção, não permissão negada). */
+  failed: boolean;
   /** Pede permissão e inscreve; no-op se já inscrito ou sem suporte. */
   enable: () => Promise<void>;
   /** Cancela a inscrição de push. */
@@ -33,6 +36,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!supported) return;
@@ -40,13 +44,18 @@ export function usePushNotifications(): UsePushNotificationsResult {
     // setState dentro de callback assíncrono (não no corpo síncrono do efeito) —
     // evita o cascading render que o `react-hooks/set-state-in-effect` flagra.
     void (async () => {
-      // Cold start do backend esvaziou o store? Reenvia a inscrição que o
-      // navegador já tem — idempotente, sem pedir permissão de novo.
-      await repostSubscription();
-      const subscribed = await isSubscribedNow();
-      if (!active) return;
-      setPermission(getPermission());
-      setSubscribed(subscribed);
+      try {
+        // Cold start do backend esvaziou o store? Reenvia a inscrição que o
+        // navegador já tem — idempotente, sem pedir permissão de novo.
+        await repostSubscription();
+        const subscribed = await isSubscribedNow();
+        if (!active) return;
+        setPermission(getPermission());
+        setSubscribed(subscribed);
+      } catch {
+        // Best-effort em background (`serviceWorker.ready` rejeita, p. ex.,
+        // quando não há worker ativo): o opt-in explícito segue disponível.
+      }
     })();
     return () => {
       active = false;
@@ -56,10 +65,19 @@ export function usePushNotifications(): UsePushNotificationsResult {
   const enable = useCallback(async () => {
     if (!supported || busy) return;
     setBusy(true);
+    setFailed(false);
     try {
       const subscription = await subscribeToPush();
       setSubscribed(subscription !== null);
       setPermission(getPermission());
+    } catch (err) {
+      // `pushManager.subscribe` lança (NotAllowedError, chave inválida, worker
+      // sumido): sem isto, a rejeição vira unhandled rejection e o usuário
+      // clica sem qualquer feedback.
+      reportUserError(err instanceof Error ? err : new Error('Push subscribe failed'), {
+        tags: { context: 'push-opt-in', operation: 'subscribe' },
+      });
+      setFailed(true);
     } finally {
       setBusy(false);
     }
@@ -68,13 +86,19 @@ export function usePushNotifications(): UsePushNotificationsResult {
   const disable = useCallback(async () => {
     if (!supported || busy) return;
     setBusy(true);
+    setFailed(false);
     try {
       await unsubscribeFromPush();
       setSubscribed(false);
+    } catch (err) {
+      reportUserError(err instanceof Error ? err : new Error('Push unsubscribe failed'), {
+        tags: { context: 'push-opt-in', operation: 'unsubscribe' },
+      });
+      setFailed(true);
     } finally {
       setBusy(false);
     }
   }, [supported, busy]);
 
-  return { supported, permission, subscribed, busy, enable, disable };
+  return { supported, permission, subscribed, busy, failed, enable, disable };
 }

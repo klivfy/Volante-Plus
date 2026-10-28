@@ -156,10 +156,27 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
   const refreshAuto = useCallback(() => {
     pendingLotteryRef.current = lottery;
     setLoading(true);
-    getDraws(lottery).then((draws) => {
-      pendingLastContestRef.current = draws.length ? draws[draws.length - 1].contestNumber : undefined;
-      run({ draws, lottery, simulationsPerDraw: DEFAULT_SIMULATIONS_PER_NUMBER });
-    });
+    getDraws(lottery)
+      .then((draws) => {
+        pendingLastContestRef.current = draws.length ? draws[draws.length - 1].contestNumber : undefined;
+        run({ draws, lottery, simulationsPerDraw: DEFAULT_SIMULATIONS_PER_NUMBER });
+      })
+      .catch((err) => {
+        // Sem isto, uma falha do IndexedDB no refresh automático (ex.: evento
+        // de sincronização com o banco indisponível) vira unhandled rejection
+        // e o `loading` fica preso em `true`.
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load draws for refresh';
+        setError(errorMsg);
+        setLoading(false);
+        reportDbError(err instanceof Error ? err : new Error(errorMsg), {
+          table: `performances_${lottery}`,
+          operation: 'refresh',
+          tags: {
+            lottery: lottery.toString(),
+            source: 'auto',
+          },
+        });
+      });
   }, [lottery, run]);
 
   // Concursos novos sincronizados com o app aberto: reanalisa na hora, sem

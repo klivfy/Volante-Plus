@@ -17,20 +17,11 @@ export interface ErrorContext {
 }
 
 /**
- * Initialize Sentry for error tracking.
- * Call once at app startup (in layout or _app).
- */
-export function initializeErrorReporting(): void {
-  if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_SENTRY_DSN) {
-    return;
-  }
-
-  // Sentry is auto-initialized by @sentry/nextjs in next.config.ts
-  // This is just a hook for future initialization logic
-}
-
-/**
  * Report an error to Sentry with context and severity.
+ * A inicialização do Sentry NÃO acontece aqui: sem DSN (ou no servidor/edge),
+ * quem inicia é `instrumentation.ts` + `instrumentation-client.ts` (convenção
+ * do Next 15+/Turbopack). Este módulo só captura — e degrada para
+ * `console.error` quando não há DSN configurado.
  */
 export function reportError(
   error: Error | string,
