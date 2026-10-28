@@ -33,6 +33,10 @@ import { unpopularityPenalty } from './unpopularity';
  *    seria dividido.
  * 4. Web-only (extensão da deduplicação do Kotlin): nenhuma dezena se repete
  *    entre os jogos do lote — o lote satura em `maxDistinctGames`.
+ * 5. Web-only: nenhuma DUPLA de trevo se repete entre os jogos (modo
+ *    `ECONOMICO`). Mesma lógica da deduplicação de dezenas: eventos de trevo
+ *    menos correlacionados elevam a P(pelo menos um prêmio) do lote — o
+ *    ganho exato está quantificado em `batchOdds.ts`.
  *
  * WHY (tiers recalculados aqui): o tier gravado em cada `NumberPerformance` é
  * relativo ao universo inteiro da loteria. No modo Fechamento o universo
@@ -171,6 +175,10 @@ export function generateGames(
 
   // DEDUPLICAÇÃO ABSOLUTA: compartilhamos um Set de dezenas usadas entre todos os jogos
   const usedNumbersGlobal = new Set<number>();
+  // E o mesmo para duplas de trevo (+Milionária, modo ECONOMICO): eventos de
+  // trevo distintos entre jogos elevam P(pelo menos um prêmio) do lote —
+  // quantificado exatamente em `batchOdds.ts` (disjointBatchOdds).
+  const usedDuplas = new Set<string>();
   const games: GeneratedGame[] = [];
   const context: BuildContext = {
     gameSize: rules.numbersPerBet,
@@ -179,6 +187,7 @@ export function generateGames(
     trevoStrategy,
     trevoTiers,
     random,
+    usedDuplas,
   };
 
   // Cada jogo retira `numbersPerBet` dezenas de um bolo que não se repõe, então
@@ -195,6 +204,9 @@ export function generateGames(
         : nextDistinctGameWithGlobalDedup(games, usedNumbersGlobal, context);
     for (const number of candidate.numbers) {
       usedNumbersGlobal.add(number);
+    }
+    for (const [a, b] of candidate.trevoDuplas ?? []) {
+      usedDuplas.add(`${a}-${b}`);
     }
     games.push(candidate);
   }
@@ -242,6 +254,8 @@ interface BuildContext {
   trevoStrategy: TrevoStrategy;
   trevoTiers: NumberPerformance[][];
   random: RandomSource;
+  /** Duplas de trevo já usadas no lote (deduplicação web, modo ECONOMICO). */
+  usedDuplas: Set<string>;
 }
 
 /**
@@ -450,16 +464,25 @@ function trevoDuplas(context: BuildContext): [number, number][] {
 
 function pickTrevoDupla(context: BuildContext): [number, number] {
   const rules = lotteryRules(context.lottery);
-  const dupla = new Set<number>();
-  while (dupla.size < rules.trevosPerBet) {
-    const trevo = pickFromTiers(context.trevoTiers, dupla, context.random);
-    if (trevo === null) {
-      break;
+  let last: [number, number] = [1, 2];
+  for (let attempt = 0; attempt < MAX_DEDUP_ATTEMPTS; attempt++) {
+    const dupla = new Set<number>();
+    while (dupla.size < rules.trevosPerBet) {
+      const trevo = pickFromTiers(context.trevoTiers, dupla, context.random);
+      if (trevo === null) {
+        break;
+      }
+      dupla.add(trevo);
     }
-    dupla.add(trevo);
+    const [first, second] = [...dupla].sort((a, b) => a - b);
+    last = [first, second];
+    // Deduplicação de duplas: com C(6,2) = 15 duplas e lotes de até 4 jogos,
+    // uma dupla inédita quase sempre sai no primeiro ou segundo reesorteio.
+    if (!context.usedDuplas.has(`${first}-${second}`)) {
+      return last;
+    }
   }
-  const [first, second] = [...dupla].sort((a, b) => a - b);
-  return [first, second];
+  return last;
 }
 
 /** As C(6,2) = 15 duplas possíveis de trevos (Cobertura total). */

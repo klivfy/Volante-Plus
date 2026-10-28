@@ -463,3 +463,21 @@ describe('generateGames — estratégia padrão (BACKTEST_TIERS)', () => {
     }
   });
 });
+
+describe('generateGames — deduplicação de duplas de trevo', () => {
+  it('lote de 4 jogos da +Milionária sai com 4 duplas DISTINTAS (ECONOMICO)', () => {
+    const performances = Array.from({ length: 50 }, (_, i) => ({
+      number: i + 1,
+      hitCount: 0,
+      simulatedHitRate: 0,
+      weight: 1,
+      tier: 'mid' as const,
+    }));
+    const batch = generateGames(Lottery.MAIS_MILIONARIA, 4, performances, {
+      random: createSeededRandom(20261029),
+    });
+    expect(batch.games).toHaveLength(4);
+    const keys = batch.games.map((game) => game.trevoDuplas![0].join('-'));
+    expect(new Set(keys).size).toBe(4);
+  });
+});

@@ -526,49 +526,49 @@ exports[`golden maismilionaria > lote com semente fixa, por estratégia > BACKTE
   },
   {
     "numbers": [
-      4,
-      15,
+      16,
+      19,
+      20,
+      21,
       33,
-      35,
-      42,
       45,
     ],
     "trevoDuplas": [
       [
-        3,
-        4,
+        1,
+        6,
       ],
     ],
   },
   {
     "numbers": [
-      13,
-      17,
-      27,
+      11,
+      31,
       38,
       40,
-      43,
+      42,
+      49,
     ],
     "trevoDuplas": [
       [
         2,
-        4,
+        3,
       ],
     ],
   },
   {
     "numbers": [
       8,
-      16,
-      20,
+      17,
       26,
       32,
+      36,
       41,
     ],
     "trevoDuplas": [
       [
-        1,
-        3,
+        5,
+        6,
       ],
     ],
   },

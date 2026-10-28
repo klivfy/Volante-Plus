@@ -11,6 +11,12 @@ import { createSeededRandom } from '../random';
  * parametrizar o motor por modalidade. Mega-Sena e +Milionária têm de
  * produzir exatamente estes números depois da refatoração. Se um snapshot
  * mudar, a refatoração alterou resultado de modalidade existente.
+ *
+ * DERIVA INTENCIONAL (2026-10-29, deduplicação de duplas de trevo): os
+ * snapshots de lote da +Milionária mudaram porque `generateGames` passou a
+ * deduplicar duplas de trevo entre os jogos (modo ECONOMICO) — melhoria
+ * quantificada em `batchOdds.ts`. Mega-Sena não tem trevos: snapshots
+ * intactos. Depois desta data, novo drift volta a ser suspeita de regressão.
  */
 
 const LEGACY = [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA];
