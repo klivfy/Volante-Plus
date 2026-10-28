@@ -1,6 +1,7 @@
-@import "tailwindcss";
-
 /*
+ * Sem Tailwind: o pipeline de estilo é 100% MUI (sx + CssBaseline) — o
+ * preflight do Tailwind brigava com o CssBaseline (dois resets).
+ *
  * Cores, fundo e fonte do corpo vêm do tema MUI (`theme.ts` + `CssBaseline`), que
  * troca claro/escuro por variáveis CSS. Não redefinir `body` aqui: um segundo
  * `background`/`font-family` (antes: #0a0a0a e Arial) brigava com o tema.

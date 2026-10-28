@@ -81,16 +81,6 @@ export interface GameBatch {
 }
 
 /**
- * Configuração de um análise de backtesting.
- * Define: loteria, corte treino/validação, rounds de simulação Monte Carlo.
- */
-export interface BacktestConfig {
-  lottery: Lottery;
-  cutoffDate?: string;
-  simulationRounds: number;
-}
-
-/**
  * Relatório de backtesting.
  * Resultado completo da análise: estatísticas, distribuição de acertos, performances calculadas.
  */
