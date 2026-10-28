@@ -14,6 +14,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import BatchOddsPanel from '@/components/BatchOddsPanel';
 import EvidencePanel from '@/components/EvidencePanel';
 import GameCard from '@/components/GameCard';
 import GameCountControl from '@/components/GameCountControl';
@@ -28,6 +29,7 @@ import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } fr
 import { reportUserError, addBreadcrumb } from '@/services/errorReporter';
 import { closureCost, generateClosure, offeredGuarantees } from '@/engine/closureDesigner';
 import { generateGames, maxDistinctGames } from '@/engine/gameGenerator';
+import { BatchOdds, concreteBatchOdds, disjointBatchOdds } from '@/engine/batchOdds';
 import { bayesEvidenceFromPerformances } from '@/engine/bayesEvidence';
 import { guaranteeProbability } from '@/engine/betPlanning';
 import { numberEvidence } from '@/engine/numberEvidence';
@@ -154,6 +156,34 @@ export default function VolantePage() {
   const tickets = Number(ticketsInput) >= 1 ? Number(ticketsInput) : undefined;
   const payoutAssessment =
     generatedBatch && tickets !== undefined ? evaluatePayoutBatch(generatedBatch, tickets) : null;
+
+  // CHANCE REAL DO LOTE, EM TEMPO REAL. Antes de gerar: a prévia do
+  // lote-modelo (jogos disjuntos) acompanha o seletor "Quantos jogos" e a
+  // troca de modalidade. Depois de gerar: o painel mede o lote CONCRETO em
+  // tela, jogo a jogo (as células de Venn tratam até a sobreposição do
+  // fechamento). Nos dois casos é teto estrutural, calculado exatamente em
+  // `batchOdds.ts` — o mesmo número para qualquer combinação de dezenas.
+  const batchOddsView = useMemo<{ odds: BatchOdds; scope: 'model' | 'batch' } | null>(() => {
+    if (generatedBatch) {
+      try {
+        return {
+          odds: concreteBatchOdds(
+            generatedBatch.lottery,
+            generatedBatch.games.map((game) => game.numbers),
+            hasTrevos(generatedBatch.lottery)
+              ? generatedBatch.games.map((game) => game.trevoDuplas ?? [])
+              : undefined,
+          ),
+          scope: 'batch',
+        };
+      } catch {
+        // Lote incompatível com o cálculo — omite o painel em vez de derrubar a tela.
+        return null;
+      }
+    }
+    // Fechamento antes de gerar: a chance depende do pool marcado, não há prévia.
+    return closureMode ? null : { odds: disjointBatchOdds(lottery, batchCount), scope: 'model' };
+  }, [generatedBatch, closureMode, lottery, batchCount]);
 
   async function handleGenerate(): Promise<void> {
     setGenerating(true);
@@ -362,6 +392,14 @@ export default function VolantePage() {
               });
             })()}
           </Alert>
+        )}
+
+        {batchOddsView && (
+          <BatchOddsPanel
+            lottery={lottery}
+            odds={batchOddsView.odds}
+            scope={batchOddsView.scope}
+          />
         )}
 
         {generatedBatch && (

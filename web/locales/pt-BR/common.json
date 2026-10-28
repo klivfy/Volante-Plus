@@ -172,6 +172,19 @@
     "ticketsInput": "Apostas no concurso (opcional)",
     "ticketsInputHelp": "Necessário para medir o rateio do prêmio entre os jogos gerados"
   },
+  "batchOdds": {
+    "title": "Chance real do lote",
+    "scopeModel": "Prévia em tempo real do lote-modelo: {{games}} jogos sem dezenas repetidas.",
+    "scopeBatch": "Lote em tela: {{games}} jogos, medidos um a um.",
+    "anyPrizeLabel": "Pelo menos um prêmio no próximo sorteio",
+    "oneIn": "1 em {{oneIn}} concursos",
+    "expectedRow": "Prêmios esperados por concurso",
+    "concursosRow": "Concursos para 50% de chance acumulada",
+    "dedupGainRow": "Ganho da deduplicação de duplas de trevo",
+    "dedupGainValue": "+{{gain}} p.p.",
+    "minimumNote": "Prêmio mínimo contabilizado: {{label}}.",
+    "disclaimer": "Teto matemático do lote: vale para qualquer combinação de dezenas e não sobe com a estratégia — a estrutura do lote controla a variância, não a chance. Cada sorteio é independente; nenhum modelo prevê os números sorteados."
+  },
   "fechamento": {
     "pickLabel": "Marque suas dezenas ({{count}}/{{max}})",
     "pickAria": "Dezenas do fechamento",

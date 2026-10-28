@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { Lottery, NumberPerformance } from '../../types/domain';
 import {
   batchAnyPrizeProbability,
+  concursosForNoPrize,
   concursosNeededForTarget,
+  concreteBatchOdds,
   disjointBatchOdds,
   singleBetAnyPrizeProbability,
 } from '../batchOdds';
@@ -325,4 +327,99 @@ describe('concordância Monte Carlo do lote gerado com a teoria exata', () => {
     const sigma = Math.sqrt((exact * (1 - exact)) / trials);
     expect(Math.abs(observed - exact)).toBeLessThan(4 * sigma);
   }, 120000);
+});
+
+describe('concreteBatchOdds (lote em tela, base do painel da UI)', () => {
+  it('lote disjunto canônico reproduce disjointBatchOdds exatamente (Mega e Quina, G=1..4)', () => {
+    for (const lottery of [Lottery.MEGA_SENA, Lottery.QUINA]) {
+      const rules = lotteryRules(lottery);
+      for (let g = 1; g <= 4; g++) {
+        const games = Array.from({ length: g }, (_, i) =>
+          Array.from(
+            { length: rules.numbersPerBet },
+            (_, j) => i * rules.numbersPerBet + j + 1,
+          ),
+        );
+        const concrete = concreteBatchOdds(lottery, games);
+        const model = disjointBatchOdds(lottery, g);
+        expect(concrete.anyPrizeProbability).toBeCloseTo(model.anyPrizeProbability, 12);
+        expect(concrete.noPrizeProbability).toBeCloseTo(model.noPrizeProbability, 12);
+        expect(concrete.expectedPrizedGames).toBeCloseTo(model.expectedPrizedGames, 12);
+        expect(concrete.gamesCount).toBe(g);
+      }
+    }
+  });
+
+  it('+Milionária com duplas concretas: envelope [p, min(1, G·p)], linearidade e sem contrafactual inventado', () => {
+    const lottery = Lottery.MAIS_MILIONARIA;
+    const single = singleBetAnyPrizeProbability(lottery);
+    const games = [
+      [1, 2, 3, 4, 5, 6],
+      [7, 8, 9, 10, 11, 12],
+      [13, 14, 15, 16, 17, 18],
+      [19, 20, 21, 22, 23, 24],
+    ];
+    const duplas: [number, number][][] = [[[1, 2]], [[3, 4]], [[5, 6]], [[1, 3]]];
+    const odds = concreteBatchOdds(lottery, games, duplas);
+    expect(odds.anyPrizeProbability).toBeGreaterThanOrEqual(single - 1e-12);
+    expect(odds.anyPrizeProbability).toBeLessThanOrEqual(Math.min(1, 4 * single + 1e-12));
+    // Linearidade da esperança vale com ou sem sobreposição.
+    expect(odds.expectedPrizedGames).toBeCloseTo(4 * single, 12);
+    // O contrafactual de duplas repetidas é marginal do modelo, não do lote
+    // concreto — inventar um valor violaria a honestidade do módulo.
+    expect(odds.anyPrizeProbabilityRepeatedDuplas).toBeUndefined();
+  });
+
+  it('jogos sobrepostos (fechamento): entre o piso do jogo único e o lote disjunto', () => {
+    const overlapping = [
+      [1, 2, 3, 4, 5, 6],
+      [1, 2, 3, 4, 5, 7],
+    ];
+    const odds = concreteBatchOdds(Lottery.MEGA_SENA, overlapping);
+    const single = singleBetAnyPrizeProbability(Lottery.MEGA_SENA);
+    const disjoint = disjointBatchOdds(Lottery.MEGA_SENA, 2).anyPrizeProbability;
+    expect(odds.anyPrizeProbability).toBeGreaterThan(single);
+    expect(odds.anyPrizeProbability).toBeLessThan(disjoint);
+  });
+
+  it('valida o tamanho do lote (vazio e acima do máximo lançam)', () => {
+    expect(() => concreteBatchOdds(Lottery.QUINA, [])).toThrow(RangeError);
+    expect(() =>
+      concreteBatchOdds(Lottery.QUINA, [
+        [1, 2, 3, 4, 5],
+        [6, 7, 8, 9, 10],
+        [11, 12, 13, 14, 15],
+        [16, 17, 18, 19, 20],
+        [21, 22, 23, 24, 25],
+      ]),
+    ).toThrow(RangeError);
+  });
+});
+
+describe('concursosForNoPrize (núcleo geométrico para lotes concretos)', () => {
+  it('coincide com concursosNeededForTarget do lote-modelo', () => {
+    for (const lottery of [Lottery.MEGA_SENA, Lottery.QUINA]) {
+      const { noPrizeProbability } = disjointBatchOdds(lottery, 4);
+      expect(concursosForNoPrize(noPrizeProbability, 0.5)).toBe(
+        concursosNeededForTarget(lottery, 4, 0.5),
+      );
+    }
+  });
+
+  it('aceita o P(nenhum prêmio) de um lote concreto e satisfaz a geométrica', () => {
+    const concrete = concreteBatchOdds(Lottery.QUINA, [
+      [1, 2, 3, 4, 5],
+      [6, 7, 8, 9, 10],
+    ]);
+    const n = concursosForNoPrize(concrete.noPrizeProbability, 0.5);
+    expect(1 - Math.pow(concrete.noPrizeProbability, n)).toBeGreaterThanOrEqual(0.5);
+    expect(1 - Math.pow(concrete.noPrizeProbability, n - 1)).toBeLessThan(0.5);
+  });
+
+  it('rejeita entradas fora de (0, 1)', () => {
+    expect(() => concursosForNoPrize(0, 0.5)).toThrow(RangeError);
+    expect(() => concursosForNoPrize(1, 0.5)).toThrow(RangeError);
+    expect(() => concursosForNoPrize(0.5, 0)).toThrow(RangeError);
+    expect(() => concursosForNoPrize(0.5, 1)).toThrow(RangeError);
+  });
 });

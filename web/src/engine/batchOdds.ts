@@ -239,6 +239,42 @@ export function batchAnyPrizeProbability(
   return 1 - batchNoPrizeProbability(lottery, games, trevoDuplas);
 }
 
+/**
+ * Chances EXATAS de um lote CONCRETO — os jogos que estão em tela, um a um.
+ *
+ * É o complemento necessário do `disjointBatchOdds`: o modelo marginal descreve
+ * o lote-pattern do gerador (jogos disjuntos canônicos), mas a UI precisa medir
+ * o lote REAL, inclusive lotes de fechamento, cujos jogos se SOBREPÕEM dentro
+ * do pool — e sobreposição reduz P(pelo menos um prêmio) em relação ao lote
+ * disjunto. As células de Venn de `batchNoPrizeProbability` tratam qualquer
+ * configuração, então o número aqui é o valor exato do lote exibido, não uma
+ * aproximação.
+ *
+ * Na +Milionária o contrafactual de duplas repetidas (campo
+ * `anyPrizeProbabilityRepeatedDuplas`) fica `undefined`: ele é uma marginal
+ * sobre configurações de duplas e não tem análogo exato para duplas concretas —
+ * inventá-lo violaria o padrão de honestidade do módulo.
+ */
+export function concreteBatchOdds(
+  lottery: Lottery,
+  games: readonly (readonly number[])[],
+  trevoDuplas?: ReadonlyArray<readonly (readonly [number, number])[]>,
+): BatchOdds {
+  if (games.length < 1 || games.length > MAX_BATCH_GAMES) {
+    throw new RangeError(
+      `O lote precisa de 1..${MAX_BATCH_GAMES} jogos (recebido: ${games.length})`,
+    );
+  }
+  const anyPrize = batchAnyPrizeProbability(lottery, games, trevoDuplas);
+  return {
+    gamesCount: games.length,
+    noPrizeProbability: 1 - anyPrize,
+    anyPrizeProbability: anyPrize,
+    // Linearidade da esperança: vale exatamente, com ou sem sobreposição.
+    expectedPrizedGames: games.length * singleBetAnyPrizeProbability(lottery),
+  };
+}
+
 /** Chances do lote-modelo do app: G jogos disjuntos (+ duplas distintas na +Mili). */
 export interface BatchOdds {
   gamesCount: number;
@@ -330,21 +366,37 @@ function popcount(mask: number): number {
 }
 
 /**
+ * Núcleo geométrico da função acima, exposto para lotes CONCRETOS: dado o
+ * P(nenhum prêmio) de qualquer lote (ex.: `concreteBatchOdds` de um lote em
+ * tela), quantos concursos independentes — repetindo o mesmo lote — atingem o
+ * alvo de "pelo menos um prêmio mínimo". Fórmula exata: n = ⌈log(1-alvo) / log(P-sem-prêmio)⌉.
+ */
+export function concursosForNoPrize(
+  noPrizeProbability: number,
+  targetProbability: number,
+): number {
+  if (!Number.isFinite(noPrizeProbability) || noPrizeProbability <= 0 || noPrizeProbability >= 1) {
+    throw new RangeError('noPrizeProbability deve estar estritamente entre 0 e 1');
+  }
+  if (!Number.isFinite(targetProbability) || targetProbability <= 0 || targetProbability >= 1) {
+    throw new RangeError('targetProbability deve estar estritamente entre 0 e 1');
+  }
+  return Math.max(
+    1,
+    Math.ceil(Math.log(1 - targetProbability) / Math.log(noPrizeProbability)),
+  );
+}
+
+/**
  * Quantos CONCURSOS independentes são necessários para atingir a probabilidade
  * alvo de "pelo menos um prêmio mínimo", jogando o lote-modelo de `gamesCount`
- * jogos em cada concurso. Fórmula exata da geométrica: n = ⌈log(1-alvo) / log(P-sem-prêmio)⌉.
+ * jogos em cada concurso. Delegação direta ao núcleo `concursosForNoPrize`.
  */
 export function concursosNeededForTarget(
   lottery: Lottery,
   gamesCount: number,
   targetProbability: number,
 ): number {
-  if (!Number.isFinite(targetProbability) || targetProbability <= 0 || targetProbability >= 1) {
-    throw new RangeError('targetProbability deve estar estritamente entre 0 e 1');
-  }
   const { noPrizeProbability } = disjointBatchOdds(lottery, gamesCount);
-  const needed = Math.ceil(
-    Math.log(1 - targetProbability) / Math.log(noPrizeProbability),
-  );
-  return Math.max(1, needed);
+  return concursosForNoPrize(noPrizeProbability, targetProbability);
 }
