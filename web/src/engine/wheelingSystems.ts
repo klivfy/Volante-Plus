@@ -51,6 +51,14 @@ export function generateWheelGreedy(
   if (guarantee > gameSize || guarantee > pool.length) {
     throw new RangeError('Garantia inválida: não pode exceder o tamanho do jogo ou do pool');
   }
+  // Sem isto, `combinations(pool, gameSize)` devolve [] e a função retorna um
+  // wheel VAZIO "com garantia" — pior que lançar: o chamador exibe 0 jogos
+  // como se a garantia estivesse coberta.
+  if (gameSize > pool.length) {
+    throw new RangeError(
+      'Tamanho do jogo maior que o pool: nenhuma combinação é possível',
+    );
+  }
   // WHY (limite de pool): a heurística é O(|combos gameSize| × |combos guarantee|)
   // por iteração — em pools grandes (ex.: 15, o máximo do modo Fechamento)
   // isso explode para milhões de operações e trava a UI. 12 é o maior pool em
@@ -121,6 +129,14 @@ export const WHEEL_10_6_4: readonly number[][] = generateWheelGreedy(
 export function applyWheel(wheel: readonly number[][], userNumbers: number[]): number[][] {
   if (userNumbers.length < 10) {
     throw new RangeError('O wheel C(10,6,4) requer pelo menos 10 dezenas marcadas');
+  }
+  // Mais de 10 precisa ser erro, não truncamento: com 12 dezenas informadas,
+  // usar só as 10 menores deixaria 2 fora de TODOS os jogos — a "garantia
+  // matemática de quadra" exibida não cobriria o pool que o usuário marcou.
+  if (userNumbers.length > 10) {
+    throw new RangeError(
+      'O wheel C(10,6,4) cobre exatamente 10 dezenas — reduza a seleção para 10',
+    );
   }
   const selected = [...userNumbers].sort((a, b) => a - b).slice(0, 10);
   return wheel.map((game) => game.map((position) => selected[position - 1]));

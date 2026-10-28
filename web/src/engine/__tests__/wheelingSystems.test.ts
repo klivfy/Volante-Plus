@@ -76,3 +76,17 @@ describe('generateWheelGreedy', () => {
     expect(() => generateWheelGreedy([1, 2, 3, 4, 5, 6], 6, 7)).toThrow(RangeError);
   });
 });
+
+describe('guards de entrada (Onda 5)', () => {
+  it('applyWheel rejeita mais de 10 dezenas em vez de truncar em silêncio', () => {
+    const eleven = Array.from({ length: 11 }, (_, i) => i + 1);
+    // Truncar usaria só as 10 menores e a "garantia de quadra" exibida não
+    // cobriria a 11ª dezena marcada — tem de ser erro explícito.
+    expect(() => applyWheel(WHEEL_10_6_4, eleven)).toThrow(RangeError);
+  });
+
+  it('generateWheelGreedy rejeita gameSize maior que o pool (wheel vazio "com garantia")', () => {
+    // Antes: combinations([], 6) = [] → devolvia 0 jogos como se cobrisse.
+    expect(() => generateWheelGreedy([1, 2, 3, 4, 5], 6, 3)).toThrow(RangeError);
+  });
+});
