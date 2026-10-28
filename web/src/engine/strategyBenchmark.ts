@@ -151,6 +151,10 @@ export function runStrategyBenchmark(
 
   const performances = analyzeBacktest(training, lottery, options.simulationRounds, { random });
   const rules = lotteryRules(lottery);
+  // O benchmark conta prêmios só por dezenas, mas o baseline completo segue
+  // valendo: as faixas oficiais da +Milionária cobrem todos os resultados de
+  // trevos (0..2) para dezenas premiadas, então P(algum prêmio) coincide com
+  // a soma só de dezenas (ver doc de `anyPrizeProbability`).
   const p0 = anyPrizeProbability(lottery);
 
   const strategies: StrategyName[] = [

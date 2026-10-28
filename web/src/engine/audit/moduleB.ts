@@ -155,6 +155,9 @@ export function runModuleB(dataset: DrawDataset): ModuleBReport {
   // da fatia reservada, cada corte com seu próprio teste binomial contra p0 —
   // o mesmo desenho de `multiCutWalkForward`, mas restrito à confirmação e a
   // uma única estratégia (a seleção já gastou o orçamento de comparações).
+  // A auditoria conta prêmios só por dezenas, mas o baseline completo segue
+  // valendo: as faixas da +Milionária cobrem todos os trevos para dezenas
+  // premiadas, então P(algum prêmio) coincide com a soma só de dezenas.
   const p0 = anyPrizeProbability(lottery);
   const confirmationOrdered = chronological(confirmationDraws);
   const cuts: { pValue: number; advantageSign: number }[] = [];
