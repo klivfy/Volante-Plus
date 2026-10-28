@@ -89,4 +89,27 @@ describe('guards de entrada (Onda 5)', () => {
     // Antes: combinations([], 6) = [] → devolvia 0 jogos como se cobrisse.
     expect(() => generateWheelGreedy([1, 2, 3, 4, 5], 6, 3)).toThrow(RangeError);
   });
+
+  it('rejeita garantia e tamanho de jogo não positivos ou fracionários', () => {
+    // Garantia 0 "crescia" o combo vazio com 1 jogo; gameSize fracionário
+    // produzia combinações sem sentido — inputs impossíveis lançam.
+    expect(() => generateWheelGreedy([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 6, 0)).toThrow(RangeError);
+    expect(() => generateWheelGreedy([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0, 1)).toThrow(RangeError);
+    expect(() => generateWheelGreedy([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 6.5, 2)).toThrow(RangeError);
+  });
+
+  it('applyWheel exige 10 dezenas DISTINTAS: repetição não cobre o wheel', () => {
+    // Exatamente 10 marcadas, mas só 5 distintas: a duplicata vazaria para os
+    // jogos e um jogo "de 6" sairia com menos de 6 dezenas distintas — a
+    // garantia combinatória deixaria de valer.
+    expect(() => applyWheel(WHEEL_10_6_4, [1, 1, 2, 2, 3, 3, 4, 4, 5, 5])).toThrow(RangeError);
+  });
+
+  it('applyWheel mantém as 10 dezenas distintas mapeadas sem duplicar jogos', () => {
+    const userNumbers = [7, 3, 9, 1, 8, 2, 10, 4, 6, 5];
+    const games = applyWheel(WHEEL_10_6_4, userNumbers);
+    for (const game of games) {
+      expect(new Set(game).size).toBe(6); // 6 dezenas distintas por jogo
+    }
+  });
 });

@@ -46,6 +46,53 @@ describe('simulateBankroll', () => {
     expect(result.totalSpent).toBe(0);
     expect(result.maxDrawdown).toBe(0);
   });
+
+  it('conta prêmio mesmo quando a tabela não tem valor para a faixa', () => {
+    const history = generateSyntheticHistory(Lottery.MEGA_SENA, 4, { seed: 45 });
+    // Jogos determinísticos: frequency-pure usa sempre as 6 dezenas de maior
+    // peso. Damos peso máximo às dezenas do concurso 1 -> todos os jogos
+    // acertam a sena nesse concurso, independentemente do RNG.
+    const drawNumbers = history[0].numbers;
+    const performances = Array.from({ length: 60 }, (_, i) => ({
+      number: i + 1,
+      hitCount: drawNumbers.includes(i + 1) ? 10 : 0,
+      simulatedHitRate: drawNumbers.includes(i + 1) ? 1 : 0,
+      weight: drawNumbers.includes(i + 1) ? 1 : 0,
+      tier: (drawNumbers.includes(i + 1) ? 'top' : 'low') as 'top' | 'low',
+    }));
+
+    const result = simulateBankroll(
+      { initialBankroll: 1_000_000, ticketCost: 5, gamesPerWeek: 3, weeks: 2, strategy: 'frequency-pure' },
+      history,
+      Lottery.MEGA_SENA,
+      performances,
+      {}, // tabela vazia: prêmio existe, valor não definido
+      createSeededRandom(9),
+    );
+
+    expect(result.hitCount['6']).toBe(3); // 3 jogos da semana 1 acertaram a sena
+    expect(result.totalWon).toBe(0); // sem valor na tabela, não injeta dinheiro
+    expect(result.bankrupt).toBe(false);
+  });
+
+  it('não gasta em semanas sem concurso no histórico', () => {
+    const history = generateSyntheticHistory(Lottery.MEGA_SENA, 5, { seed: 46 });
+    const performances = analyzeBacktest(history, Lottery.MEGA_SENA, 5);
+
+    const result = simulateBankroll(
+      { initialBankroll: 10_000, ticketCost: 5, gamesPerWeek: 2, weeks: 20, strategy: 'random-uniform' },
+      history,
+      Lottery.MEGA_SENA,
+      performances,
+      PRIZE_TABLE,
+      createSeededRandom(3),
+    );
+
+    // 5 concursos disponíveis, não 20 semanas: apostar contra concurso
+    // inexistente inflava totalSpent sem chance de prêmio.
+    expect(result.totalSpent).toBe(5 * 2 * 5);
+    expect(result.bankrupt).toBe(false);
+  });
 });
 
 describe('monteCarloBankroll', () => {

@@ -48,6 +48,12 @@ export function generateWheelGreedy(
   gameSize: number,
   guarantee: number,
 ): number[][] {
+  // WHY (guardas de inteiro/positividade): garantia 0 cobria o combo vazio
+  // com 1 jogo e gameSize 0/fracucionário produzia resultados sem sentido;
+  // inputs impossíveis devem lançar, não silenciar.
+  if (!Number.isInteger(gameSize) || gameSize < 1 || !Number.isInteger(guarantee) || guarantee < 1) {
+    throw new RangeError('Tamanho do jogo e garantia devem ser inteiros >= 1');
+  }
   if (guarantee > gameSize || guarantee > pool.length) {
     throw new RangeError('Garantia inválida: não pode exceder o tamanho do jogo ou do pool');
   }
@@ -138,7 +144,14 @@ export function applyWheel(wheel: readonly number[][], userNumbers: number[]): n
       'O wheel C(10,6,4) cobre exatamente 10 dezenas — reduza a seleção para 10',
     );
   }
-  const selected = [...userNumbers].sort((a, b) => a - b).slice(0, 10);
+  // WHY (dedup antes de mapear): 10 marcadas com repetição (< 10 distintas)
+  // vazariam a duplicata para os jogos — um jogo "de 6" sairia com menos de
+  // 6 dezenas distintas e a garantia combinatória deixaria de valer.
+  const selected = Array.from(new Set(userNumbers));
+  if (selected.length < 10) {
+    throw new RangeError('O wheel C(10,6,4) requer 10 dezenas DISTINTAS');
+  }
+  selected.sort((a, b) => a - b);
   return wheel.map((game) => game.map((position) => selected[position - 1]));
 }
 

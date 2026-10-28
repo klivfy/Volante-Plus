@@ -118,6 +118,7 @@
       "expectedGap": "Intervalo esperado",
       "walkForwardTitle": "Estabilidade no tempo (walk-forward multi-corte)",
       "walkForwardSummary": "{{cuts}} cortes analisados · {{advantage}} com vantagem significativa · {{disadvantage}} com desvantagem significativa · consistência de sinal {{consistency}}",
+      "walkForwardCorrected": "Após correção de Bonferroni (alfa = {{alpha}} para {{cuts}} cortes): {{advantage}} com vantagem, {{disadvantage}} com desvantagem — sob o acaso, o esperado aqui é 0; contagens cruas inflam falsos positivos (~1 em cada 20 cortes).",
       "footnote": "p > 0,05 nos testes de fairness é o resultado esperado para uma loteria justa. Um sinal isolado não prova enviesamento — vários testes independentes apontando na mesma direção seriam necessários."
     },
     "benchmark": {

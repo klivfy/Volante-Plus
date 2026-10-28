@@ -34,10 +34,13 @@ export interface ScenarioResult {
 }
 
 /**
- * Roda um cenário sobre uma sequência real de sorteios (`draws`, já
- * ordenados cronologicamente e restritos a `scenario.weeks` concursos).
- * `prizeTable` mapeia `PrizeTier.key -> valor pago` (dado externo — o engine
- * não conhece valores de prêmio, só probabilidades).
+ * Roda um cenário sobre uma sequência real de sorteios (`draws`, ordenados
+ * cronologicamente do mais antigo para o mais recente). O cenário usa os
+ * primeiros `weeks` concursos disponíveis — semanas sem concurso no histórico
+ * não entram na simulação (não há como apostar "contra" um concurso que não
+ * existe). `prizeTable` mapeia `PrizeTier.key -> valor pago` (dado externo —
+ * o engine não conhece valores de prêmio, só probabilidades; faixa sem valor
+ * na tabela ainda conta como prêmio em `hitCount`, só não injeta dinheiro).
  */
 export function simulateBankroll(
   scenario: BankrollScenario,
@@ -55,8 +58,12 @@ export function simulateBankroll(
   const hitCount: Record<string, number> = {};
 
   const weeklyDraws = draws.slice(0, scenario.weeks);
+  // WHY (semanas efetivas): semanas além do histórico disponível não têm
+  // concurso para validar as apostas — gastar nelas inflaria `totalSpent`
+  // sem nenhuma chance de prêmio, distorcendo drawdown e taxa de falência.
+  const effectiveWeeks = Math.min(scenario.weeks, weeklyDraws.length);
 
-  for (let week = 0; week < scenario.weeks; week++) {
+  for (let week = 0; week < effectiveWeeks; week++) {
     const weeklyCost = scenario.ticketCost * scenario.gamesPerWeek;
 
     if (bankroll < weeklyCost) {
@@ -85,11 +92,17 @@ export function simulateBankroll(
       for (const numbers of games) {
         const hits = numbers.filter((n) => draw.numbers.includes(n)).length;
         const tier = classifyHits(lottery, hits);
-        if (tier && prizeTable[tier.key]) {
-          const prize = prizeTable[tier.key];
-          bankroll += prize;
-          totalWon += prize;
+        if (tier) {
+          // WHY (contar sempre, pagar só com valor): um prêmio ganho é um
+          // prêmio mesmo que a tabela não tenha o valor (ou valha 0) —
+          // `hitCount` e `probAnyPrize` medem frequência de acerto, não
+          // caixa; o dinheiro só entra quando a tabela define um valor > 0.
           hitCount[tier.key] = (hitCount[tier.key] ?? 0) + 1;
+          const prize = prizeTable[tier.key];
+          if (prize > 0) {
+            bankroll += prize;
+            totalWon += prize;
+          }
         }
       }
     }

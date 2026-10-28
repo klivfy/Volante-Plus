@@ -28,6 +28,31 @@ export interface WalkForwardCutResult {
 }
 
 /**
+ * Adiciona `months` meses mantendo TODA a aritmética em UTC.
+ *
+ * WHY (UTC, não fuso local): as datas do histórico são strings 'YYYY-MM-DD',
+ * que o JS parseia como UTC meia-noite. Misturar isso com `setMonth`/`setFullYear`
+ * (que operam no fuso local) e `toISOString` (UTC de novo) desloca o corte em
+ * 1 dia quando o dispositivo não está em UTC (ex.: UTC+5 faz Date('2014-03-01')
+ * virar 2014-02-28T19:00Z; +4 anos virava '2018-02-28' em vez de '2018-03-01')
+ * — o split treino/validação mudava com o fuso do usuário e o relatório deixava
+ * de ser reproduzível. Clampa o dia ao último dia do mês destino (31/Jan + 1
+ * mês = 28/29 Fev) para o avanço de cortes nunca derrapar para o mês seguinte.
+ */
+export function addMonthsUTC(date: Date, months: number): Date {
+  const total = date.getUTCFullYear() * 12 + date.getUTCMonth() + months;
+  const year = Math.floor(total / 12);
+  const month = total % 12;
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month, Math.min(date.getUTCDate(), daysInMonth)));
+}
+
+/** Data ISO 'YYYY-MM-DD' a partir dos componentes UTC (sem envolver fuso local). */
+export function toUTCDateString(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
  * Executa o backtest em cortes sucessivos, avançando `stepMonths` a cada
  * iteração, a partir de `firstCutoffYears` anos após o primeiro concurso
  * disponível (janela mínima de treino) até `stepMonths` antes do último
@@ -51,18 +76,19 @@ export function multiCutWalkForward(
   const lastDate = new Date(sorted[sorted.length - 1].date);
   const p0 = anyPrizeProbability(lottery);
 
-  const currentCutoff = new Date(firstDate);
-  currentCutoff.setFullYear(currentCutoff.getFullYear() + firstCutoffYears);
+  // Aritmética UTC pura: parsear 'YYYY-MM-DD' já produz UTC meia-noite, e os
+  // incrementos abaixo nunca tocam métodos de fuso local (ver addMonthsUTC).
+  const currentCutoff = addMonthsUTC(firstDate, firstCutoffYears * 12);
 
   const results: WalkForwardCutResult[] = [];
 
-  while (currentCutoff <= lastDate) {
-    const cutoffStr = currentCutoff.toISOString().slice(0, 10);
+  while (currentCutoff.getTime() <= lastDate.getTime()) {
+    const cutoffStr = toUTCDateString(currentCutoff);
     const training = sorted.filter((d) => d.date <= cutoffStr);
     const validation = sorted.filter((d) => d.date > cutoffStr);
 
     if (validation.length < minValidation || training.length === 0) {
-      currentCutoff.setMonth(currentCutoff.getMonth() + stepMonths);
+      currentCutoff.setTime(addMonthsUTC(currentCutoff, stepMonths).getTime());
       continue;
     }
 
@@ -70,7 +96,7 @@ export function multiCutWalkForward(
     try {
       report = runBacktest(lottery, training, validation, options);
     } catch {
-      currentCutoff.setMonth(currentCutoff.getMonth() + stepMonths);
+      currentCutoff.setTime(addMonthsUTC(currentCutoff, stepMonths).getTime());
       continue;
     }
 
@@ -87,7 +113,7 @@ export function multiCutWalkForward(
       significant: pValue < 0.05,
     });
 
-    currentCutoff.setMonth(currentCutoff.getMonth() + stepMonths);
+    currentCutoff.setTime(addMonthsUTC(currentCutoff, stepMonths).getTime());
   }
 
   return results;
@@ -101,6 +127,19 @@ export interface StabilityAnalysis {
   meanAdvantage: number;
   /** Fração de cortes cujo sinal (vantagem/desvantagem) concorda com a maioria. */
   consistency: number;
+  /** Alpha corrigido por Bonferroni (0.05 / totalCuts) aplicado aos cortes. */
+  correctedAlpha: number;
+  /**
+   * Contagens após correção de Bonferroni — o padrão sob H0 é 0/0.
+   *
+   * WHY: o walk-forward testa N cortes contra o mesmo histórico; sem correção,
+   * H0 prevê ~N/20 cortes "significativos" por puro acaso (40 cortes a 5% →
+   * ~2 falsos positivos esperados). Comparar as contagens cruas com estas é o
+   * que separa ruído de sinal (mesma lógica de `multipleComparisons.ts`, que
+   * o benchmark de estratégias já usa).
+   */
+  significantAdvantageCorrected: number;
+  significantDisadvantageCorrected: number;
 }
 
 /**
@@ -120,11 +159,15 @@ export function stabilityAnalysis(results: WalkForwardCutResult[]): StabilityAna
       significantDisadvantage: 0,
       meanAdvantage: 0,
       consistency: 0,
+      correctedAlpha: 0.05,
+      significantAdvantageCorrected: 0,
+      significantDisadvantageCorrected: 0,
     };
   }
 
   const advantages = results.map((r) => r.meanHits - r.expectedMeanHits);
   const positive = advantages.filter((a) => a > 0).length;
+  const correctedAlpha = 0.05 / results.length;
 
   return {
     totalCuts: results.length,
@@ -135,5 +178,12 @@ export function stabilityAnalysis(results: WalkForwardCutResult[]): StabilityAna
     ).length,
     meanAdvantage: advantages.reduce((a, b) => a + b, 0) / advantages.length,
     consistency: Math.max(positive, results.length - positive) / results.length,
+    correctedAlpha,
+    significantAdvantageCorrected: results.filter(
+      (r) => r.pValue < correctedAlpha && r.meanHits > r.expectedMeanHits,
+    ).length,
+    significantDisadvantageCorrected: results.filter(
+      (r) => r.pValue < correctedAlpha && r.meanHits < r.expectedMeanHits,
+    ).length,
   };
 }

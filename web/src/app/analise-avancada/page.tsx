@@ -247,6 +247,14 @@ function FairnessSection({ lottery }: { lottery: Lottery }) {
                 consistency: percent.format(stability.consistency),
               })}
             </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t('advanced.fairness.walkForwardCorrected', {
+                advantage: stability.significantAdvantageCorrected,
+                disadvantage: stability.significantDisadvantageCorrected,
+                cuts: stability.totalCuts,
+                alpha: percent.format(stability.correctedAlpha),
+              })}
+            </Typography>
           </>
         )}
 
