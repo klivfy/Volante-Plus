@@ -52,10 +52,15 @@ export const MEGA_SENA_TIERS: readonly PrizeTier[] = [
 ];
 
 /**
- * +Milionária: nove faixas, cruzando 6/5/4 dezenas com 2/1/0 trevos.
+ * +Milionária: as 10 faixas oficiais (spec `002-generation-five-families`,
+ * espelhando `PrizeRules.kt`).
  *
- * WHY: a faixa mais baixa exige 4 dezenas; combinações com 3 ou menos dezenas
- * não pagam, independentemente dos trevos — por isso não aparecem aqui.
+ * As faixas 2/4/6 do jogo oficial agrupam 1 OU 0 trevos (`6+1/0`, `5+1/0`,
+ * `4+1/0`); aqui elas ficam desdobradas em entradas separadas — equivalente
+ * em probabilidade e classificação, e preserva as chaves já publicadas em
+ * relatórios. As 4 faixas de prêmio FIXO do jogo oficial (3+2, 3+1, 2+2, 2+1)
+ * também entram: omiti-las subestimava P(prêmio) em ~96× (P real 0,0878,
+ * 1 em 11,4, contra 0,0009 da tabela antiga) — a mesma classe do H-1 da Quina.
  */
 export const MAIS_MILIONARIA_TIERS: readonly PrizeTier[] = [
   { key: '6+2', label: '6 dezenas + 2 trevos', numberHits: 6, trevoHits: 2 },
@@ -67,6 +72,21 @@ export const MAIS_MILIONARIA_TIERS: readonly PrizeTier[] = [
   { key: '4+2', label: '4 dezenas + 2 trevos', numberHits: 4, trevoHits: 2 },
   { key: '4+1', label: '4 dezenas + 1 trevo', numberHits: 4, trevoHits: 1 },
   { key: '4+0', label: '4 dezenas', numberHits: 4, trevoHits: 0 },
+  { key: '3+2', label: '3 dezenas + 2 trevos', numberHits: 3, trevoHits: 2 },
+  { key: '3+1', label: '3 dezenas + 1 trevo', numberHits: 3, trevoHits: 1 },
+  { key: '2+2', label: '2 dezenas + 2 trevos', numberHits: 2, trevoHits: 2 },
+  { key: '2+1', label: '2 dezenas + 1 trevo', numberHits: 2, trevoHits: 1 },
+];
+
+/**
+ * Prêmios FIXOS das faixas 7–10 da +Milionária, em reais (definidos em regulamento,
+ * não rateados). Dado externo ao engine, consumido pela UI de valor esperado.
+ */
+export const MAIS_MILIONARIA_FIXED_PRIZES: readonly { tier: string; amount: number }[] = [
+  { tier: '3+2', amount: 50 },
+  { tier: '3+1', amount: 24 },
+  { tier: '2+2', amount: 12 },
+  { tier: '2+1', amount: 6 },
 ];
 
 /** Quina: quina, quadra, terno e duque (sem trevos). */

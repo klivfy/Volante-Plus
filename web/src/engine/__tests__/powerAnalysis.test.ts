@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Lottery } from '../../types/domain';
 import {
   anyPrizeProbability,
+  prizeProbabilityByNumbersAlone,
   currentPower,
   expectedHitsFor,
   hypergeometricStdDev,
@@ -74,6 +75,33 @@ describe('powerTable', () => {
   });
 });
 
+
+describe('prizeProbabilityByNumbersAlone — baseline só-de-dezenas (Onda 5)', () => {
+  it('coincide com anyPrizeProbability nas loterias sem trevo', () => {
+    expect(prizeProbabilityByNumbersAlone(Lottery.MEGA_SENA)).toBeCloseTo(
+      anyPrizeProbability(Lottery.MEGA_SENA),
+      15,
+    );
+    expect(prizeProbabilityByNumbersAlone(Lottery.QUINA)).toBeCloseTo(
+      anyPrizeProbability(Lottery.QUINA),
+      15,
+    );
+  });
+
+  it('+Milionária: é a soma P(4)+P(5)+P(6) — MENOR que o baseline completo', () => {
+    // As 4 faixas fixas (2+1/2+2/3+1/3+2) exigem trevo: não podem entrar no
+    // baseline de contagens que ignoram trevos (benchmark/Módulo B).
+    const sumDezenas =
+      hypergeometricProbability(50, 6, 6, 4) +
+      hypergeometricProbability(50, 6, 6, 5) +
+      hypergeometricProbability(50, 6, 6, 6);
+    expect(prizeProbabilityByNumbersAlone(Lottery.MAIS_MILIONARIA)).toBeCloseTo(sumDezenas, 15);
+    expect(prizeProbabilityByNumbersAlone(Lottery.MAIS_MILIONARIA)).toBeLessThan(
+      anyPrizeProbability(Lottery.MAIS_MILIONARIA),
+    );
+  });
+});
+
 describe('anyPrizeProbability — baseline pelas faixas oficiais (H-1)', () => {
   const pOf = (lottery: Lottery, hits: number) => {
     const rules = lotteryRules(lottery);
@@ -105,9 +133,10 @@ describe('anyPrizeProbability — baseline pelas faixas oficiais (H-1)', () => {
     expect(baseline).toBeGreaterThan(oldBroken * 1000);
   });
 
-  it('+Milionária: soma as nove faixas oficiais cruzando dezenas e trevos', () => {
+  it('+Milionária: soma as 10 faixas oficiais — dezenas×trevos mais os 4 prêmios fixos', () => {
     // Direto das faixas: 4..6 dezenas × 0..2 trevos, com P(trevos=t) =
-    // hipergeométrica(6, 2, 2, t).
+    // hipergeométrica(6, 2, 2, t), MAIS as faixas fixas 3+2, 3+1, 2+2, 2+1
+    // (regulamento oficial; espelho de PrizeRules.kt).
     let expected = 0;
     for (let hits = 4; hits <= 6; hits++) {
       for (let trevoHits = 0; trevoHits <= 2; trevoHits++) {
@@ -116,15 +145,32 @@ describe('anyPrizeProbability — baseline pelas faixas oficiais (H-1)', () => {
           hypergeometricProbability(6, 2, 2, trevoHits);
       }
     }
+    for (const [hits, trevoHits] of [[3, 2], [3, 1], [2, 2], [2, 1]] as const) {
+      expected +=
+        pOf(Lottery.MAIS_MILIONARIA, hits) *
+        hypergeometricProbability(6, 2, 2, trevoHits);
+    }
     expect(anyPrizeProbability(Lottery.MAIS_MILIONARIA)).toBeCloseTo(expected, 15);
+    // Constante de validação do spec official-rules.md: P(qualquer prêmio) na
+    // aposta simples = 0,0877961323 (1 em ~11,4). A tabela sem as faixas fixas
+    // devolvia 0,0009097 (~96,5× menor) — a mesma classe do bug H-1 da Quina.
+    expect(anyPrizeProbability(Lottery.MAIS_MILIONARIA)).toBeCloseTo(0.0877961323, 8);
   });
 
-  it('+Milionária: as faixas cobrem todos os trevos — o baseline coincide com a soma por dezenas', () => {
+  it('+Milionária: as faixas fixas 2+1/2+2/3+1/3+2 elevam o baseline acima da soma por dezenas', () => {
     // Para dezenas premiadas (4..6), as faixas 4/5/6 × trevos 0/1/2 cobrem
-    // TODO o espaço de trevos, então Σ P(h)·Σ P(t) = Σ P(h). O baseline é
-    // válido tanto para contagens com trevos (runBacktest) quanto sem
-    // (benchmark/auditoria).
+    // TODO o espaço de trevos (Σ P(h)·Σ P(t) = Σ P(h)). Mas o baseline oficial
+    // vai além: as faixas fixas premiam com 2..3 dezenas acertadas (se o trevo
+    // acertar), então anyPrize > Σ P(4..6) — e a diferença é a soma delas.
     const sumDezenas = pOf(Lottery.MAIS_MILIONARIA, 4) + pOf(Lottery.MAIS_MILIONARIA, 5) + pOf(Lottery.MAIS_MILIONARIA, 6);
-    expect(anyPrizeProbability(Lottery.MAIS_MILIONARIA)).toBeCloseTo(sumDezenas, 12);
+    const baseline = anyPrizeProbability(Lottery.MAIS_MILIONARIA);
+    expect(baseline).toBeGreaterThan(sumDezenas);
+    let fixedSum = 0;
+    for (const [hits, trevoHits] of [[3, 2], [3, 1], [2, 2], [2, 1]] as const) {
+      fixedSum +=
+        pOf(Lottery.MAIS_MILIONARIA, hits) *
+        hypergeometricProbability(6, 2, 2, trevoHits);
+    }
+    expect(baseline).toBeCloseTo(sumDezenas + fixedSum, 12);
   });
 });

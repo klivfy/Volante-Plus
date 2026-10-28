@@ -1,7 +1,7 @@
 import { Draw, Lottery, NumberPerformance } from '../types/domain';
 import { analyzeBacktest } from './backtestAnalyzer';
 import { generateGames } from './gameGenerator';
-import { anyPrizeProbability } from './powerAnalysis';
+import { prizeProbabilityByNumbersAlone } from './powerAnalysis';
 import { lotteryRules, classifyHits } from './prizeRules';
 import { createSeededRandom, defaultRandom, RandomSource } from './random';
 import { binomialExactTest } from './statisticalTests';
@@ -151,11 +151,11 @@ export function runStrategyBenchmark(
 
   const performances = analyzeBacktest(training, lottery, options.simulationRounds, { random });
   const rules = lotteryRules(lottery);
-  // O benchmark conta prêmios só por dezenas, mas o baseline completo segue
-  // valendo: as faixas oficiais da +Milionária cobrem todos os resultados de
-  // trevos (0..2) para dezenas premiadas, então P(algum prêmio) coincide com
-  // a soma só de dezenas (ver doc de `anyPrizeProbability`).
-  const p0 = anyPrizeProbability(lottery);
+  // O benchmark conta prêmios só por dezenas (`classifyHits(lottery, hits)`),
+  // então o baseline tem de ser o da mesma unidade: na +Milionária,
+  // `anyPrizeProbability` incluiria as faixas fixas dependentes de trevo e
+  // inflaria a referência ~96× — ver `prizeProbabilityByNumbersAlone`.
+  const p0 = prizeProbabilityByNumbersAlone(lottery);
 
   const strategies: StrategyName[] = [
     'tier-weighted',
@@ -172,7 +172,16 @@ export function runStrategyBenchmark(
 
     for (const draw of validation) {
       const games = generateForStrategy(strategy, lottery, performances, gamesPerContest, random);
+      // Apostas idênticas dentro do concurso NÃO são Bernoulli independentes:
+      // `frequency-pure` devolve o mesmo jogo `gamesPerContest` vezes e o
+      // teste binomial tratava cada cópia como uma aposta — variância
+      // subestimada por fator g, z inflado por √g. Contar só jogos distintos
+      // por concurso restaura a unidade de independência do teste.
+      const seen = new Set<string>();
       for (const numbers of games) {
+        const key = numbers.join(',');
+        if (seen.has(key)) continue;
+        seen.add(key);
         const hits = numbers.filter((n) => draw.numbers.includes(n)).length;
         hitsPerGame.push(hits);
         totalBets++;

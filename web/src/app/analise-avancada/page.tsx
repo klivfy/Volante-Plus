@@ -25,6 +25,7 @@ import LotterySelector from '@/components/LotterySelector';
 import { getDraws } from '@/services/db';
 import { Draw, Lottery } from '@/types/domain';
 import { calculateEV, kellySimulation, PrizeAverage } from '@/engine/expectedValue';
+import { MAIS_MILIONARIA_FIXED_PRIZES } from '@/engine/prizeRules';
 import { frequencyFairnessTest, gapTest, serialCorrelationTest } from '@/engine/fairnessTests';
 import { expectedHitsFor, powerTable } from '@/engine/powerAnalysis';
 import { BenchmarkResult, runStrategyBenchmark } from '@/engine/strategyBenchmark';
@@ -307,7 +308,7 @@ function BenchmarkSection({ lottery }: { lottery: Lottery }) {
                   <TableCell align="right">{t('advanced.benchmark.meanHits')}</TableCell>
                   <TableCell align="right">{t('advanced.benchmark.prizeRate')}</TableCell>
                   <TableCell align="right">p-value</TableCell>
-                  <TableCell align="right">Bonferroni</TableCell>
+                  <TableCell align="right">{t('advanced.benchmark.bonferroni')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -424,7 +425,9 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
 
   // Faixas de referência (máxima, intermediária, mais baixa) e prêmios médios
   // ilustrativos por modalidade — dado externo ao engine (não vem de nenhum
-  // histórico), só uma estimativa razoável para ilustrar o cálculo.
+  // histórico), só uma estimativa razoável para ilustrar o cálculo. Na
+  // +Milionária, as faixas 7–10 têm prêmio FIXO em regulamento (não são
+  // estimativa): omiti-las deixava de fora ~R$ 0,78 do EV por aposta.
   const REFERENCE_TIERS: Record<Lottery, { top: string; mid: string; low: string; midPrize: number; lowPrize: number }> = {
     [Lottery.MEGA_SENA]: { top: '6', mid: '5', low: '4', midPrize: 50000, lowPrize: 1000 },
     [Lottery.MAIS_MILIONARIA]: { top: '6+2', mid: '5+0', low: '4+0', midPrize: 30000, lowPrize: 800 },
@@ -438,6 +441,7 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
     { tier: topTierKey, averagePrize: 0 }, // a faixa máxima só entra via `accumulatedPrize`
     { tier: midTierKey, averagePrize: ref.midPrize },
     { tier: lowTierKey, averagePrize: ref.lowPrize },
+    ...MAIS_MILIONARIA_FIXED_PRIZES.map(({ tier, amount }) => ({ tier, averagePrize: amount })),
   ];
 
   const cost = Number(ticketCost) || 0;
