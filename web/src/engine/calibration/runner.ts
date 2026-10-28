@@ -16,6 +16,19 @@ import {
 import { honestHistory } from './honestHistory';
 
 /**
+ * Overrides de execução da calibração de fumaça. Omitido = valores do
+ * contrato (N = 300, tolerância de 5 p.p.) — usados pelo teste de unidade.
+ * O relatório de auditoria (Fase 2) passa N alto e tolerância estrita;
+ * nenhum valor do contrato é duplicado fora de `catalog.ts`.
+ */
+export interface SmokeOptions {
+  runs?: number;
+  historyLength?: number;
+  seedBase?: number;
+  tolerancePts?: number;
+}
+
+/**
  * Runner de calibração: mede o falso-positivo real de cada método do
  * contrato rodando-o sobre históricos honestos (modelo nulo verdadeiro) e
  * compara o intervalo de Wilson do FPR medido com o α declarado.
@@ -179,7 +192,11 @@ export const CALIBRATION_LOTTERY: Record<string, Lottery> = {
  * Método-sonda deliberadamente mal calibrado (α = 0,5): sinaliza por moeda.
  * Prova que a régua mede — se o harness não o reprovar, o harness está errado.
  */
-export function calibrateProbe(runs: number, seedBase: number): CalibrationResult {
+export function calibrateProbe(
+  runs: number,
+  seedBase: number,
+  tolerancePts: number = SMOKE_TOLERANCE_PTS,
+): CalibrationResult {
   let signals = 0;
   for (let i = 0; i < runs; i++) {
     const rng = createSeededRandom(seedBase + i);
@@ -187,7 +204,7 @@ export function calibrateProbe(runs: number, seedBase: number): CalibrationResul
   }
   const fpr = signals / runs;
   const ci = wilsonInterval(signals, runs);
-  const bound = 0.05 + SMOKE_TOLERANCE_PTS / 100;
+  const bound = 0.05 + tolerancePts / 100;
   return {
     method: 'sonda (α = 0,5, mal calibrado de propósito)',
     alpha: 0.5,
@@ -203,11 +220,20 @@ export function calibrateProbe(runs: number, seedBase: number): CalibrationResul
 /**
  * Calibração de fumaça: todos os métodos `smoke` do catálogo + sonda.
  * Determinística — mesma semente base, mesmos vereditos, sempre.
+ * A sonda usa sempre a tolerância larga da fumaça (prova do mecanismo, não
+ * veredito de contrato) independentemente do N pedido.
  */
-export function runSmokeCalibration(): {
+export function runSmokeCalibration(options: SmokeOptions = {}): {
   results: CalibrationResult[];
   probe: CalibrationResult;
+  options: Required<SmokeOptions>;
 } {
+  const resolved: Required<SmokeOptions> = {
+    runs: options.runs ?? SMOKE_RUNS,
+    historyLength: options.historyLength ?? SMOKE_HISTORY_LENGTH,
+    seedBase: options.seedBase ?? SMOKE_SEED_BASE,
+    tolerancePts: options.tolerancePts ?? SMOKE_TOLERANCE_PTS,
+  };
   const entries = smokeEntries();
   const results = entries.map((entry) => {
     const signal = CALIBRATION_SIGNALS[entry.method];
@@ -215,14 +241,18 @@ export function runSmokeCalibration(): {
       throw new Error(`método smoke sem adaptador/α: ${entry.method}`);
     }
     return calibrate({ method: entry.method, alpha: entry.alpha }, {
-      runs: SMOKE_RUNS,
-      historyLength: SMOKE_HISTORY_LENGTH,
-      seedBase: SMOKE_SEED_BASE,
-      tolerancePts: SMOKE_TOLERANCE_PTS,
+      runs: resolved.runs,
+      historyLength: resolved.historyLength,
+      seedBase: resolved.seedBase,
+      tolerancePts: resolved.tolerancePts,
       signal,
     });
   });
-  return { results, probe: calibrateProbe(SMOKE_RUNS, SMOKE_SEED_BASE) };
+  return {
+    results,
+    probe: calibrateProbe(resolved.runs, resolved.seedBase),
+    options: resolved,
+  };
 }
 
 /** Tolerância estrita do contrato (gate de CI, N = 2.000). */

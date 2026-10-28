@@ -22,6 +22,15 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   real dos métodos expostos e reprova uma sonda deliberadamente mal calibrada.
   Política em `docs/calibration-contract.md`; FPR medido em N = 300: 0,0–3,7%
   para os cinco métodos smoke (α = 5%).
+- Relatório de auditoria reciclável (Fase 2 do plano de confiabilidade,
+  `scripts/audit-report.mjs`): executa o harness com N configurável
+  (padrão 2.000, tolerância estrita do contrato) e registra JSON estruturado +
+  PDF legível com a identidade completa da auditoria — commit, versão do
+  pacote, data UTC, sementes e SHA-256 do seed embutido de histórico —,
+  veredito por método contra o contrato, recomputação independente dos métodos
+  exatos (BigInt e varredura própria do fechamento, com controle negativo) e
+  digest de conteúdo (`contentSha256`) para comparação byte a byte entre
+  execuções do mesmo commit. Código de saída pronto para o gate de CI (Fase 3).
 - `web/scripts/collect-portal-snapshot.mjs` e `update-history-seed.mjs --only`.
 
 ### Fixed

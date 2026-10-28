@@ -44,6 +44,13 @@ export const FPR_TOLERANCE_PTS = 2;
 export const SMOKE_TOLERANCE_PTS = 5;
 export const SMOKE_RUNS = 300;
 export const SMOKE_HISTORY_LENGTH = 400;
+/**
+ * N de históricos do gate estrito do contrato (Fase 3, workflow semanal) e a
+ * partir do qual o relatório de auditoria (Fase 2) aplica a tolerância
+ * estrita de 2 p.p. — acima disso, a incerteza de Wilson já não justifica a
+ * folga de 5 p.p. da fumaça.
+ */
+export const GATE_RUNS = 2000;
 /** Semente base pública: qualquer pessoa reproduz os mesmos vereditos. */
 export const SMOKE_SEED_BASE = 20261028;
 

@@ -69,6 +69,52 @@ conservador nesse comprimento de histórico. O `walkForwardMulti` entra no gate
 de CI (Fase 3) por custo — o adaptador rápido existe no catálogo, mas o runner
 de unidade não o executa.
 
+## Relatório de auditoria (Fase 2)
+
+O relatório de auditoria transforma a medição em evidência registrada — e **não
+é escrito à mão por ninguém**: nasce do mesmo commit que audita, do catálogo
+deste documento e de nada mais.
+
+```bash
+node scripts/audit-report.mjs                # N = 2.000 (critério do contrato)
+node scripts/audit-report.mjs --runs 500    # N customizado (tolerância larga)
+npm run audit --prefix web                   # equivalente, via npm
+```
+
+Cada execução grava em `audit-reports/` (fora do versionamento) um **JSON
+estruturado** e um **PDF legível** com a identidade completa da auditoria:
+
+| Campo | Origem |
+|---|---|
+| `meta.gitCommit` / `gitBranch` / `gitSubject` / `gitDirty` | `git` no momento da execução |
+| `meta.webVersion` / `nodeVersion` | `web/package.json` e runtime |
+| `meta.generatedAtUtc` | carimbo UTC (único campo fora do digest) |
+| `meta.seedBase` + `seedBaseSha256` | semente pública da simulação |
+| `meta.historySeedVersion` + `historySeedSha256` + `historySeedFiles` | procedência do seed embutido (`web/src/data/history/`, SHA-256 da concatenação canônica) |
+| `monteCarlo[]` | FPR medido, IC de Wilson 95%, limite e veredito por método |
+| `probe` | a sonda mal calibrada — reprovar é obrigatório |
+| `deferred[]` | métodos adidos ao gate de CI (Fase 3), ausência declarada |
+| `exact[]` | recomputação independente dos métodos exatos |
+| `meta.contentSha256` | digest do conteúdo determinístico |
+
+A recomputação independente dos exatos usa **outra via matemática**, não os
+mesmos números: `prizeProbabilities` das três loterias é recalculado com
+aritmética inteira exata (BigInt) faixa a faixa, e o fechamento
+C(10, 6, 3) é verificado por uma varredura própria dos 120 subconjuntos, com
+controle negativo (um design quebrado precisa ser rejeitado pelas duas vias).
+
+**Verificação de integridade**: o `contentSha256` cobre tudo, exceto o carimbo
+UTC. Regenere o relatório no mesmo commit e compare o digest — igual byte a
+byte significa mesmos históricos, mesmas medições, mesmos vereditos.
+
+**Critério aplicado conforme o N**: com `runs >= 2000` (gate do contrato) vale
+a tolerância estrita (α + 2 p.p.); abaixo disso, a da fumaça (α + 5 p.p.) — em
+N pequeno o IC de Wilson é largo e reprovar é comportamento correto, não defeito.
+
+**Código de saída**: `0` quando todos os métodos medidos passam, os exatos
+confirmam e a sonda falha (como deve); `1` em violação do contrato; `2` em erro
+de ambiente. É esse comando que a Fase 3 agenda no CI como gate bloqueante.
+
 ## Regras de governança
 
 1. **Alterar `alpha`** de qualquer método exige pull request dedicado com
