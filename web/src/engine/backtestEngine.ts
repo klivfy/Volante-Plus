@@ -94,6 +94,7 @@ export function runBacktest(
   });
 
   const hitsPerGame: number[] = [];
+  const meanHitsPerContest: number[] = [];
   let totalBets = 0;
   let prizeCount = 0;
 
@@ -108,8 +109,10 @@ export function runBacktest(
       strategy: 'FREQUENCY_TIERS',
     });
 
+    let contestHits = 0;
     for (const game of batch.games) {
       const numberHits = game.numbers.filter((number) => draw.numbers.includes(number)).length;
+      contestHits += numberHits;
       hitsPerGame.push(numberHits);
 
       if (hasTrevos(lottery)) {
@@ -128,6 +131,12 @@ export function runBacktest(
         }
       }
     }
+
+    // Estatística por CONCURSO (média dos jogos do lote), como o Kotlin
+    // (`BacktestEngine.kt`): jogos do mesmo concurso são disjuntos e por isso
+    // negativamente correlacionados — agregá-los como i.i.d. produz variância
+    // e desvio-padrão inválidos (a média coincide, os erros não).
+    meanHitsPerContest.push(batch.games.length > 0 ? contestHits / batch.games.length : 0);
   }
 
   const hitDistribution: Record<number, number> = {};
@@ -140,7 +149,7 @@ export function runBacktest(
     validationDraws: validationDraws.length,
     totalGames: hitsPerGame.length,
     totalBets,
-    stats: statisticsOf(hitsPerGame),
+    stats: statisticsOf(meanHitsPerContest),
     expectedMeanHits: expectedNumberHits(lottery),
     prizeRate: totalBets === 0 ? 0 : prizeCount / totalBets,
     prizeCount,

@@ -60,7 +60,13 @@ export function simulateBankroll(
     const weeklyCost = scenario.ticketCost * scenario.gamesPerWeek;
 
     if (bankroll < weeklyCost) {
-      return { finalBankroll: 0, totalSpent, totalWon, maxDrawdown: 1, hitCount, bankrupt: true };
+      // Falência = não consegue mais pagar a semana, NÃO dinheiro zero: o
+      // saldo remanescente (menor que o custo semanal) continua existindo e
+      // entra nas métricas — reportar 0 aqui distorcia média/mediana de
+      // banca final e o drawdown (desfecho dominante na simulação).
+      const drawdown =
+        maxBankroll > 0 ? Math.max(maxDrawdown, (maxBankroll - bankroll) / maxBankroll) : maxDrawdown;
+      return { finalBankroll: bankroll, totalSpent, totalWon, maxDrawdown: drawdown, hitCount, bankrupt: true };
     }
 
     bankroll -= weeklyCost;
@@ -113,6 +119,21 @@ export interface MonteCarloBankrollResult {
 }
 
 /**
+ * Mistura SplitMix64 do índice de réplica: `seed + i` direto faz réplicas
+ * vizinhas produzirem fluxos correlacionados no mulberry32 (o mesmo cuidado
+ * documentado em `BacktestEngine.kt` para `replicationSeed`).
+ */
+function mixReplicationSeed(seed: number, replication: number): number {
+  let h = (Math.imul(seed, 0x9e3779b9) ^ Math.imul(replication + 1, 0x85ebca6b)) >>> 0;
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x7feb352d) >>> 0;
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x846ca68b) >>> 0;
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+/**
  * Roda `simulations` execuções independentes de `simulateBankroll` — cada
  * uma resorteia os jogos gerados (aleatoriedade da estratégia), mas contra a
  * mesma sequência real de sorteios. Resume a distribuição de desfechos.
@@ -132,7 +153,7 @@ export function monteCarloBankroll(
   const finals: number[] = [];
 
   for (let i = 0; i < simulations; i++) {
-    const random = seed === undefined ? defaultRandom : createSeededRandom(seed + i);
+    const random = seed === undefined ? defaultRandom : createSeededRandom(mixReplicationSeed(seed, i));
     const result = simulateBankroll(scenario, draws, lottery, performances, prizeTable, random);
 
     if (result.bankrupt) bankruptcies++;
@@ -143,11 +164,19 @@ export function monteCarloBankroll(
 
   finals.sort((a, b) => a - b);
   const mean = simulations === 0 ? 0 : finals.reduce((a, b) => a + b, 0) / simulations;
+  // Mediana interpolada: com n par, o elemento único de `floor(n/2)` era o
+  // superior do par central e deslocava a mediana para cima.
+  const median =
+    simulations === 0
+      ? 0
+      : simulations % 2 === 1
+        ? finals[(simulations - 1) / 2]
+        : (finals[simulations / 2 - 1] + finals[simulations / 2]) / 2;
 
   return {
     bankruptcyRate: simulations === 0 ? 0 : bankruptcies / simulations,
     meanFinalBankroll: mean,
-    medianFinalBankroll: simulations === 0 ? 0 : finals[Math.floor(simulations / 2)],
+    medianFinalBankroll: median,
     probProfit: simulations === 0 ? 0 : profits / simulations,
     probAnyPrize: simulations === 0 ? 0 : anyPrize / simulations,
   };

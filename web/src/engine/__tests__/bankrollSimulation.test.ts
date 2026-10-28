@@ -39,8 +39,12 @@ describe('simulateBankroll', () => {
     );
 
     expect(result.bankrupt).toBe(true);
-    expect(result.finalBankroll).toBe(0);
-    expect(result.maxDrawdown).toBe(1);
+    // Falência = não dá para pagar a semana (5 < 10), mas o saldo NÃO some:
+    // nada foi gasto e o drawdown real contra o pico (a própria banca
+    // inicial) é 0 — reportar 0/1 aqui distorcia média, mediana e drawdown.
+    expect(result.finalBankroll).toBe(5);
+    expect(result.totalSpent).toBe(0);
+    expect(result.maxDrawdown).toBe(0);
   });
 });
 
