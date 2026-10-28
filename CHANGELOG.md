@@ -31,6 +31,16 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   exatos (BigInt e varredura própria do fechamento, com controle negativo) e
   digest de conteúdo (`contentSha256`) para comparação byte a byte entre
   execuções do mesmo commit. Código de saída pronto para o gate de CI (Fase 3).
+- Gate de calibração em CI (Fase 3 do plano de confiabilidade,
+  `.github/workflows/calibration.yml`): job bloqueante que executa
+  `npm run audit` com N = 2.000 históricos honestos e tolerância estrita
+  (α + 2 p.p.) — semanalmente (segundas, 03:00 UTC), a cada release publicada
+  e sob demanda. A partir desse N o relatório mede o catálogo inteiro de
+  métodos monte-carlo: o walk-forward (significância por corte com correção
+  de Bonferroni) ganhou adaptador com configuração declarada e semente
+  pública, e `deferred[]` nasce vazio no gate. JSON + PDF da execução ficam
+  de artefato por 90 dias, inclusive em falha. FPR medido em N = 2.000:
+  0,1–3,5% (walk-forward 0,3%), todos PASS; sonda 49,6% reprovada.
 - `web/scripts/collect-portal-snapshot.mjs` e `update-history-seed.mjs --only`.
 
 ### Fixed

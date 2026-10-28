@@ -33,7 +33,7 @@ Cada método que faz afirmação de significância declara no catálogo:
 | Verificação | N de históricos | Critério | Onde roda |
 |---|---|---|---|
 | Fumaça (unidade) | 300 (400 concursos cada) | lim. sup. do IC de Wilson 95% ≤ α + 5 p.p. | `vitest` a cada PR |
-| Gate do contrato (CI) | 2.000 (Fase 3) | lim. sup. do IC de Wilson 95% ≤ α + 2 p.p. | workflow semanal + releases |
+| Gate do contrato (CI) | 2.000 (implementado na Fase 3) | lim. sup. do IC de Wilson 95% ≤ α + 2 p.p. | workflow `calibration.yml` (semanal + releases) |
 
 A decisão usa o **limite superior do intervalo de Wilson**, nunca a proporção
 pontual: uma execução individual raramente mente, mas nunca decide. O método
@@ -65,9 +65,9 @@ concurso, datas em UTC.
 
 O `collisionTest` com 0 sinalizações em 300 é coerente: seu p-valor é discreto
 (cauda superior de Poisson com contagem esperada baixa), o que o torna
-conservador nesse comprimento de histórico. O `walkForwardMulti` entra no gate
-de CI (Fase 3) por custo — o adaptador rápido existe no catálogo, mas o runner
-de unidade não o executa.
+conservador nesse comprimento de histórico. O `walkForwardMulti` não entra na
+fumaça por custo (vários backtests completos por histórico) — é medido pelo
+gate de CI da Fase 3 (tabela abaixo), com adaptador próprio no runner.
 
 ## Relatório de auditoria (Fase 2)
 
@@ -93,7 +93,7 @@ estruturado** e um **PDF legível** com a identidade completa da auditoria:
 | `meta.historySeedVersion` + `historySeedSha256` + `historySeedFiles` | procedência do seed embutido (`web/src/data/history/`, SHA-256 da concatenação canônica) |
 | `monteCarlo[]` | FPR medido, IC de Wilson 95%, limite e veredito por método |
 | `probe` | a sonda mal calibrada — reprovar é obrigatório |
-| `deferred[]` | métodos adidos ao gate de CI (Fase 3), ausência declarada |
+| `deferred[]` | métodos monte-carlo ainda não medidos nesta execução (só abaixo do gate, N < 2.000); no gate a lista nasce vazia |
 | `exact[]` | recomputação independente dos métodos exatos |
 | `meta.contentSha256` | digest do conteúdo determinístico |
 
@@ -113,7 +113,69 @@ N pequeno o IC de Wilson é largo e reprovar é comportamento correto, não defe
 
 **Código de saída**: `0` quando todos os métodos medidos passam, os exatos
 confirmam e a sonda falha (como deve); `1` em violação do contrato; `2` em erro
-de ambiente. É esse comando que a Fase 3 agenda no CI como gate bloqueante.
+de ambiente. É esse comando que o gate de CI (Fase 3, abaixo) agenda como job
+bloqueante.
+
+## Gate de CI (Fase 3)
+
+O gate é o mesmo comando do relatório de auditoria com o N do contrato — e
+com N ≥ 2.000 o relatório mede o **catálogo inteiro** de métodos
+`monte-carlo`, inclusive o `walkForwardMulti` que abaixo do gate fica
+declarado em `deferred[]` por custo (ver `gateIncludesDeferred`, em
+`auditReport.ts`):
+
+```bash
+node scripts/audit-report.mjs          # N = 2.000, tolerância estrita (2 p.p.)
+npm run audit --prefix web             # equivalente, via npm
+```
+
+O workflow `.github/workflows/calibration.yml` agenda esse comando como job
+**bloqueante**: semanal (segundas-feiras, 03:00 UTC), a cada release
+publicada e sob demanda (`workflow_dispatch`). O JSON e o PDF da execução
+ficam como artefato por 90 dias — inclusive quando o gate reprova, para
+diagnóstico e reprodução. Nota do GitHub: o cron só dispara depois que a
+branch com o workflow chega à `main`.
+
+### Adaptador do walk-forward no gate
+
+O `multiCutWalkForward` da UI usa primeiro corte a 4 anos (o histórico real
+da Mega-Sena tem ~30 anos). O histórico honesto do harness tem 400 concursos
+espaçados de 3 dias (~3,3 anos) — com o padrão da UI não haveria nenhum
+corte. O adaptador do gate (`runner.ts`) espelha os demais parâmetros da
+tela (`stepMonths` = 6, `minValidation` = 15) e declara a única exceção:
+`firstCutoffYears = 1` — 5 cortes com janela de treino crescente e validação
+≥ 15 concursos cada (`WALK_FORWARD_CUT_CONFIG`, exportado).
+
+A afirmação calibrada é a do catálogo: **significância por corte com
+correção de Bonferroni pelo nº de cortes** — o adaptador sinaliza quando
+algum corte mostra vantagem/desvantagem significativa APÓS a correção; sob
+H0, Bonferroni garante família ≤ α.
+
+Reprodutibilidade: o RNG do backtest dentro do adaptador usa semente fixa
+pública (`WALK_FORWARD_BACKTEST_SEED = 20261029`; a tela usa
+`defaultRandom`, aceitável na interface, não numa medição registrada). O
+RNG só dirige geração de jogos e simulação de pesos: os jogos dependem só
+da janela de treino, nunca da validação, e o nível do teste binomial por
+corte se preserva.
+
+### Resultado da Fase 3 (N = 2.000, semente 20261028)
+
+| Método | FPR medido | IC 95% | Limite | Veredito |
+|---|---|---|---|---|
+| numberEvidence (dezenas) | 2,8% | [2,1; 3,6] | 7% | PASS |
+| numberEvidence (trevos) | 3,0% | [2,4; 3,9] | 7% | PASS |
+| collisionTest | 0,1% | [0,0; 0,4] | 7% | PASS |
+| frequencyFairnessTest | 3,5% | [2,8; 4,5] | 7% | PASS |
+| chiSquareGlobal (numberEvidence) | 3,5% | [2,8; 4,5] | 7% | PASS |
+| walkForwardMulti (stabilityAnalysis) | 0,3% | [0,1; 0,7] | 7% | PASS |
+| sonda (α = 0,5) | 49,6% | — | 7% | FAIL (esperado) |
+
+Execução completa em ~82 s (Node 20). O walk-forward é conservador no
+comprimento honesto — o p-valor binomial exato por corte é discreto e as
+janelas de validação geram poucas apostas —, o mesmo padrão do
+`collisionTest` na Fase 1: FPR bem abaixo do α é seguro (falso alarme é o
+risco que o contrato limita); potência e eficácia exibida ao usuário são
+tema da Fase 4.
 
 ## Regras de governança
 

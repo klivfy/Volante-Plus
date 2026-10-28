@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { renderAuditPdf } from '../calibration/auditPdf';
 import {
   AUDIT_REPORT_SCHEMA,
+  gateIncludesDeferred,
   HISTORY_SEED_FILES,
   auditTolerance,
   buildAuditReport,
@@ -156,6 +157,43 @@ describe('procedência', () => {
     expect(report.meta.historySeedSha256).toBe(
       createHash('sha256').update(concatenated).digest('hex'),
     );
+  });
+});
+
+describe('modo gate (Fase 3)', () => {
+  it('predicado: catálogo inteiro só a partir de N = 2.000, com override explícito', () => {
+    expect(gateIncludesDeferred(GATE_RUNS - 1)).toBe(false);
+    expect(gateIncludesDeferred(GATE_RUNS)).toBe(true);
+    expect(gateIncludesDeferred(GATE_RUNS + 500)).toBe(true);
+    expect(gateIncludesDeferred(100, false)).toBe(false);
+    expect(gateIncludesDeferred(100, true)).toBe(true);
+  });
+
+  it('abaixo do gate sem override, o walk-forward segue declarado em deferred[]', () => {
+    expect(report.summary.deferred).toBe(1);
+    expect(report.deferred.map((d) => d.method)).toEqual([
+      'walkForwardMulti (stabilityAnalysis)',
+    ]);
+  });
+
+  it('com override, o relatório mede o walk-forward e deferred nasce vazio', () => {
+    const gate = buildAuditReport({ runs: 50, includeDeferred: true, now: FIXED_NOW });
+    const methods = gate.monteCarlo.map((r) => r.method);
+    expect(methods).toContain('walkForwardMulti (stabilityAnalysis)');
+    expect(methods).toHaveLength(smokeEntries().length + 1);
+    expect(gate.deferred).toHaveLength(0);
+    expect(gate.summary.measured).toBe(smokeEntries().length + 1);
+    expect(gate.summary.deferred).toBe(0);
+    for (const result of gate.monteCarlo) {
+      expect(result.runs).toBe(50);
+      expect(result.verdict).toBe(result.ci.upper <= result.bound ? 'PASS' : 'FAIL');
+    }
+  });
+
+  it('o modo gate é determinístico: override repetido produz o mesmo digest', () => {
+    const a = buildAuditReport({ runs: 50, includeDeferred: true, now: FIXED_NOW });
+    const b = buildAuditReport({ runs: 50, includeDeferred: true, now: FIXED_NOW });
+    expect(a.meta.contentSha256).toBe(b.meta.contentSha256);
   });
 });
 

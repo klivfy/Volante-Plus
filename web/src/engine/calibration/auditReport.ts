@@ -37,6 +37,13 @@ import { auditExactMethods } from './auditExact';
 /** Identificador de esquema do relatório (muda com quebra de formato). */
 export const AUDIT_REPORT_SCHEMA = 'volante-plus/audit-report@1';
 
+/**
+ * Motivo registrado para método monte-carlo ainda não medido (só aparece
+ * abaixo do gate — com N ≥ 2.000 o catálogo inteiro entra em `monteCarlo[]`).
+ */
+export const DEFERRED_REASON =
+  'medido só no gate de CI (N >= 2.000): adaptador custoso por histórico';
+
 export interface AuditOptions {
   /** N de históricos honestos por método Monte Carlo. */
   runs: number;
@@ -46,6 +53,13 @@ export interface AuditOptions {
   repoRoot?: string;
   /** Relógio injetável (testes). Não entra no digest de conteúdo. */
   now?: () => Date;
+  /**
+   * Mede também os métodos fora da fumaça (walk-forward, Fase 3). Padrão:
+   * `runs >= GATE_RUNS` — o gate do contrato cobre o catálogo inteiro;
+   * abaixo dele a ausência fica registrada em `deferred[]`, nunca
+   * silenciosa.
+   */
+  includeDeferred?: boolean;
 }
 
 export interface AuditMeta {
@@ -150,6 +164,16 @@ export function auditTolerance(runs: number): number {
 }
 
 /**
+ * Modo gate (Fase 3): a partir de N = GATE_RUNS o relatório mede o catálogo
+ * inteiro — inclusive os métodos de custo alto que a fumaça deixa de fora —
+ * e `deferred` nasce vazio. O override explícito existe para testes e
+ * execuções de investigação; o padrão deriva só do N.
+ */
+export function gateIncludesDeferred(runs: number, override?: boolean): boolean {
+  return override ?? runs >= GATE_RUNS;
+}
+
+/**
  * Arquivos do seed embutido de histórico (`web/src/data/history/`) na ordem
  * canônica da concatenação para o SHA-256 de procedência.
  */
@@ -237,23 +261,26 @@ export function buildAuditReport(options: AuditOptions): AuditReport {
   const repoRoot = options.repoRoot ?? resolveRepoRoot();
   const seedBase = options.seedBase ?? SMOKE_SEED_BASE;
   const tolerancePoints = auditTolerance(runs);
+  const includeDeferred = gateIncludesDeferred(runs, options.includeDeferred);
 
   const smoke = runSmokeCalibration({
     runs,
     seedBase,
     tolerancePts: tolerancePoints,
+    includeGateMethods: includeDeferred,
   });
   const { metaCore } = buildMetaCore({ runs, seedBase, repoRoot, tolerancePoints });
 
   // Métodos monte-carlo fora da fumaça (adaptador custoso por histórico):
-  // ficam registrados como adidos ao gate de CI (Fase 3) — ausência
-  // declarada, nunca silenciosa.
+  // abaixo do gate, ficam registrados como adidos ao gate de CI — ausência
+  // declarada, nunca silenciosa. No gate (N ≥ 2.000) são medidos e a lista
+  // nasce vazia.
   const deferred: DeferredMethod[] = monteCarloEntries()
-    .filter((entry) => !entry.smoke)
+    .filter((entry) => !entry.smoke && !includeDeferred)
     .map((entry) => ({
       method: entry.method,
       alpha: entry.alpha ?? Number.NaN,
-      reason: 'medido apenas no gate de CI (Fase 3): adaptador custoso por histórico',
+      reason: DEFERRED_REASON,
     }));
 
   const exact = auditExactMethods();

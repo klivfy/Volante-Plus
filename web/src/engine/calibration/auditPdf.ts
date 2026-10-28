@@ -142,7 +142,7 @@ export function renderAuditPdf(report: AuditReport): Uint8Array {
       text(
         MARGIN,
         46,
-        `Volante Plus — relatório de auditoria (Fase 2) — ` +
+        `Volante Plus — relatório de auditoria (Fases 2-3) — ` +
           `conteúdo SHA-256: ${report.meta.contentSha256.slice(0, 26)}...`,
         { size: 7, color: GRAY },
       );
@@ -273,12 +273,13 @@ export function renderAuditPdf(report: AuditReport): Uint8Array {
     for (const deferred of report.deferred) {
       ensure(table.rowHeight);
       text(table.columns[0].x, y, deferred.method, { size: table.size, color: GRAY });
-      text(
-        table.columns[1].x,
-        y,
-        'adido ao gate de CI (Fase 3)',
-        { size: table.size, color: GRAY },
-      );
+      const reasonLines = wrapWords(deferred.reason, table.size, RIGHT - table.columns[1].x);
+      text(table.columns[1].x, y, reasonLines[0] ?? '', { size: table.size, color: GRAY });
+      for (const extra of reasonLines.slice(1)) {
+        ensure(table.rowHeight);
+        y -= table.rowHeight;
+        text(table.columns[1].x, y, extra, { size: table.size, color: GRAY });
+      }
       y -= table.rowHeight;
     }
     y -= 4;

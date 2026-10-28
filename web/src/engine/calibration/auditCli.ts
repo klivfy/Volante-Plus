@@ -129,7 +129,9 @@ function printSummary(report: AuditReport, jsonPath: string, pdfPath: string): v
     );
   }
   for (const deferred of report.deferred) {
-    process.stdout.write(`  ${deferred.method.padEnd(width)}  adido ao gate de CI (Fase 3)\n`);
+    process.stdout.write(
+      `  ${deferred.method.padEnd(width)}  ${deferred.reason}\n`,
+    );
   }
   process.stdout.write(
     `\n  veredito: ${report.summary.allPass ? 'TODOS DENTRO DO CONTRATO' : 'CONTRATO VIOLADO'}\n` +

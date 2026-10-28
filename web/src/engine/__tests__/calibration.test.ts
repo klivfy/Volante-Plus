@@ -13,8 +13,11 @@ import {
   CALIBRATION_SIGNALS,
   hitsToPerformances,
   runSmokeCalibration,
+  WALK_FORWARD_BACKTEST_SEED,
+  WALK_FORWARD_CUT_CONFIG,
   wilsonInterval,
 } from '../calibration/runner';
+import { multiCutWalkForward, stabilityAnalysis } from '../walkForwardMulti';
 
 /**
  * Teste do harness de calibração (Fase 1 do plano de confiabilidade).
@@ -144,5 +147,54 @@ describe('calibração de fumaça (determinística, semente pública)', () => {
   it('semente base está registrada para reprodução externa', () => {
     expect(SMOKE_SEED_BASE).toBeGreaterThan(0);
     expect(SMOKE_HISTORY_LENGTH).toBeGreaterThanOrEqual(400);
+  });
+});
+
+describe('adaptador do walk-forward (gate de CI, Fase 3)', () => {
+  const signal = CALIBRATION_SIGNALS['walkForwardMulti (stabilityAnalysis)'];
+
+  it('existe e tem loteria de referência registrada (catálogo)', () => {
+    expect(signal).toBeDefined();
+    expect(CALIBRATION_LOTTERY['walkForwardMulti (stabilityAnalysis)']).toBe(
+      Lottery.MEGA_SENA,
+    );
+  });
+
+  it('é determinístico: mesmo histórico produz o mesmo sinal', () => {
+    const draws = honestHistory(Lottery.MEGA_SENA, SMOKE_HISTORY_LENGTH, 424242);
+    const first = signal(draws);
+    expect(signal(draws)).toBe(first);
+  });
+
+  it('produz cortes utilizáveis no histórico honesto (config do gate)', () => {
+    // O padrão da UI (primeiro corte a 4 anos) não deixaria nenhum corte no
+    // histórico sintético de ~3,3 anos; o adaptador usa firstCutoffYears = 1.
+    const draws = honestHistory(Lottery.MEGA_SENA, SMOKE_HISTORY_LENGTH, 424242);
+    const cuts = multiCutWalkForward(
+      [...draws],
+      Lottery.MEGA_SENA,
+      { seed: WALK_FORWARD_BACKTEST_SEED },
+      WALK_FORWARD_CUT_CONFIG,
+    );
+    expect(cuts.length).toBeGreaterThanOrEqual(4);
+    for (const cut of cuts) {
+      expect(cut.validationDraws).toBeGreaterThanOrEqual(WALK_FORWARD_CUT_CONFIG.minValidation);
+      expect(cut.trainingDraws).toBeGreaterThan(0);
+    }
+    // Bonferroni pelo número de cortes — a afirmação do catálogo.
+    const stability = stabilityAnalysis(cuts);
+    expect(stability.correctedAlpha).toBeCloseTo(0.05 / cuts.length);
+  });
+
+  it('falso-positivo contido em N pequeno (veredito estrito é do gate, N = 2.000)', () => {
+    // Semente pública do contrato: histórico i usa SMOKE_SEED_BASE + i.
+    const N = 50;
+    let signals = 0;
+    for (let i = 0; i < N; i++) {
+      if (signal(honestHistory(Lottery.MEGA_SENA, SMOKE_HISTORY_LENGTH, SMOKE_SEED_BASE + i))) {
+        signals++;
+      }
+    }
+    expect(signals / N).toBeLessThanOrEqual(0.1);
   });
 });
