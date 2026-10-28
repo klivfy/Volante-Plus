@@ -84,4 +84,23 @@ describe('overlapSpectrumTest', () => {
     });
     expect(r.pValue).toBeLessThan(0.05);
   });
+
+  it('Quina: dezenas altas (48 vs 80) não colidem por aliasing de bit (Onda 3)', () => {
+    // A máscara antiga usava duas palavras de 30 bits — dezena 80 virava bit
+    // 49, que em JS wrapa para o bit 17, o MESMO da dezena 48. Dois concursos
+    // que compartilham nada apareciam com sobreposição fantasma.
+    const quina = (contest: number, numbers: number[]): Draw => ({
+      lottery: Lottery.QUINA,
+      contestNumber: contest,
+      date: '',
+      numbers,
+    });
+    const draws = [quina(1, [1, 2, 3, 4, 80]), quina(2, [6, 7, 8, 9, 48])];
+    const r = overlapSpectrumTest(Lottery.QUINA, draws, {
+      baselineRuns: 10,
+      random: createSeededRandom(3),
+    });
+    expect(r.observed[0]).toBe(1); // o único par não compartilha dezena alguma
+    expect(r.observed[1]).toBe(0); // sem sobreposição fantasma de bit wrapado
+  });
 });

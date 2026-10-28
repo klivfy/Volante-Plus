@@ -105,28 +105,46 @@ function popcount(x: number): number {
   return Math.imul((x + (x >>> 4)) & 0x0f0f0f0f, 0x01010101) >>> 24;
 }
 
-/** Cada concurso vira duas palavras de 30 bits (dezena d → bit d−1). */
-function toMasks(numbersList: readonly (readonly number[])[]): [Int32Array, Int32Array] {
-  const lo = new Int32Array(numbersList.length);
-  const hi = new Int32Array(numbersList.length);
-  numbersList.forEach((numbers, i) => {
+/**
+ * Largura da palavra de máscara: 30 bits, para que `1 << (d-1) % 30` caiba
+ * sempre num int32 sem sinal de sinal.
+ */
+const WORD_BITS = 30;
+
+/**
+ * Cada concurso vira ⌈universe/30⌉ palavras de 30 bits (dezena d → bit
+ * (d−1) % 30 da palavra ⌊(d−1)/30⌋).
+ *
+ * WHY não duas palavras fixas: a Quina tem 80 dezenas — a segunda palavra
+ * precisaria de 49 bits e `1 << 49` em JS wrapa módulo 32 (silenciosamente
+ * aliasava a dezena 48 com a 80, corrompendo o espectro de sobreposição).
+ * Com palavras dinâmicas o formato cobre universos de até 90 dezenas
+ * (3 palavras) e qualquer ampliação futura.
+ */
+function toMasks(
+  numbersList: readonly (readonly number[])[],
+  words: number,
+): Int32Array[] {
+  return numbersList.map((numbers) => {
+    const w = new Int32Array(words);
     for (const n of numbers) {
-      if (n <= 30) lo[i] |= 1 << (n - 1);
-      else hi[i] |= 1 << (n - 31);
+      w[Math.floor((n - 1) / WORD_BITS)] |= 1 << ((n - 1) % WORD_BITS);
     }
+    return w;
   });
-  return [lo, hi];
 }
 
 /** Histograma de sobreposições (0..K) sobre todos os pares. */
-function overlapHistogram(lo: Int32Array, hi: Int32Array, maxOverlap: number): number[] {
+function overlapHistogram(masks: Int32Array[], maxOverlap: number): number[] {
   const hist = new Array<number>(maxOverlap + 1).fill(0);
-  const n = lo.length;
+  const n = masks.length;
   for (let i = 0; i < n; i++) {
-    const a = lo[i];
-    const b = hi[i];
+    const a = masks[i];
     for (let j = i + 1; j < n; j++) {
-      hist[popcount(a & lo[j]) + popcount(b & hi[j])]++;
+      const b = masks[j];
+      let overlap = 0;
+      for (let w = 0; w < a.length; w++) overlap += popcount(a[w] & b[w]);
+      hist[overlap]++;
     }
   }
   return hist;
@@ -192,8 +210,8 @@ export function overlapSpectrumTest(
   );
   const bins = mergedBins(expected);
 
-  const [lo, hi] = toMasks(own.map((d) => d.numbers));
-  const observed = overlapHistogram(lo, hi, K);
+  const masks = toMasks(own.map((d) => d.numbers), Math.ceil(N / WORD_BITS));
+  const observed = overlapHistogram(masks, K);
   const statistic = chiSquare(observed, expected, bins);
 
   let atLeast = 0;
@@ -210,8 +228,8 @@ export function overlapSpectrumTest(
       }
       simulated.push(numbers);
     }
-    const [slo, shi] = toMasks(simulated);
-    if (chiSquare(overlapHistogram(slo, shi, K), expected, bins) >= statistic) atLeast++;
+    const simulatedMasks = toMasks(simulated, Math.ceil(N / WORD_BITS));
+    if (chiSquare(overlapHistogram(simulatedMasks, K), expected, bins) >= statistic) atLeast++;
   }
 
   return {

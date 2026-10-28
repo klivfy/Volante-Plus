@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { Lottery } from '../../types/domain';
 import { hypergeometricProbability } from '../hypergeometric';
 import { lotteryRules } from '../prizeRules';
-import { binomialExactTest, chiSquareGoodnessOfFit } from '../statisticalTests';
+import {
+  approxChi2CDF,
+  approxChi2Survival,
+  binomialExactTest,
+  chiSquareGoodnessOfFit,
+} from '../statisticalTests';
 import { anyPrizeProbability } from '../powerAnalysis';
 
 describe('binomialExactTest', () => {
@@ -70,5 +75,54 @@ describe('chiSquareGoodnessOfFit', () => {
     const result = chiSquareGoodnessOfFit({}, Lottery.MEGA_SENA);
     expect(result.pValue).toBe(1);
     expect(result.significant).toBe(false);
+  });
+
+  it('funde as caudas esparsas: um "6 acertos" raro não é mais um falso positivo (Onda 3)', () => {
+    // 500 jogos na Mega-Sena: esperado de 6 acertos é 500/50.063.860 ≈ 0,01.
+    // Antes da fusão de Cochran, UMA observação nessa casela produzia
+    // χ² ~ 98 e "método ≠ acaso" — o teste media raridade, não desvio.
+    const rules = lotteryRules(Lottery.MEGA_SENA);
+    const total = 500;
+    const observed: Record<number, number> = {};
+    for (let k = 0; k <= rules.numbersDrawn; k++) {
+      observed[k] = Math.floor(
+        total *
+          hypergeometricProbability(rules.numberUniverse, rules.numbersDrawn, rules.numbersPerBet, k),
+      );
+    }
+    observed[6] = 1; // o jogador sortudo — sob H0 isso acontece.
+
+    const result = chiSquareGoodnessOfFit(observed, Lottery.MEGA_SENA);
+    expect(result.significant).toBe(false);
+    // A cauda alta foi fundida numa única casela (o último bin tem vários ks).
+    expect(result.bins[result.bins.length - 1].length).toBeGreaterThan(1);
+    expect(result.bins[result.bins.length - 1]).toContain(rules.numbersDrawn);
+  });
+
+  it('mantém o poder: desvio de distribuição real continua sendo rejeitado', () => {
+    const observed: Record<number, number> = { 0: 250, 1: 150, 2: 80, 3: 15, 4: 5, 5: 0, 6: 0 };
+    const result = chiSquareGoodnessOfFit(observed, Lottery.MEGA_SENA);
+    expect(result.significant).toBe(true);
+  });
+
+  it('preserva a magnitude do p-valor para χ² grande (cauda superior direta)', () => {
+    const result = chiSquareGoodnessOfFit(
+      { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 1000 },
+      Lottery.MEGA_SENA,
+    );
+    // O caminho antigo (1 - CDF) devolvia 0 por cancelamento catastrófico.
+    expect(result.pValue).toBeLessThan(1e-10);
+    expect(result.pValue).toBeGreaterThanOrEqual(0);
+  });
+
+  it('approxChi2Survival mantém a magnitude onde 1 - CDF colapsa em zero', () => {
+    // χ² = 400 com df = 3: z ≈ 15,4, p real ≈ 1e-53. O antigo `1 - CDF`
+    // devolvia exatamente 0 (1 − (1 − ε) perde ε abaixo de ~1e-16); a cauda
+    // direta preserva a ordem de grandeza até o underflow de exp (z ≈ 38).
+    const survival = approxChi2Survival(400, 3);
+    const viaCdf = 1 - approxChi2CDF(400, 3);
+    expect(survival).toBeGreaterThan(0);
+    expect(survival).toBeLessThan(1e-30);
+    expect(viaCdf).toBe(0);
   });
 });

@@ -15,19 +15,26 @@ import { RandomSource, defaultRandom } from './random';
  * confiança de uso exploratório.
  */
 export function approxNormalCDF(z: number): number {
-  const b1 = 0.319381530;
-  const b2 = -0.356563782;
-  const b3 = 1.781477937;
-  const b4 = -1.821255978;
-  const b5 = 1.330274429;
-  const p = 0.2316419;
-  const c = 0.39894228;
-
   if (z >= 0) {
-    const t = 1 / (1 + p * z);
-    return 1 - c * Math.exp((-z * z) / 2) * t * (b1 + t * (b2 + t * (b3 + t * (b4 + t * b5))));
+    return 1 - normalUpperTail(z);
   }
-  return 1 - approxNormalCDF(-z);
+  return normalUpperTail(-z);
+}
+
+/**
+ * Cauda superior normal Q(z) = 1 − Φ(z) para z ≥ 0, direto da 26.2.17.
+ *
+ * WHY não `1 - approxNormalCDF(z)`: para z grande o CDF encosta em 1 e a
+ * subtração cancela ε abaixo de ~1e-16 — Q(15) ≈ 1e-51 virava exatamente 0.
+ * A fórmula devolve a cauda com magnitude preservada até o underflow de
+ * `exp` (z ≈ 38.5), o que mantém p-values pequenos porém não nulos.
+ */
+function normalUpperTail(z: number): number {
+  const t = 1 / (1 + 0.2316419 * z);
+  const poly =
+    0.31938153 +
+    t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429)));
+  return 0.39894228 * Math.exp((-z * z) / 2) * poly;
 }
 
 /**
@@ -64,6 +71,23 @@ export function approxChi2CDF(x: number, df: number): number {
   const z = Math.pow(x / df, 1 / 3) - (1 - 2 / (9 * df));
   const denom = Math.sqrt(2 / (9 * df));
   return approxNormalCDF(z / denom);
+}
+
+/**
+ * Cauda superior da Chi-quadrado: P(X >= x), via Wilson-Hilferty.
+ *
+ * WHY não computar `1 - approxChi2CDF(x, df)`: para χ² grande a CDF encosta
+ * em 1 e a subtração em ponto flutuante cancela todos os algarismos —
+ * p-values de 1e-10 viravam 0 (ou lixo da última casa). A cauda é avaliada
+ * diretamente pela 26.2.17, preservando a magnitude até o underflow de
+ * `exp` (z ≈ 38.5).
+ */
+export function approxChi2Survival(x: number, df: number): number {
+  if (x <= 0 || df <= 0) return 1;
+  const z = Math.pow(x / df, 1 / 3) - (1 - 2 / (9 * df));
+  const denom = Math.sqrt(2 / (9 * df));
+  const zn = z / denom;
+  return zn >= 0 ? normalUpperTail(zn) : 1 - normalUpperTail(-zn);
 }
 
 /**

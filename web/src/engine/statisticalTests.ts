@@ -1,7 +1,7 @@
 import { Lottery } from '../types/domain';
 import { hypergeometricProbability } from './hypergeometric';
 import { lotteryRules } from './prizeRules';
-import { approxChi2CDF, approxNormalCDF, binomialCDF } from './statUtils';
+import { approxChi2Survival, approxChi2CDF, approxNormalCDF, binomialCDF } from './statUtils';
 
 /**
  * Testes de significância estatística para o backtesting.
@@ -75,6 +75,50 @@ export interface ChiSquareResult {
   df: number;
   pValue: number;
   significant: boolean;
+  /** Caselas efetivamente usadas, após a fusão das esparsas (índices de acertos). */
+  bins: number[][];
+}
+
+/**
+ * Esperado por casela `n·P(hits = k)`, k = 0..K, para a loteria.
+ */
+function hypergeometricExpectations(lottery: Lottery, total: number): number[] {
+  const rules = lotteryRules(lottery);
+  return Array.from({ length: rules.numbersDrawn + 1 }, (_, k) =>
+    total *
+    hypergeometricProbability(rules.numberUniverse, rules.numbersDrawn, rules.numbersPerBet, k),
+  );
+}
+
+/**
+ * Fusão de Cochran: nenhuma casela com esperado < `minExpected` — as caudas
+ * raras são fundidas na vizinha (a pmf hipergeométrica é unimodal, então
+ * esparsidade só ocorre nas pontas).
+ *
+ * WHY: uma casela com esperado ε e 1 observação contribuía ~(1−ε)²/ε ≈ 1/ε
+ * para o χ² — um único "6 acertos" entre 500 jogos (esperado 0,01) produzia
+ * χ² ~ 98 e um falso "método ≠ acaso" com p-value minúsculo. Fundindo as
+ * caudas, o mesmo evento entra numa casela com esperado ≥ 5 e o teste mede
+ * desvio de distribuição, não raridade de sorteio.
+ */
+function mergeSparseBins(expected: readonly number[], minExpected = 5): number[][] {
+  const bins: number[][] = expected.map((_, k) => [k]);
+
+  while (bins.length > 1) {
+    const last = bins[bins.length - 1];
+    const sum = last.reduce((s, k) => s + expected[k], 0);
+    if (sum >= minExpected) break;
+    bins.splice(bins.length - 2, 2, [...bins[bins.length - 2], ...last]);
+  }
+
+  while (bins.length > 1) {
+    const first = bins[0];
+    const sum = first.reduce((s, k) => s + expected[k], 0);
+    if (sum >= minExpected) break;
+    bins.splice(0, 2, [...first, ...bins[1]]);
+  }
+
+  return bins;
 }
 
 /**
@@ -83,38 +127,40 @@ export interface ChiSquareResult {
  * hipergeométrica esperada.
  *
  * H0: a distribuição observada segue a hipergeométrica (método = acaso).
+ *
+ * Correções de magnitude (Onda 3):
+ * - caudas raras fundidas por Cochran (esperado >= 5 por casela);
+ * - p-valor pela cauda superior direta (`approxChi2Survival`) — o antigo
+ *   `1 - CDF` cancelava algarismos para χ² grande.
  */
 export function chiSquareGoodnessOfFit(
   observedCounts: Record<number, number>,
   lottery: Lottery,
 ): ChiSquareResult {
-  const rules = lotteryRules(lottery);
   const total = Object.values(observedCounts).reduce((a, b) => a + b, 0);
 
   if (total === 0) {
-    return { chi2: 0, df: 0, pValue: 1, significant: false };
+    return { chi2: 0, df: 0, pValue: 1, significant: false, bins: [] };
   }
 
+  const expected = hypergeometricExpectations(lottery, total);
+  const bins = mergeSparseBins(expected);
+
   let chi2 = 0;
-  let df = -1; // -1: o total é estimado a partir dos próprios dados
-
-  for (let k = 0; k <= rules.numbersDrawn; k++) {
-    const observed = observedCounts[k] ?? 0;
-    const expected =
-      total *
-      hypergeometricProbability(rules.numberUniverse, rules.numbersDrawn, rules.numbersPerBet, k);
-
-    if (expected > 0) {
-      chi2 += Math.pow(observed - expected, 2) / expected;
-      df++;
+  for (const bin of bins) {
+    const observed = bin.reduce((s, k) => s + (observedCounts[k] ?? 0), 0);
+    const e = bin.reduce((s, k) => s + expected[k], 0);
+    if (e > 0) {
+      chi2 += Math.pow(observed - e, 2) / e;
     }
   }
 
-  df = Math.max(df, 0);
-  const pValue = df === 0 ? 1 : 1 - approxChi2CDF(chi2, df);
+  // −1: o total de observações fixa uma restrição linear sobre as caselas.
+  const df = Math.max(bins.length - 1, 0);
+  const pValue = df === 0 ? 1 : approxChi2Survival(chi2, df);
 
-  return { chi2, df, pValue, significant: pValue < 0.05 };
+  return { chi2, df, pValue, significant: pValue < 0.05, bins };
 }
 
 // Reexportado para quem precisar montar testes customizados (ex.: fairness).
-export { approxChi2CDF, approxNormalCDF, binomialCDF };
+export { approxChi2CDF, approxChi2Survival, approxNormalCDF, binomialCDF };

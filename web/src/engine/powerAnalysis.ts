@@ -1,6 +1,6 @@
 import { Lottery } from '../types/domain';
 import { hypergeometricMean, hypergeometricProbability } from './hypergeometric';
-import { lotteryRules } from './prizeRules';
+import { hasTrevos, isPrized, lotteryRules } from './prizeRules';
 import { approxNormalCDF } from './statUtils';
 
 /**
@@ -146,11 +146,56 @@ export function powerTable(
  * Probabilidade teórica de "qualquer prêmio" numa aposta simples — usada como
  * referência de poder para a taxa de eficácia (`prizeRate`), em vez de
  * acertos médios.
+ *
+ * WHY (faixas oficiais, não um corte fixo de acertos): cada modalidade tem
+ * faixas próprias — Mega-Sena premia a partir de 4 acertos, a Quina a partir
+ * de 2 (duque!), e a +Milionária cruza dezenas (4..6) com trevos (0..2) em
+ * nove faixas. Um corte fixo `hits >= 4` era correto só para a Mega-Sena:
+ * na Quina subestimava o baseline em ~3 ordens de grandeza (0,00005 contra
+ * ~0,0428) e INVERTIA o veredito do teste binomial — um método na média do
+ * acaso parecia "muito acima" do baseline falso. A soma segue exatamente as
+ * faixas de `prizeRules.ts` (`isPrized`), a mesma fonte que classifica os
+ * prêmios do backtest — baseline e contagem sempre casam.
+ *
+ * Na +Milionária dezenas e trevos são espaços independentes: a probabilidade
+ * conjunta fatoriza (P(dezenas) × P(trevos)) e a soma percorre as nove
+ * faixas oficiais. Como as faixas cobrem TODOS os resultados de trevos
+ * (0..2) para dezenas premiadas, o resultado coincide com a soma só de
+ * dezenas — o baseline é consistente tanto com contagens que classificam a
+ * aposta inteira (com trevos, como `runBacktest`) quanto com contagens
+ * só-dezenas (benchmark/auditoria).
  */
 export function anyPrizeProbability(lottery: Lottery): number {
   const rules = lotteryRules(lottery);
+
+  if (hasTrevos(lottery)) {
+    let total = 0;
+    for (let hits = 0; hits <= rules.numbersDrawn; hits++) {
+      const pHits = hypergeometricProbability(
+        rules.numberUniverse,
+        rules.numbersDrawn,
+        rules.numbersPerBet,
+        hits,
+      );
+      if (pHits === 0) continue;
+      for (let trevoHits = 0; trevoHits <= Math.min(rules.trevosDrawn, rules.trevosPerBet); trevoHits++) {
+        if (!isPrized(lottery, hits, trevoHits)) continue;
+        total +=
+          pHits *
+          hypergeometricProbability(
+            rules.trevoUniverse,
+            rules.trevosDrawn,
+            rules.trevosPerBet,
+            trevoHits,
+          );
+      }
+    }
+    return total;
+  }
+
   let total = 0;
-  for (let hits = 4; hits <= rules.numbersDrawn; hits++) {
+  for (let hits = 0; hits <= rules.numbersDrawn; hits++) {
+    if (!isPrized(lottery, hits)) continue;
     total += hypergeometricProbability(
       rules.numberUniverse,
       rules.numbersDrawn,
