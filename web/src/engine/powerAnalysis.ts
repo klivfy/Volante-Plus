@@ -158,12 +158,12 @@ export function powerTable(
  * prêmios do backtest — baseline e contagem sempre casam.
  *
  * Na +Milionária dezenas e trevos são espaços independentes: a probabilidade
- * conjunta fatoriza (P(dezenas) × P(trevos)) e a soma percorre as nove
- * faixas oficiais. Como as faixas cobrem TODOS os resultados de trevos
- * (0..2) para dezenas premiadas, o resultado coincide com a soma só de
- * dezenas — o baseline é consistente tanto com contagens que classificam a
- * aposta inteira (com trevos, como `runBacktest`) quanto com contagens
- * só-dezenas (benchmark/auditoria).
+ * conjunta fatoriza (P(dezenas) × P(trevos)) e a soma percorre todas as
+ * faixas oficiais — incluindo as 4 de prêmio fixo (3+2/3+1/2+2/2+1), que
+ * dependem do trevo. O resultado é o baseline para contagens que classificam
+ * a aposta INTEIRA (com trevos, como `runBacktest`/`walkForwardMulti`).
+ * Para contagens só-de-dezenas (benchmark/auditoria), use
+ * `prizeProbabilityByNumbersAlone`.
  */
 export function anyPrizeProbability(lottery: Lottery): number {
   const rules = lotteryRules(lottery);
@@ -195,6 +195,34 @@ export function anyPrizeProbability(lottery: Lottery): number {
 
   let total = 0;
   for (let hits = 0; hits <= rules.numbersDrawn; hits++) {
+    if (!isPrized(lottery, hits)) continue;
+    total += hypergeometricProbability(
+      rules.numberUniverse,
+      rules.numbersDrawn,
+      rules.numbersPerBet,
+      hits,
+    );
+  }
+  return total;
+}
+
+/**
+ * Probabilidade de "algum prêmio" contando SOMA as dezenas — o baseline
+ * consistente com as contagens do benchmark e do Módulo B, que classificam
+ * `classifyHits(lottery, hits)` sem observar trevos.
+ *
+ * Para as loterias sem trevo coincide com `anyPrizeProbability`. Na
+ * +Milionária é MENOR: exclui as faixas fixas 2+1/2+2/3+1 (exigem ≥1 trevo)
+ * — somá-las aqui compararia a taxa medida (só dezenas) contra um baseline
+ * 96× maior e produziria z absurdamente negativo para qualquer estratégia.
+ */
+export function prizeProbabilityByNumbersAlone(lottery: Lottery): number {
+  const rules = lotteryRules(lottery);
+  let total = 0;
+  // `isPrized(lottery, hits)` usa `trevoHits = 0`: captura exatamente os
+  // acertos de dezenas que premiam INDEPENDENTE do trevo (na +Milionária,
+  // as variantes ?+0 das faixas 1–6).
+  for (let hits = 0; hits <= rules.numbersPerBet; hits++) {
     if (!isPrized(lottery, hits)) continue;
     total += hypergeometricProbability(
       rules.numberUniverse,

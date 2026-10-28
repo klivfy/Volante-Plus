@@ -1,5 +1,177 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`golden maismilionaria > fechamento com semente fixa e custo > t3 1`] = `
+{
+  "closure": {
+    "cost": 60,
+    "guarantee": 3,
+    "poolSize": 10,
+  },
+  "games": [
+    {
+      "numbers": [
+        3,
+        7,
+        11,
+        19,
+        23,
+        48,
+      ],
+      "trevoDuplas": [
+        [
+          1,
+          6,
+        ],
+      ],
+    },
+    {
+      "numbers": [
+        3,
+        7,
+        11,
+        23,
+        31,
+        37,
+      ],
+      "trevoDuplas": [
+        [
+          5,
+          4,
+        ],
+      ],
+    },
+    {
+      "numbers": [
+        3,
+        7,
+        11,
+        23,
+        41,
+        44,
+      ],
+      "trevoDuplas": [
+        [
+          3,
+          2,
+        ],
+      ],
+    },
+    {
+      "numbers": [
+        3,
+        7,
+        19,
+        31,
+        44,
+        48,
+      ],
+      "trevoDuplas": [
+        [
+          4,
+          5,
+        ],
+      ],
+    },
+    {
+      "numbers": [
+        3,
+        11,
+        19,
+        31,
+        41,
+        48,
+      ],
+      "trevoDuplas": [
+        [
+          2,
+          1,
+        ],
+      ],
+    },
+    {
+      "numbers": [
+        3,
+        19,
+        37,
+        41,
+        44,
+        48,
+      ],
+      "trevoDuplas": [
+        [
+          5,
+          4,
+        ],
+      ],
+    },
+    {
+      "numbers": [
+        7,
+        11,
+        19,
+        37,
+        41,
+        44,
+      ],
+      "trevoDuplas": [
+        [
+          2,
+          3,
+        ],
+      ],
+    },
+    {
+      "numbers": [
+        7,
+        23,
+        31,
+        37,
+        41,
+        48,
+      ],
+      "trevoDuplas": [
+        [
+          2,
+          4,
+        ],
+      ],
+    },
+    {
+      "numbers": [
+        11,
+        23,
+        31,
+        37,
+        44,
+        48,
+      ],
+      "trevoDuplas": [
+        [
+          2,
+          6,
+        ],
+      ],
+    },
+    {
+      "numbers": [
+        19,
+        23,
+        31,
+        37,
+        41,
+        44,
+      ],
+      "trevoDuplas": [
+        [
+          2,
+          6,
+        ],
+      ],
+    },
+  ],
+}
+`;
+
 exports[`golden maismilionaria > fechamento com semente fixa e custo > t4 1`] = `
 {
   "closure": {
@@ -534,6 +706,30 @@ exports[`golden maismilionaria > regras e probabilidades por faixa 1`] = `
       "numberHits": 4,
       "trevoHits": 0,
     },
+    {
+      "key": "3+2",
+      "label": "3 dezenas + 2 trevos",
+      "numberHits": 3,
+      "trevoHits": 2,
+    },
+    {
+      "key": "3+1",
+      "label": "3 dezenas + 1 trevo",
+      "numberHits": 3,
+      "trevoHits": 1,
+    },
+    {
+      "key": "2+2",
+      "label": "2 dezenas + 2 trevos",
+      "numberHits": 2,
+      "trevoHits": 2,
+    },
+    {
+      "key": "2+1",
+      "label": "2 dezenas + 1 trevo",
+      "numberHits": 2,
+      "trevoHits": 1,
+    },
   ],
   "trevoUniverse": 6,
   "trevosDrawn": 2,
@@ -543,6 +739,10 @@ exports[`golden maismilionaria > regras e probabilidades por faixa 1`] = `
 
 exports[`golden maismilionaria > regras e probabilidades por faixa 2`] = `
 {
+  "2+1": 0.06834236377251883,
+  "2+2": 0.008542795471564855,
+  "3+1": 0.008890063580165145,
+  "3+2": 0.0011112579475206434,
   "4+0": 0.00035719005456020755,
   "4+1": 0.0004762534060802768,
   "4+2": 0.000059531675760034616,

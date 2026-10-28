@@ -5,7 +5,7 @@ import { classifyHits, lotteryRules } from '../prizeRules';
 import { createSeededRandom, RandomSource } from '../random';
 import { StrategyName, generateForStrategy, runStrategyBenchmark } from '../strategyBenchmark';
 import { binomialExactTest } from '../statisticalTests';
-import { anyPrizeProbability } from '../powerAnalysis';
+import { prizeProbabilityByNumbersAlone } from '../powerAnalysis';
 import { DrawDataset, assertAuditable } from './provenance';
 
 /**
@@ -155,10 +155,10 @@ export function runModuleB(dataset: DrawDataset): ModuleBReport {
   // da fatia reservada, cada corte com seu próprio teste binomial contra p0 —
   // o mesmo desenho de `multiCutWalkForward`, mas restrito à confirmação e a
   // uma única estratégia (a seleção já gastou o orçamento de comparações).
-  // A auditoria conta prêmios só por dezenas, mas o baseline completo segue
-  // valendo: as faixas da +Milionária cobrem todos os trevos para dezenas
-  // premiadas, então P(algum prêmio) coincide com a soma só de dezenas.
-  const p0 = anyPrizeProbability(lottery);
+  // A auditoria conta prêmios só por dezenas (`classifyHits(lottery, hits)`),
+  // então o baseline tem de ser o da mesma unidade — na +Milionária o baseline
+  // completo incluiria as faixas fixas dependentes de trevo.
+  const p0 = prizeProbabilityByNumbersAlone(lottery);
   const confirmationOrdered = chronological(confirmationDraws);
   const cuts: { pValue: number; advantageSign: number }[] = [];
 
@@ -190,7 +190,13 @@ export function runModuleB(dataset: DrawDataset): ModuleBReport {
             GAMES_PER_CONTEST,
             random,
           );
+          // Mesmo cuidado do benchmark: jogos idênticos no concurso não são
+          // Bernoulli independentes — conta só os distintos.
+          const seen = new Set<string>();
           for (const numbers of games) {
+            const key = numbers.join(',');
+            if (seen.has(key)) continue;
+            seen.add(key);
             const hits = numbers.filter((n) => draw.numbers.includes(n)).length;
             hitsSum += hits;
             totalBets++;

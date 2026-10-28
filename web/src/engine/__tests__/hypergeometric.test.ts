@@ -98,9 +98,11 @@ describe('prizeProbabilities', () => {
     expect(probabilities['6']).toBeCloseTo(1 / MEGA_COMBINATIONS, 15);
   });
 
-  it('cobre as nove faixas da +Milionária', () => {
+  it('cobre as 10 faixas oficiais da +Milionária', () => {
     const probabilities = prizeProbabilities(Lottery.MAIS_MILIONARIA);
-    expect(Object.keys(probabilities)).toHaveLength(9);
+    // 9 entradas de rateio (as faixas 1–6 do jogo oficial, com 1/0 desdobrado)
+    // + 4 faixas de prêmio fixo (3+2, 3+1, 2+2, 2+1) — o jogo oficial tem 10 faixas.
+    expect(Object.keys(probabilities)).toHaveLength(13);
     // Chance oficial de 6 dezenas + 2 trevos: 1 em 238.360.500.
     expect(probabilities['6+2']).toBeCloseTo(1 / 238_360_500, 15);
     expect(probabilities['6+1']).toBeCloseTo(8 / (15 * MILIONARIA_COMBINATIONS), 15);
@@ -136,14 +138,21 @@ describe('expectedPrizes', () => {
 describe('prizeRules', () => {
   it('lista as faixas da mais alta para a mais baixa', () => {
     expect(MEGA_SENA_TIERS.map((tier) => tier.key)).toEqual(['6', '5', '4']);
-    expect(MAIS_MILIONARIA_TIERS).toHaveLength(9);
+    // 10 faixas oficiais = 9 entradas de rateio (1/0 desdobrado) + 4 fixas.
+    expect(MAIS_MILIONARIA_TIERS).toHaveLength(13);
   });
 
   it('classifica acertos na faixa correta', () => {
     expect(classifyHits(Lottery.MEGA_SENA, 6)?.label).toBe('Sena');
     expect(classifyHits(Lottery.MEGA_SENA, 3)).toBeNull();
     expect(classifyHits(Lottery.MAIS_MILIONARIA, 5, 1)?.key).toBe('5+1');
-    expect(classifyHits(Lottery.MAIS_MILIONARIA, 3, 2)).toBeNull();
+    // As 4 faixas fixas do jogo oficial premiam a partir de 2 dezenas + trevo.
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 3, 2)?.key).toBe('3+2');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 3, 1)?.key).toBe('3+1');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 2, 2)?.key).toBe('2+2');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 2, 1)?.key).toBe('2+1');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 2, 0)).toBeNull();
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 1, 2)).toBeNull();
   });
 
   it('ignora os trevos numa loteria sem trevos', () => {
