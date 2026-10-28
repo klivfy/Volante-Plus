@@ -41,7 +41,17 @@ recebeu uma data **sintética**, calculada por
 | Loteria | Âncora (contest 1) | Intervalo médio |
 |---|---|---|
 | Mega-Sena | 1996-03-11 (data real de fundação) | 3,75 dias |
-| +Milionária | 2022-02-05 (data real de fundação) | 7 dias (sorteio semanal) |
+| +Milionária | 2022-02-05 (âncora sintética da integração) | 7 dias (sorteio semanal) |
+
+> **Correção de registro (2026-10-28):** a âncora da +Milionária constava aqui
+> como "data real de fundação", o que é **incorreto** — o concurso 1 oficial
+> aconteceu em **28/05/2022** (fonte: Caixa; conferido contra o seed
+> versionado em `data/history`, cujo concurso 1 é `2022-05-28`). As datas
+> sintéticas do espelho NÃO foram regeneradas — continuam válidas apenas como
+> preenchimento estrutural do campo `date`, nunca como fato. Os pisos
+> oficiais usados pelo backtesting vivem em `MIN_CUTOFF_DATES`
+> (`engine/backtestEngine.ts`) e `backtestCutoff.ts`, e vêm dos registros
+> oficiais, não deste espelho.
 
 Essas datas **não são os dias reais dos sorteios** — são um espaçamento
 uniforme entre duas âncoras reais, só para que o campo seja uma data válida.

@@ -26,6 +26,7 @@ import { useBacktestWorker } from '@/hooks/useBacktestWorker';
 import { pageLottery, useLotteryTheme } from '@/context/LotteryThemeContext';
 import { trackLotterySelection } from '@/services/analytics';
 import { getDrawsAfter, getDrawsUpTo, savePerformances } from '@/services/db';
+import { cutoffBounds, todayUtcIso, validateCutoffDate } from '@/engine/backtestCutoff';
 import { Lottery, MAX_GAMES, MIN_GAMES } from '@/types/domain';
 
 const percentFormatter = new Intl.NumberFormat('pt-BR', {
@@ -97,15 +98,26 @@ export default function BacktestingPage() {
     setLocalError(null);
   }
 
-  const cutoffValid = /^\d{4}-\d{2}-\d{2}$/.test(cutoffDate);
+  // Limites do seletor de data por modalidade: do primeiro sorteio oficial
+  // (concurso 1) até o dia atual — datas anteriores ao primeiro sorteio não
+  // ocorreram e datas futuras só produziriam janela de validação vazia.
+  const cutoffLimits = cutoffBounds(lottery, todayUtcIso());
   const running = submitting || workerLoading;
   const errorMessage = localError ?? workerError;
   const showReport = report !== null && !reportStale;
 
   async function handleRun(): Promise<void> {
     setLocalError(null);
-    if (!cutoffValid) {
-      setLocalError(t('backtesting.invalidCutoff'));
+    const cutoffCheck = validateCutoffDate(cutoffDate, lottery, cutoffLimits.max);
+    if (!cutoffCheck.ok) {
+      const { reason } = cutoffCheck;
+      if (reason === 'before-first-draw') {
+        setLocalError(t('backtesting.cutoffBeforeFirstDraw', { date: cutoffLimits.min }));
+      } else if (reason === 'future') {
+        setLocalError(t('backtesting.cutoffFuture', { date: cutoffLimits.max }));
+      } else {
+        setLocalError(t('backtesting.invalidCutoff'));
+      }
       return;
     }
 
@@ -115,6 +127,11 @@ export default function BacktestingPage() {
         getDrawsUpTo(lottery, cutoffDate),
         getDrawsAfter(lottery, cutoffDate),
       ]);
+
+      if (training.length === 0) {
+        setLocalError(t('backtesting.noTrainingDraws', { date: cutoffDate }));
+        return;
+      }
 
       if (validation.length === 0) {
         setLocalError(t('backtesting.noValidationDraws', { date: cutoffDate }));
@@ -176,8 +193,14 @@ export default function BacktestingPage() {
                 type="date"
                 value={cutoffDate}
                 onChange={(event) => setCutoffDate(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-                helperText={t('backtesting.cutoffHelper')}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  htmlInput: { min: cutoffLimits.min, max: cutoffLimits.max },
+                }}
+                helperText={t('backtesting.cutoffHelper', {
+                  min: cutoffLimits.min,
+                  max: cutoffLimits.max,
+                })}
                 disabled={running}
                 fullWidth
               />

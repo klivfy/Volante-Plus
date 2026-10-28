@@ -29,9 +29,16 @@ import { createSeededRandom, defaultRandom, RandomSource } from './random';
  * Porta direta de `BacktestEngine.kt` + `Statistics.kt` do app Android.
  */
 
-/** Data mínima de corte por modalidade (piso histórico absoluto). */
+/**
+ * Data mínima de corte por modalidade (piso histórico absoluto): o primeiro
+ * sorteio oficial de cada modalidade — Mega-Sena 11/03/1996, +Milionária
+ * 28/05/2022 e Quina 13/03/1994 (concurso 1 de cada; conferido contra o seed
+ * versionado em `data/history`). A Mega constava como `1995-03-11` — errônea:
+ * o concurso 1 foi em 1996. Ver `backtestCutoff.ts`, que expõe estes pisos
+ * como limites do seletor de data na tela de backtesting.
+ */
 export const MIN_CUTOFF_DATES: Record<Lottery, string> = {
-  [Lottery.MEGA_SENA]: '1995-03-11',
+  [Lottery.MEGA_SENA]: '1996-03-11',
   [Lottery.MAIS_MILIONARIA]: '2022-05-28',
   [Lottery.QUINA]: '1994-03-13',
 };
