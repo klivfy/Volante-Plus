@@ -123,4 +123,5 @@ private val Lottery.apiPath: String
     get() = when (this) {
         Lottery.MEGA_SENA -> "megasena"
         Lottery.MAIS_MILIONARIA -> "maismilionaria"
+        Lottery.QUINA -> "quina"
     }

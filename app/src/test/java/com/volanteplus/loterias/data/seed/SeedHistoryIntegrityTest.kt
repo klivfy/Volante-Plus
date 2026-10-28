@@ -76,6 +76,24 @@ class SeedHistoryIntegrityTest {
         assertEquals(meta["lastContest"]!!.jsonPrimitive.int, draws.maxOf { it.contestNumber })
     }
 
+    @Test
+    fun `quina csv parseia sem erro e eh contigua de 1 ate o ultimo`() {
+        val draws = parser.parse(Lottery.QUINA, seedFile("quina.csv").readText())
+
+        assertTrue("seed vazio", draws.isNotEmpty())
+        assertTrue("lacuna/duplicata: ${gapsInSequence(draws)}", gapsInSequence(draws).isEmpty())
+        assertTrue("toda dezena em 1..80 e 5 por concurso", draws.all { it.numbers.size == 5 && it.numbers.all { n -> n in 1..80 } })
+    }
+
+    @Test
+    fun `quina csv bate contagem e ultimo concurso com o historico de referencia da web`() {
+        val draws = parser.parse(Lottery.QUINA, seedFile("quina.csv").readText())
+        val meta = historyMeta()["lotteries"]!!.jsonObject["quina"]!!.jsonObject
+
+        assertEquals(meta["count"]!!.jsonPrimitive.int, draws.size)
+        assertEquals(meta["lastContest"]!!.jsonPrimitive.int, draws.maxOf { it.contestNumber })
+    }
+
     // --- Controles positivos (Constitution, Princípio III — NÃO NEGOCIÁVEL) ---
     // Um instrumento que nunca acusa nada também passaria nos quatro testes acima;
     // estes dois provam que ele de fato rejeita o que deveria.
@@ -105,5 +123,17 @@ class SeedHistoryIntegrityTest {
         // na checagem de sequência, que é o próprio objeto deste teste.
         val draws = parser.parse(Lottery.MEGA_SENA, comLacuna)
         assertTrue("a lacuna deveria ter sido detectada", gapsInSequence(draws).isNotEmpty())
+    }
+    @Test
+    fun `controle positivo - quina rejeita 6 dezenas, dezena 81 e trevo`() {
+        val seisDezenas = "# concurso;data;dezenas;trevos\n1;1994-03-13;1 2 3 4 5 6;"
+        val dezena81 = "# concurso;data;dezenas;trevos\n1;1994-03-13;5 20 33 61 81;"
+        val comTrevo = "# concurso;data;dezenas;trevos\n1;1994-03-13;5 20 33 61 80;1 2"
+
+        listOf(seisDezenas, dezena81, comTrevo).forEach { corrompido ->
+            assertThrows(IllegalArgumentException::class.java) {
+                parser.parse(Lottery.QUINA, corrompido)
+            }
+        }
     }
 }

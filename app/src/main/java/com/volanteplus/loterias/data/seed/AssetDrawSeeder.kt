@@ -31,6 +31,7 @@ class AssetDrawSeeder(
     private fun assetPath(lottery: Lottery): String = when (lottery) {
         Lottery.MEGA_SENA -> "seed/megasena.csv"
         Lottery.MAIS_MILIONARIA -> "seed/maismilionaria.csv"
+        Lottery.QUINA -> "seed/quina.csv"
     }
 
     private fun readAsset(path: String): String? = try {

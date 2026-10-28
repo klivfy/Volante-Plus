@@ -316,7 +316,7 @@ private fun ReportSection(report: BacktestReport) {
                 modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
             )
             val maxCount = report.hitDistribution.values.maxOrNull() ?: 1
-            (0..6).forEach { hits ->
+            (0..report.config.lottery.numbersDrawn).forEach { hits ->
                 val count = report.hitDistribution[hits] ?: 0
                 DistributionRow(hits, count, maxCount)
             }

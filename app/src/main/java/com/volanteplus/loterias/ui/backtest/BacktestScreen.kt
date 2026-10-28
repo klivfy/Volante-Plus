@@ -429,7 +429,7 @@ private fun ReportSection(report: BacktestReport) {
                 )
                 DistributionLegend()
                 val maxCount = report.hitDistribution.values.maxOrNull() ?: 1
-                (0..6).forEach { hits ->
+                (0..report.config.lottery.numbersDrawn).forEach { hits ->
                     val count = report.hitDistribution[hits] ?: 0
                     val expected =
                         (report.theoreticalDistribution[hits] ?: 0.0) * report.totalGames
