@@ -14,6 +14,14 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   7.149 concursos, volante e backtest. O fechamento com garantia segue
   indisponível nessas plataformas (as tabelas de cobertura são de jogos de 6
   dezenas): a guarda recusa em vez de prometer errado.
+- Harness de calibração estatística (Fase 1 do plano de confiabilidade,
+  `web/src/engine/calibration/`): catálogo único do contrato de significância
+  (`catalog.ts`), gerador determinístico de históricos honestos
+  (`honestHistory.ts`, mulberry32 com semente pública), runner Monte Carlo com
+  intervalo de Wilson (`runner.ts`) e teste de fumaça que mede o falso-positivo
+  real dos métodos expostos e reprova uma sonda deliberadamente mal calibrada.
+  Política em `docs/calibration-contract.md`; FPR medido em N = 300: 0,0–3,7%
+  para os cinco métodos smoke (α = 5%).
 - `web/scripts/collect-portal-snapshot.mjs` e `update-history-seed.mjs --only`.
 
 ### Fixed
