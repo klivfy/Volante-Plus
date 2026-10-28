@@ -28,8 +28,11 @@ export function approxNormalCDF(z: number): number {
  * subtração cancela ε abaixo de ~1e-16 — Q(15) ≈ 1e-51 virava exatamente 0.
  * A fórmula devolve a cauda com magnitude preservada até o underflow de
  * `exp` (z ≈ 38.5), o que mantém p-values pequenos porém não nulos.
+ *
+ * Exportada: o p-value bicaudal `2·Q(|z|)` (espelho do `erfc(|z|/√2)` do
+ * Kotlin) é o jeito estável de calculá-lo — ver `numberEvidence`.
  */
-function normalUpperTail(z: number): number {
+export function normalUpperTail(z: number): number {
   const t = 1 / (1 + 0.2316419 * z);
   const poly =
     0.31938153 +
