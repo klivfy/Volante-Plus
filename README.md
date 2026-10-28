@@ -72,12 +72,14 @@ Volante-Plus/
 |---|---|---|---|---|
 | Mega-Sena | 01–60 | 8 | 15 | — |
 | +Milionária | 01–50 | 8 | 12 | exatamente 2 (de 1–6) |
-| Quina *(só web)* | 01–80 | 5 | 15 | — |
+| Quina | 01–80 | 5 | 15 | — |
 
-> A Quina hoje existe apenas na versão web (`web/`); Android e desktop ainda
-> não têm a modalidade (ver CHANGELOG, `[Unreleased]`).
+> A Quina existe na web (`web/`), no Android (`app/`) e no desktop (`desktop/`).
+> O fechamento com garantia é oferecido só na web; no Android e no desktop a
+> guarda recusa em vez de prometer uma cobertura que as tabelas não provam
+> (ver CHANGELOG, `[Unreleased]`).
 
-- Abas principais: **Mega-Sena** / **+Milionária** (seleção preservada ao alternar).
+- Abas principais: **Mega-Sena** / **+Milionária** / **Quina** (seleção preservada ao alternar).
 - Sub-abas: **Jogos avulsos** / **Fechamento**.
 - Trevos (+Milionária): estratégias **Econômico** (1 dupla) e **Cobertura total** (15 duplas).
 - Slogan fixo no topo das telas de geração.

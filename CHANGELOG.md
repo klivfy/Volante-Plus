@@ -9,6 +9,11 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
   faixas): regras e chances exatas, histórico embutido (7.149 concursos, 1994-03-13 a
   2026-10-22, conferido concurso a concurso contra o portal da Caixa em dezenas e
   datas), sincronização, geração de jogos e fechamento (terno e quadra).
+- Modalidade **Quina** no Android e no desktop: regras e prêmios espelhando a web
+  (quatro faixas — quina, quadra, terno e duque —, aposta de R$ 3,00), seed de
+  7.149 concursos, volante e backtest. O fechamento com garantia segue
+  indisponível nessas plataformas (as tabelas de cobertura são de jogos de 6
+  dezenas): a guarda recusa em vez de prometer errado.
 - `web/scripts/collect-portal-snapshot.mjs` e `update-history-seed.mjs --only`.
 
 ### Fixed
@@ -16,7 +21,7 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
 ### Changed
 - Preço da aposta simples e dezenas sorteadas passam a ser por modalidade (sem mudar
-  Mega-Sena nem +Milionária). Android e desktop ainda não têm a Quina.
+  Mega-Sena nem +Milionária).
 - (Onda 1 da revisão, já em `volante-fixes`) O sorteio da tela principal passou a ser
   **dirigido pelo backtest** (`BACKTEST_TIERS`): cada jogo sai de 12 candidatas
   geradas pelos tiers de desempenho, ficando com a menos popular — no lugar das 64
