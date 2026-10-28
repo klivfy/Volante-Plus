@@ -1,6 +1,6 @@
 import { Draw, Lottery } from '../types/domain';
 import { lotteryRules } from './prizeRules';
-import { approxChi2CDF, approxNormalCDF } from './statUtils';
+import { approxChi2Survival, normalUpperTail } from './statUtils';
 
 /**
  * Testes de aleatoriedade do próprio sorteio (fairness tests).
@@ -48,8 +48,20 @@ export function frequencyFairnessTest(
     chi2 += Math.pow(counts[n] - expectedPerNumber, 2) / expectedPerNumber;
   }
 
+  // CORREÇÃO (população finita): sob H0 com sorteio SEM reposição, o Pearson
+  // bruto vale ≈ deff·χ²(N−1) — esperança N(1−K/N) = 54 na Mega, contra df 59.
+  // Sem dividir, o teste rejeitava 5% nominal só ~1,45% das vezes (conservador
+  // ~3,4×): um viés real de frequência passava por "isFair". Dividir por
+  // deff = (N−K)/(N−1) restaura E[chi2] ≈ df (Monte Carlo: rejeição 4,98%
+  // sob H0, e mais poder para detectar urna viciada).
+  const deff =
+    (rules.numberUniverse - rules.numbersDrawn) / (rules.numberUniverse - 1);
+  chi2 /= deff;
+
   const df = rules.numberUniverse - 1;
-  const pValue = 1 - approxChi2CDF(chi2, df);
+  // Cauda direta: `1 - approxChi2CDF` cancelava algarismos e devolvia 0
+  // para χ² grande (mesma classe do M-1 corrigido na Onda 3).
+  const pValue = approxChi2Survival(chi2, df);
 
   return { chi2, df, pValue, isFair: pValue > 0.05 };
 }
@@ -148,7 +160,8 @@ export function serialCorrelationTest(
 
   // Teste t para correlação (aproximado via normal para n grande).
   const tStat = Math.abs(r) >= 1 ? Infinity : (r * Math.sqrt(n - 2)) / Math.sqrt(1 - r * r);
-  const pValue = 2 * (1 - approxNormalCDF(Math.abs(tStat)));
+  // Cauda bicaudal estável — `2 · (1 − CDF(|t|))` zerava para |t| grande.
+  const pValue = tStat === Infinity ? 0 : 2 * normalUpperTail(tStat);
 
   return { lag1Correlation: r, pValue, isRandom: pValue > 0.05 };
 }

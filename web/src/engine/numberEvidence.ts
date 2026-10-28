@@ -1,7 +1,7 @@
 import { Lottery, NumberPerformance } from '../types/domain';
 import { bonferroniCorrection } from './multipleComparisons';
 import { DrawSpace, drawSpace } from './prizeRules';
-import { approxChi2CDF, approxNormalCDF } from './statUtils';
+import { approxChi2Survival, approxNormalCDF, normalUpperTail } from './statUtils';
 
 /**
  * Evidência estatística sobre a frequência das dezenas.
@@ -89,7 +89,11 @@ export function numberEvidence(
 
   const rows: NumberEvidenceRow[] = performances.map((row) => {
     const z = sd > 0 ? (row.hitCount - expected) / sd : 0;
-    const pValue = sd > 0 ? Math.min(1, 2 * (1 - approxNormalCDF(Math.abs(z)))) : 1;
+    // Bicaudal estável: P(χ²₁ ≥ z²) = 2·Q(|z|). O `2 · (1 − CDF(|z|))`
+    // colapsava em 0 para |z| ≳ 8,3 por cancelamento (mesma classe do M-1
+    // da Onda 3); o Kotlin já usava `erfc(|z|/√2)` — mesma matemática.
+    const pValue =
+      sd > 0 ? Math.min(1, 2 * normalUpperTail(Math.abs(z))) : 1;
     return { number: row.number, hitCount: row.hitCount, expected, z, pValue, significant: false };
   });
 
@@ -103,9 +107,19 @@ export function numberEvidence(
 
   // Qui-quadrado de aderência: soma dos z² sobre as dezenas do universo. As
   // contagens somam `draws·K` (fixo), o que custa um grau de liberdade.
-  const statistic = rows.reduce((sum, row) => sum + row.z * row.z, 0);
-  const df = Math.max(performances.length - 1, 0);
-  const chiPValue = df === 0 || sd === 0 ? 1 : 1 - approxChi2CDF(statistic, df);
+  //
+  // CORREÇÃO (população finita): sob sorteio SEM reposição as contagens são
+  // negativamente correlacionadas, e o Σ z² com variância binomial vale
+  // ≈ (m/(m−1))·χ²(m−1) sob H0 (esperança m, não m−1) — anticonservador:
+  // 5% nominal rejeitava ~6,1% na Mega (m=60) e ~10% nos trevos (m=6).
+  // Multiplicar por (m−1)/m — equivalente a dividir o Pearson bruto por
+  // deff = (N−K)/(N−1) — restaura E[Q] = m−1 e a referência χ²(m−1).
+  // Confirmado por Monte Carlo (20 mil históricos honestos: E[Q] = 59,98
+  // na Mega, rejeição 4,98%).
+  const m = rows.length;
+  const statistic = m > 1 ? (rows.reduce((sum, row) => sum + row.z * row.z, 0) * (m - 1)) / m : 0;
+  const df = Math.max(m - 1, 0);
+  const chiPValue = df === 0 || sd === 0 ? 1 : approxChi2Survival(statistic, df);
 
   const testable = draws >= minimumDraws && performances.length > 1;
   const zAlpha = normalQuantile(1 - correction.correctedAlpha / 2);
