@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Draw, Lottery } from '../../types/domain';
 import { computeBacktestAnalysis } from '../backtest.worker';
+import { isCurrentResponse } from '../../hooks/useBacktestWorker';
 
 function draw(contestNumber: number, numbers: number[]): Draw {
   return { lottery: Lottery.MEGA_SENA, contestNumber, date: '2024-01-01', numbers };
@@ -83,5 +84,40 @@ describe('computeBacktestAnalysis', () => {
     if (response.type === 'error') {
       expect(response.message).toContain('Loteria desconhecida');
     }
+  });
+});
+
+describe('identificação da resposta', () => {
+  it('ecoa requestId e loteria da requisição', () => {
+    const draws = [draw(1, [1, 2, 3, 4, 5, 6])];
+
+    const response = computeBacktestAnalysis({
+      draws,
+      lottery: Lottery.MEGA_SENA,
+      simulationsPerDraw: 0,
+      requestId: 7,
+    });
+
+    expect(response.requestId).toBe(7);
+    expect(response.lottery).toBe(Lottery.MEGA_SENA);
+  });
+
+  it('ecoa requestId e loteria também na resposta de erro', () => {
+    const response = computeBacktestAnalysis({
+      kind: 'backtest',
+      lottery: Lottery.MAIS_MILIONARIA,
+      trainingDraws: [],
+      validationDraws: [],
+      requestId: 3,
+    });
+
+    expect(response.requestId).toBe(3);
+    expect(response.lottery).toBe(Lottery.MAIS_MILIONARIA);
+  });
+
+  it('só a resposta da requisição mais recente é aceita', () => {
+    expect(isCurrentResponse({ requestId: 2 }, 2)).toBe(true);
+    expect(isCurrentResponse({ requestId: 1 }, 2)).toBe(false);
+    expect(isCurrentResponse({}, 2)).toBe(false);
   });
 });

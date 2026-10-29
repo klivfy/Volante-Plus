@@ -4,7 +4,13 @@ import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -160,6 +166,26 @@ class BacktestEngineTest {
         val first = BacktestEngine(repo).run(config(seed = 7L))
         val second = BacktestEngine(repo).run(config(seed = 7L))
         assertEquals(first, second)
+    }
+
+    @Test
+    fun `cancelar o job interrompe o motor entre replicas`() = runBlocking {
+        val repo = seededRepository()
+        // Réplicas suficientes para minutos de CPU: só termina a tempo se o
+        // motor observar o cancelamento.
+        val job = launch(Dispatchers.Default) {
+            BacktestEngine(repo).run(config().copy(replications = 10_000_000))
+        }
+        delay(100)
+        withTimeout(5_000) { job.cancelAndJoin() }
+        assertTrue(job.isCancelled)
+    }
+
+    @Test
+    fun `sem semente as replicas continuam independentes entre si`() = runTest {
+        val report = BacktestEngine(seededRepository()).run(config(seed = null).copy(replications = 5))
+        assertEquals(5, report.monteCarlo.replicationMeans.size)
+        assertTrue(report.monteCarlo.replicationMeans.toSet().size > 1)
     }
 
     @Test

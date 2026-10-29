@@ -10,8 +10,11 @@ import com.volanteplus.loterias.domain.generator.GameGenerator
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +25,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
+import java.util.logging.Level
+import java.util.logging.Logger
 
 data class BacktestUiState(
     val lottery: Lottery = Lottery.MEGA_SENA,
@@ -54,8 +59,13 @@ class BacktestViewModel(
     private val engine: BacktestEngine,
     private val repository: DrawRepository,
     private val parser: CsvDrawParser = CsvDrawParser(),
+    /** Injetável para os testes passarem o dispatcher do `runTest`. */
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    /** Backtest em andamento; no máximo um por vez. */
+    private var backtestJob: Job? = null
 
     private val _uiState = MutableStateFlow(BacktestUiState())
     val uiState: StateFlow<BacktestUiState> = _uiState.asStateFlow()
@@ -65,6 +75,8 @@ class BacktestViewModel(
     }
 
     fun selectLottery(lottery: Lottery) {
+        // O backtest em andamento é da loteria anterior: continuar só gastaria CPU.
+        cancelBacktest()
         _uiState.update { it.copy(lottery = lottery, report = null, message = null) }
         refreshHistory()
     }
@@ -89,8 +101,11 @@ class BacktestViewModel(
             _uiState.update { it.copy(cutoffError = true) }
             return
         }
-        scope.launch {
-            _uiState.update { it.copy(running = true, report = null, message = null) }
+        backtestJob?.cancel()
+        // Antes do launch: o corpo roda em outra thread, e dois cliques rápidos
+        // passariam pelo canRun antes de o primeiro marcar running.
+        _uiState.update { it.copy(running = true, report = null, message = null) }
+        backtestJob = scope.launch {
             try {
                 val report = engine.run(
                     BacktestConfig(
@@ -100,11 +115,40 @@ class BacktestViewModel(
                         trevoStrategy = state.trevoStrategy,
                     )
                 )
-                _uiState.update { it.copy(running = false, report = report) }
+                // Publica só na loteria que pediu o relatório: se a aba mudou no
+                // meio, o resultado é de outra loteria e não pode aparecer aqui.
+                _uiState.update {
+                    if (it.lottery == report.config.lottery) it.copy(report = report) else it
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: IllegalArgumentException) {
-                _uiState.update { it.copy(running = false, message = e.message) }
+                _uiState.update { it.copy(message = e.message) }
+            } catch (e: Exception) {
+                // Erro inesperado (banco, memória do cálculo): vira mensagem em
+                // vez de derrubar o app ou deixar o botão travado.
+                logger.log(Level.WARNING, "Falha no backtest", e)
+                _uiState.update {
+                    it.copy(message = "Falha no backtest: ${e.message ?: e::class.simpleName}")
+                }
+            } finally {
+                // Um backtest cancelado por outro mais novo não mexe no estado dele.
+                if (backtestJob === coroutineContext[Job]) {
+                    _uiState.update { it.copy(running = false) }
+                }
             }
         }
+    }
+
+    /**
+     * Interrompe o backtest em andamento. Chamado ao trocar de loteria e quando
+     * a tela sai de composição: o motor verifica cancelamento a cada réplica,
+     * então a CPU é liberada em seguida em vez de minutos depois.
+     */
+    fun cancelBacktest() {
+        backtestJob?.cancel()
+        backtestJob = null
+        _uiState.update { it.copy(running = false) }
     }
 
     /**
@@ -112,10 +156,10 @@ class BacktestViewModel(
      * onde o Volante o lê com prioridade sobre a análise local.
      */
     fun useReportForGeneration(): Boolean {
-        val state = _uiState.value
-        val report = state.report ?: return false
+        val report = _uiState.value.report ?: return false
+        // A chave vem do próprio relatório, nunca da aba ativa.
         PerformanceCache.store(
-            lottery = state.lottery,
+            lottery = report.config.lottery,
             snapshot = PerformanceCache.Snapshot(
                 numbers = report.performances,
                 trevos = report.trevoPerformances,
@@ -162,3 +206,5 @@ class BacktestViewModel(
         scope.cancel()
     }
 }
+
+private val logger: Logger = Logger.getLogger(BacktestViewModel::class.java.name)

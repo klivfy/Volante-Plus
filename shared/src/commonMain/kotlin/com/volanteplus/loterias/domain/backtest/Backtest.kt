@@ -14,7 +14,7 @@ data class BacktestConfig(
     val trevoStrategy: TrevoStrategy = TrevoStrategy.ECONOMICO,
     /** Rodadas de Monte Carlo por dezena no [BacktestAnalyzer]. */
     val simulationRounds: Int = BacktestAnalyzer.DEFAULT_SIMULATION_ROUNDS,
-    /** Semente para reprodutibilidade do relatório; null usa SecureRandom. */
+    /** Semente para reprodutibilidade do relatório; null sorteia uma pelo SecureRandom. */
     val seed: Long? = null,
     /** Nível de significância antes da correção de Bonferroni. */
     val alpha: Double = HypothesisTesting.DEFAULT_ALPHA,

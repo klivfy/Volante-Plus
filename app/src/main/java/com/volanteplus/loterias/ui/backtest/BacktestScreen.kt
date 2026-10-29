@@ -1,5 +1,8 @@
 package com.volanteplus.loterias.ui.backtest
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -73,6 +78,18 @@ fun BacktestScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // Sair da aba de Backtesting interrompe o cálculo em andamento. Numa
+    // recriação da Activity (rotação, tema) a tela volta logo em seguida e o
+    // ViewModel sobrevive, então o backtest continua.
+    DisposableEffect(viewModel) {
+        onDispose {
+            if (context.findActivity()?.isChangingConfigurations != true) {
+                viewModel.cancelBacktest()
+            }
+        }
+    }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -610,3 +627,9 @@ private fun DistributionBar(fraction: Float, color: Color) {
 
 private fun Double.fmt(decimals: Int): String =
     String.format(Locale.US, "%.${decimals}f", this)
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}

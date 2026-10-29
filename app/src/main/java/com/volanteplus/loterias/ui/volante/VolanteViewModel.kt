@@ -190,8 +190,21 @@ class VolanteViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** Snapshot do [PerformanceCache] aplicado por último (null: análise local). */
+    @Volatile
+    private var appliedSnapshot: PerformanceCache.Snapshot? = null
+
     init {
         refreshPerformances()
+        // "Usar no gerador" no Backtesting grava no cache enquanto este
+        // ViewModel continua vivo: aplica o backtest novo da loteria ativa sem
+        // esperar uma troca de loteria.
+        viewModelScope.launch {
+            PerformanceCache.snapshots.collect { cache ->
+                val snapshot = cache[_uiState.value.lottery]
+                if (snapshot != null && snapshot !== appliedSnapshot) refreshPerformances()
+            }
+        }
         refreshOutlook()
     }
 
@@ -459,7 +472,9 @@ class VolanteViewModel(
         val lottery = _uiState.value.lottery
         val generation = analysisGeneration.incrementAndGet()
 
-        PerformanceCache.get(lottery)?.let { snapshot ->
+        val snapshot = PerformanceCache.get(lottery)
+        appliedSnapshot = snapshot
+        if (snapshot != null) {
             _performances.value = snapshot.numbers
             _trevoPerformances.value = snapshot.trevos
             _isAnalyzing.value = false

@@ -3,10 +3,12 @@ package com.volanteplus.loterias.ui.backtest
 import com.volanteplus.loterias.data.remote.CaixaDrawDto
 import com.volanteplus.loterias.data.remote.CaixaLotteryApi
 import com.volanteplus.loterias.data.remote.NextDrawDto
+import com.volanteplus.loterias.data.repository.DrawRepository
 import com.volanteplus.loterias.domain.backtest.BacktestEngine
 import com.volanteplus.loterias.domain.model.Draw
 import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
+import com.volanteplus.loterias.ui.navigation.PerformanceCache
 import com.volanteplus.loterias.data.repository.InMemoryDrawRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -37,6 +40,7 @@ class BacktestViewModelTest {
 
     @After
     fun tearDown() {
+        PerformanceCache.clear()
         Dispatchers.resetMain()
     }
 
@@ -108,6 +112,88 @@ class BacktestViewModelTest {
         assertNotNull(report)
         assertEquals(5, report!!.trainingDraws)
         assertEquals(5, report.validationDraws)
+    }
+
+    @Test
+    fun `trocar de loteria cancela o backtest em andamento`() = runTest {
+        val repo = InMemoryDrawRepository()
+        repo.upsertAll((1..10).map { megaDraw(it, LocalDate.of(2024, 6, it)) })
+
+        val vm = viewModel(repo)
+        advanceUntilIdle()
+        vm.setCutoffInput("2024-06-05")
+        vm.runBacktest()
+        vm.selectLottery(Lottery.MAIS_MILIONARIA)
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.report)
+        assertFalse(vm.uiState.value.running)
+        assertEquals(Lottery.MAIS_MILIONARIA, vm.uiState.value.lottery)
+    }
+
+    @Test
+    fun `cancelar o backtest libera o botao sem publicar relatorio`() = runTest {
+        val repo = InMemoryDrawRepository()
+        repo.upsertAll((1..10).map { megaDraw(it, LocalDate.of(2024, 6, it)) })
+
+        val vm = viewModel(repo)
+        advanceUntilIdle()
+        vm.setCutoffInput("2024-06-05")
+        vm.runBacktest()
+        vm.cancelBacktest()
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.report)
+        assertFalse(vm.uiState.value.running)
+    }
+
+    @Test
+    fun `usar no gerador grava o desempenho sob a loteria do relatorio`() = runTest {
+        val repo = InMemoryDrawRepository()
+        repo.upsertAll((1..10).map { megaDraw(it, LocalDate.of(2024, 6, it)) })
+
+        val vm = viewModel(repo)
+        advanceUntilIdle()
+        vm.setCutoffInput("2024-06-05")
+        vm.runBacktest()
+        advanceUntilIdle()
+
+        assertTrue(vm.useReportForGeneration())
+        val stored = PerformanceCache.get(Lottery.MEGA_SENA)
+        assertNotNull(stored)
+        assertEquals(vm.uiState.value.report!!.performances, stored!!.numbers)
+        assertNull(PerformanceCache.get(Lottery.MAIS_MILIONARIA))
+    }
+
+    /** Repositório cujo histórico falha na leitura (ex.: erro do SQLite). */
+    private class BrokenRepository(
+        private val delegate: InMemoryDrawRepository,
+    ) : DrawRepository by delegate {
+        override suspend fun getDrawsUpTo(lottery: Lottery, cutoff: LocalDate): List<Draw> =
+            throw IllegalStateException("banco indisponível")
+    }
+
+    @Test
+    fun `erro inesperado no backtest vira mensagem e libera o botao`() = runTest {
+        val memory = InMemoryDrawRepository()
+        memory.upsertAll((1..10).map { megaDraw(it, LocalDate.of(2024, 6, it)) })
+        val repo = BrokenRepository(memory)
+
+        val vm = BacktestViewModel(
+            engine = BacktestEngine(repo),
+            repository = repo,
+            syncDrawHistory = SyncDrawHistory(repo, FakeCaixaApi(latestContest = 1)),
+            seeder = null,
+            computeDispatcher = dispatcher,
+        )
+        advanceUntilIdle()
+        vm.setCutoffInput("2024-06-05")
+        vm.runBacktest()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.running)
+        assertNull(vm.uiState.value.report)
+        assertTrue(vm.uiState.value.message!!.contains("banco indisponível"))
     }
 
     @Test

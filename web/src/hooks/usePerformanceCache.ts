@@ -41,6 +41,7 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
   const {
     result,
     trevoPerformances: workerTrevoPerformances,
+    resultLottery,
     loading: workerLoading,
     error: workerError,
     run,
@@ -108,6 +109,9 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
 
   useEffect(() => {
     if (!result || pendingLotteryRef.current === null) return;
+    // Resposta de outra loteria (pedida antes da troca de aba): não pode ser
+    // exibida nem gravada sob a loteria pendente.
+    if (resultLottery !== pendingLotteryRef.current) return;
     const targetLottery = pendingLotteryRef.current;
     pendingLotteryRef.current = null;
     const trevos = workerTrevoPerformances ?? [];
@@ -151,7 +155,7 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
         },
       });
     }
-  }, [result, workerTrevoPerformances]);
+  }, [result, resultLottery, workerTrevoPerformances]);
 
   const refreshAuto = useCallback(() => {
     pendingLotteryRef.current = lottery;

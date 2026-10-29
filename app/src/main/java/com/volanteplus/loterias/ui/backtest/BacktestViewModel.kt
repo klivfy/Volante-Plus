@@ -18,8 +18,10 @@ import com.volanteplus.loterias.domain.model.Lottery
 import com.volanteplus.loterias.domain.model.TrevoStrategy
 import com.volanteplus.loterias.domain.usecase.SyncDrawHistory
 import com.volanteplus.loterias.ui.navigation.PerformanceCache
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +30,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
+import java.util.logging.Level
+import java.util.logging.Logger
 
 data class BacktestUiState(
     val lottery: Lottery = Lottery.MEGA_SENA,
@@ -65,11 +69,16 @@ class BacktestViewModel(
     private val _uiState = MutableStateFlow(BacktestUiState())
     val uiState: StateFlow<BacktestUiState> = _uiState.asStateFlow()
 
+    /** Backtest em andamento; no máximo um por vez. */
+    private var backtestJob: Job? = null
+
     init {
         refreshHistory()
     }
 
     fun selectLottery(lottery: Lottery) {
+        // O backtest em andamento é da loteria anterior: continuar só gastaria CPU.
+        cancelBacktest()
         _uiState.update { it.copy(lottery = lottery, report = null, message = null) }
         refreshHistory()
     }
@@ -94,7 +103,8 @@ class BacktestViewModel(
             _uiState.update { it.copy(cutoffError = true) }
             return
         }
-        viewModelScope.launch {
+        backtestJob?.cancel()
+        backtestJob = viewModelScope.launch {
             _uiState.update { it.copy(running = true, report = null, message = null) }
             try {
                 // O motor faz Monte Carlo pesado (réplicas × concursos). Rodar
@@ -109,11 +119,40 @@ class BacktestViewModel(
                         )
                     )
                 }
-                _uiState.update { it.copy(running = false, report = report) }
+                // Publica só na loteria que pediu o relatório: se a aba mudou no
+                // meio, o resultado é de outra loteria e não pode aparecer aqui.
+                _uiState.update {
+                    if (it.lottery == report.config.lottery) it.copy(report = report) else it
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: IllegalArgumentException) {
-                _uiState.update { it.copy(running = false, message = e.message) }
+                _uiState.update { it.copy(message = e.message) }
+            } catch (e: Exception) {
+                // Erro inesperado (banco, memória do cálculo): vira mensagem em
+                // vez de derrubar o app ou deixar o botão travado.
+                logger.log(Level.WARNING, "Falha no backtest", e)
+                _uiState.update {
+                    it.copy(message = "Falha no backtest: ${e.message ?: e::class.simpleName}")
+                }
+            } finally {
+                // Um backtest cancelado por outro mais novo não mexe no estado dele.
+                if (backtestJob === coroutineContext[Job]) {
+                    _uiState.update { it.copy(running = false) }
+                }
             }
         }
+    }
+
+    /**
+     * Interrompe o backtest em andamento. Chamado ao trocar de loteria e quando
+     * a tela sai de composição: o motor verifica cancelamento a cada réplica,
+     * então a CPU é liberada em seguida em vez de minutos depois.
+     */
+    fun cancelBacktest() {
+        backtestJob?.cancel()
+        backtestJob = null
+        _uiState.update { it.copy(running = false) }
     }
 
     /**
@@ -121,10 +160,10 @@ class BacktestViewModel(
      * onde o Volante o lê com prioridade sobre a análise local.
      */
     fun useReportForGeneration(): Boolean {
-        val state = _uiState.value
-        val report = state.report ?: return false
+        val report = _uiState.value.report ?: return false
+        // A chave vem do próprio relatório, nunca da aba ativa.
         PerformanceCache.store(
-            lottery = state.lottery,
+            lottery = report.config.lottery,
             snapshot = PerformanceCache.Snapshot(
                 numbers = report.performances,
                 trevos = report.trevoPerformances,
@@ -187,3 +226,5 @@ class BacktestViewModel(
         }
     }
 }
+
+private val logger: Logger = Logger.getLogger(BacktestViewModel::class.java.name)
