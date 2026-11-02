@@ -3,6 +3,7 @@ import {
   Draw,
   Lottery,
   MIN_GAMES,
+  NumberPerformance,
   TrevoStrategy,
 } from '../types/domain';
 import {
@@ -60,7 +61,7 @@ interface Statistics {
 }
 
 /** Variância populacional: o backtest observa todos os jogos gerados, não uma amostra. */
-function statisticsOf(values: number[]): Statistics {
+export function statisticsOf(values: number[]): Statistics {
   if (values.length === 0) {
     return { mean: 0, variance: 0, stdDeviation: 0 };
   }
@@ -70,36 +71,39 @@ function statisticsOf(values: number[]): Statistics {
   return { mean, variance, stdDeviation: Math.sqrt(variance) };
 }
 
+/** Agregados da simulação da janela de validação (sem o enfeite do relatório). */
+export interface ValidationSimulation {
+  /** Acertos de cada jogo gerado, na ordem dos concursos. */
+  hitsPerGame: number[];
+  /** Média de acertos do lote de cada concurso (unidade do `stats` do relatório). */
+  meanHitsPerContest: number[];
+  /** Apostas efetuadas (1 por jogo simples; 1 por dupla de trevo na +Milionária). */
+  totalBets: number;
+  /** Apostas premiadas segundo `classifyHits`. */
+  prizeCount: number;
+}
+
 /**
- * Executa o backtest completo.
+ * Gera e pontua os jogos de cada concurso da janela de validação.
  *
- * @param trainingDraws concursos com `date <= corte` (ver `getDrawsUpTo`).
- * @param validationDraws concursos com `date > corte`; não pode ser vazio.
- * @throws RangeError quando `validationDraws` está vazio — não há o que validar.
+ * Extraída de `runBacktest` para reuso pela calibração nula por permutação
+ * (`nullCalibration.ts`): o nulo precisa repetir EXATAMENTE este pipeline
+ * (mesma geração, mesma pontuação, mesma ordem de consumo do RNG), só
+ * trocando as performances por versões com rótulos permutados.
+ *
+ * WHY (estratégia fixa `FREQUENCY_TIERS`): o backtest mede o método por
+ * frequência pura — tiers sem o desempate de popularidade — para isolar o
+ * mecanismo e tornar o relatório interpretável contra o baseline.
  */
-export function runBacktest(
+export function simulateValidation(
   lottery: Lottery,
-  trainingDraws: Draw[],
+  performances: NumberPerformance[],
+  trevoPerformances: NumberPerformance[],
   validationDraws: Draw[],
-  options: BacktestOptions = {},
-): BacktestReport {
-  if (validationDraws.length === 0) {
-    throw new RangeError('Sem concursos após a data de corte — nada a validar');
-  }
-
-  const gamesPerContest = options.gamesPerContest ?? MIN_GAMES;
-  const trevoStrategy = options.trevoStrategy ?? TrevoStrategy.ECONOMICO;
-  const simulationRounds = options.simulationRounds ?? DEFAULT_SIMULATIONS_PER_NUMBER;
-  // WHY: um único RNG compartilhado entre análise e geração — é ele que torna
-  // o relatório reproduzível quando `options.seed` está definida.
-  const random: RandomSource =
-    options.seed === undefined ? defaultRandom : createSeededRandom(options.seed);
-
-  const performances = analyzeBacktest(trainingDraws, lottery, simulationRounds, { random });
-  const trevoPerformances = analyzeTrevoBacktest(trainingDraws, lottery, simulationRounds, {
-    random,
-  });
-
+  gamesPerContest: number,
+  trevoStrategy: TrevoStrategy,
+  random: RandomSource,
+): ValidationSimulation {
   const hitsPerGame: number[] = [];
   const meanHitsPerContest: number[] = [];
   let totalBets = 0;
@@ -110,9 +114,6 @@ export function runBacktest(
       trevoPerformances,
       trevoStrategy,
       random,
-      // O backtest mede o método por frequência pura (tiers sem o desempate
-      // de popularidade) — isolar o mecanismo é o que torna o relatório
-      // interpretável contra o baseline hipergeométrico.
       strategy: 'FREQUENCY_TIERS',
     });
 
@@ -146,20 +147,63 @@ export function runBacktest(
     meanHitsPerContest.push(batch.games.length > 0 ? contestHits / batch.games.length : 0);
   }
 
+  return { hitsPerGame, meanHitsPerContest, totalBets, prizeCount };
+}
+
+/**
+ * Executa o backtest completo.
+ *
+ * @param trainingDraws concursos com `date <= corte` (ver `getDrawsUpTo`).
+ * @param validationDraws concursos com `date > corte`; não pode ser vazio.
+ * @throws RangeError quando `validationDraws` está vazio — não há o que validar.
+ */
+export function runBacktest(
+  lottery: Lottery,
+  trainingDraws: Draw[],
+  validationDraws: Draw[],
+  options: BacktestOptions = {},
+): BacktestReport {
+  if (validationDraws.length === 0) {
+    throw new RangeError('Sem concursos após a data de corte — nada a validar');
+  }
+
+  const gamesPerContest = options.gamesPerContest ?? MIN_GAMES;
+  const trevoStrategy = options.trevoStrategy ?? TrevoStrategy.ECONOMICO;
+  const simulationRounds = options.simulationRounds ?? DEFAULT_SIMULATIONS_PER_NUMBER;
+  // WHY: um único RNG compartilhado entre análise e geração — é ele que torna
+  // o relatório reproduzível quando `options.seed` está definida.
+  const random: RandomSource =
+    options.seed === undefined ? defaultRandom : createSeededRandom(options.seed);
+
+  const performances = analyzeBacktest(trainingDraws, lottery, simulationRounds, { random });
+  const trevoPerformances = analyzeTrevoBacktest(trainingDraws, lottery, simulationRounds, {
+    random,
+  });
+
+  const simulation = simulateValidation(
+    lottery,
+    performances,
+    trevoPerformances,
+    validationDraws,
+    gamesPerContest,
+    trevoStrategy,
+    random,
+  );
+
   const hitDistribution: Record<number, number> = {};
-  for (const hits of hitsPerGame) {
+  for (const hits of simulation.hitsPerGame) {
     hitDistribution[hits] = (hitDistribution[hits] ?? 0) + 1;
   }
 
   return {
     trainingDraws: trainingDraws.length,
     validationDraws: validationDraws.length,
-    totalGames: hitsPerGame.length,
-    totalBets,
-    stats: statisticsOf(meanHitsPerContest),
+    totalGames: simulation.hitsPerGame.length,
+    totalBets: simulation.totalBets,
+    stats: statisticsOf(simulation.meanHitsPerContest),
     expectedMeanHits: expectedNumberHits(lottery),
-    prizeRate: totalBets === 0 ? 0 : prizeCount / totalBets,
-    prizeCount,
+    prizeRate: simulation.totalBets === 0 ? 0 : simulation.prizeCount / simulation.totalBets,
+    prizeCount: simulation.prizeCount,
     hitDistribution,
     performances,
     trevoPerformances,
