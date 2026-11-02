@@ -62,7 +62,8 @@
     "prizeRate": "Taxa de eficácia",
     "prizeRateValue": "{{rate}} ({{count}} apostas premiadas)",
     "footnote": "A seta marca só a direção da diferença — dado o tamanho da amostra, ela costuma caber dentro do ruído estatístico esperado pela hipótese nula.",
-    "useForGeneration": "Usar estes dados para gerar jogos"
+    "useForGeneration": "Usar estes dados para gerar jogos",
+    "useForGenerationError": "Não foi possível gravar o desempenho deste backtest para a geração — o armazenamento local recusou a gravação. Tente novamente; se persistir, os jogos usarão a análise automática do histórico completo."
   },
   "notifications": {
     "enable": "Ativar notificações",

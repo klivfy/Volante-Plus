@@ -25,6 +25,7 @@ import LotterySelector from '@/components/LotterySelector';
 import { useBacktestWorker } from '@/hooks/useBacktestWorker';
 import { pageLottery, useLotteryTheme } from '@/context/LotteryThemeContext';
 import { trackLotterySelection } from '@/services/analytics';
+import { reportDbError } from '@/services/errorReporter';
 import { getDrawsAfter, getDrawsUpTo, savePerformances } from '@/services/db';
 import { cutoffBounds, todayUtcIso, validateCutoffDate } from '@/engine/backtestCutoff';
 import { Lottery, MAX_GAMES, MIN_GAMES } from '@/types/domain';
@@ -77,7 +78,8 @@ export default function BacktestingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const { report, loading: workerLoading, error: workerError, run } = useBacktestWorker();
+  const { report, reportLottery, loading: workerLoading, error: workerError, run } =
+    useBacktestWorker();
 
   // Sincroniza a modalidade com o tema global
   const handleLotteryChange = (newLottery: Lottery) => {
@@ -104,7 +106,12 @@ export default function BacktestingPage() {
   const cutoffLimits = cutoffBounds(lottery, todayUtcIso());
   const running = submitting || workerLoading;
   const errorMessage = localError ?? workerError;
-  const showReport = report !== null && !reportStale;
+  // Cinto e suspensório: `reportStale` cobre a troca de modalidade e o gate do
+  // worker cobre respostas de pedidos antigos; conferir a modalidade ecoada no
+  // relatório fecha o contrato por completo — nunca exibir um relatório de
+  // outra modalidade (ou de um pedido obsoleto) como se fosse o atual.
+  const showReport =
+    report !== null && !reportStale && (reportLottery === null || reportLottery === lottery);
 
   async function handleRun(): Promise<void> {
     setLocalError(null);
@@ -159,10 +166,23 @@ export default function BacktestingPage() {
     if (!report || reportStale) return;
     // Cache `manual`: tem prioridade sobre a análise automática e expira
     // sozinho após `MANUAL_CACHE_TTL_MS` (ver `savePerformances`).
-    await savePerformances(lottery, report.performances, report.trevoPerformances, {
-      source: 'manual',
-      force: true,
-    });
+    try {
+      await savePerformances(lottery, report.performances, report.trevoPerformances, {
+        source: 'manual',
+        force: true,
+      });
+    } catch (error) {
+      // Sem isto, uma falha do IndexedDB virava unhandled rejection SEM
+      // feedback: o botão parecia morto e o usuário concluía — incorretamente —
+      // que "o backtest não reflete na geração". Erro visível + telemetria.
+      reportDbError(error instanceof Error ? error : new Error(String(error)), {
+        table: `performances_${lottery}`,
+        operation: 'save-manual',
+        tags: { lottery: lottery.toString(), source: 'manual' },
+      });
+      setLocalError(t('backtesting.useForGenerationError'));
+      return;
+    }
     // A modalidade do backtest precisa chegar na home: o cache manual é
     // gravado POR modalidade e a home lê o da modalidade selecionada. Sem
     // propagar o tema, a home abria na Mega-Sena fixa e os pesos salvos

@@ -40,6 +40,7 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
   const [error, setError] = useState<string | null>(null);
   const {
     result,
+    resultLottery,
     trevoPerformances: workerTrevoPerformances,
     loading: workerLoading,
     error: workerError,
@@ -108,6 +109,18 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
 
   useEffect(() => {
     if (!result || pendingLotteryRef.current === null) return;
+    // Furo de exibição fechado: o resultado só pode ser aplicado à modalidade
+    // QUE ESTÁ EM TELA. Sem esta conferência, um resultado atrasado da
+    // modalidade anterior (postado antes de o usuário trocar, aceito pelo gate
+    // porque nenhum pedido novo saiu) sobrescrevia em tela — e gravava no
+    // cache — os pesos de um universo que não é o da modalidade selecionada
+    // (ex.: pesos 1..60 da Mega aplicados à Quina, 1..80, que passaria a gerar
+    // jogos só com dezenas 1..60).
+    if (pendingLotteryRef.current !== lottery) return;
+    // Defesa em profundidade: com o gate do `useBacktestWorker` a resposta já
+    // corresponde ao pedido mais recente; conferir a modalidade ecoada custa
+    // nada e blinda regressões futuras no protocolo.
+    if (resultLottery !== null && resultLottery !== lottery) return;
     const targetLottery = pendingLotteryRef.current;
     pendingLotteryRef.current = null;
     const trevos = workerTrevoPerformances ?? [];
@@ -151,7 +164,7 @@ export function usePerformanceCache(lottery: Lottery): UsePerformanceCacheResult
         },
       });
     }
-  }, [result, workerTrevoPerformances]);
+  }, [result, resultLottery, workerTrevoPerformances, lottery]);
 
   const refreshAuto = useCallback(() => {
     pendingLotteryRef.current = lottery;

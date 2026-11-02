@@ -75,6 +75,70 @@ describe('computeBacktestAnalysis', () => {
     expect(response.type).toBe('error');
   });
 
+  it('ecoa requestId e lottery da requisição na resposta de sucesso', () => {
+    const draws = [draw(1, [1, 2, 3, 4, 5, 6])];
+
+    const response = computeBacktestAnalysis({
+      draws,
+      lottery: Lottery.MEGA_SENA,
+      simulationsPerDraw: 0,
+      requestId: 7,
+    });
+
+    expect(response.type).toBe('success');
+    if (response.type === 'success') {
+      expect(response.requestId).toBe(7);
+      expect(response.lottery).toBe(Lottery.MEGA_SENA);
+    }
+  });
+
+  it('ecoa requestId e lottery na resposta de relatório completo', () => {
+    const training = [draw(1, [1, 2, 3, 4, 5, 6]), draw(2, [1, 2, 3, 4, 5, 6])];
+    const validation = [draw(3, [1, 2, 3, 4, 5, 6])];
+
+    const response = computeBacktestAnalysis({
+      kind: 'backtest',
+      lottery: Lottery.QUINA,
+      trainingDraws: training,
+      validationDraws: validation,
+      requestId: 12,
+    });
+
+    expect(response.type).toBe('report');
+    if (response.type === 'report') {
+      expect(response.requestId).toBe(12);
+      expect(response.lottery).toBe(Lottery.QUINA);
+    }
+  });
+
+  it('ecoa requestId e lottery também na resposta de erro', () => {
+    const response = computeBacktestAnalysis({
+      kind: 'backtest',
+      lottery: Lottery.MEGA_SENA,
+      trainingDraws: [draw(1, [1, 2, 3, 4, 5, 6])],
+      validationDraws: [],
+      requestId: 99,
+    });
+
+    expect(response.type).toBe('error');
+    if (response.type === 'error') {
+      expect(response.requestId).toBe(99);
+      expect(response.lottery).toBe(Lottery.MEGA_SENA);
+    }
+  });
+
+  it('ecoa requestId null quando a requisição não o traz (chamadas diretas ao núcleo)', () => {
+    const draws = [draw(1, [1, 2, 3, 4, 5, 6])];
+
+    const response = computeBacktestAnalysis({ draws, lottery: Lottery.MEGA_SENA, simulationsPerDraw: 0 });
+
+    expect(response.type).toBe('success');
+    if (response.type === 'success') {
+      expect(response.requestId).toBeNull();
+      expect(response.lottery).toBe(Lottery.MEGA_SENA);
+    }
+  });
+
   it('devolve uma resposta de erro quando analyzeBacktest lança', () => {
     // @ts-expect-error loteria inválida de propósito, para exercitar o branch de erro
     const response = computeBacktestAnalysis({ draws: [], lottery: 'inexistente' });

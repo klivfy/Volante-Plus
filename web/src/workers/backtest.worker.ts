@@ -22,6 +22,13 @@ export interface BacktestAnalyzeRequest {
   lottery: Lottery;
   /** Rodadas de Monte Carlo por dezena; padrão `DEFAULT_SIMULATIONS_PER_NUMBER`. */
   simulationsPerDraw?: number;
+  /**
+   * Identificador do pedido, carimbado por `useBacktestWorker`. A resposta o
+   * ecoa para que o remetente descarte respostas de pedidos obsoletos —
+   * trocar de modalidade com uma análise em voo não pode aplicar o resultado
+   * antigo à modalidade nova (corrida que contaminava o cache por loteria).
+   */
+  requestId?: number;
 }
 
 /** Relatório completo: treina no histórico até o corte e valida no restante. */
@@ -34,26 +41,40 @@ export interface BacktestReportRequest {
   gamesPerContest?: number;
   /** Semente opcional para tornar o relatório reproduzível. */
   seed?: number;
+  /** Ver `BacktestAnalyzeRequest.requestId`. */
+  requestId?: number;
 }
 
 export type BacktestWorkerRequest = BacktestAnalyzeRequest | BacktestReportRequest;
 
+/** Metadados que toda resposta ecoa do pedido que a originou. */
+interface ResponseMeta {
+  requestId: number | null;
+  lottery: Lottery;
+}
+
 export type BacktestWorkerResponse =
-  | { type: 'success'; performances: NumberPerformance[]; trevoPerformances: NumberPerformance[] }
-  | { type: 'report'; report: BacktestReport }
-  | { type: 'error'; message: string };
+  | ({ type: 'success' } & ResponseMeta & {
+      performances: NumberPerformance[];
+      trevoPerformances: NumberPerformance[];
+    })
+  | ({ type: 'report' } & ResponseMeta & { report: BacktestReport })
+  | ({ type: 'error' } & ResponseMeta & { message: string });
 
 /** Núcleo puro do worker — testável sem `self`/`postMessage`. */
 export function computeBacktestAnalysis(
   request: BacktestWorkerRequest,
 ): BacktestWorkerResponse {
+  // Eco obrigatório: quem postou precisa poder checar se esta resposta ainda
+  // corresponde ao pedido mais recente (`workerGate.ts`).
+  const meta: ResponseMeta = { requestId: request.requestId ?? null, lottery: request.lottery };
   try {
     if (request.kind === 'backtest') {
       const report = runBacktest(request.lottery, request.trainingDraws, request.validationDraws, {
         gamesPerContest: request.gamesPerContest,
         seed: request.seed,
       });
-      return { type: 'report', report };
+      return { type: 'report', ...meta, report };
     }
 
     const simulationsPerDraw = request.simulationsPerDraw ?? DEFAULT_SIMULATIONS_PER_NUMBER;
@@ -61,10 +82,11 @@ export function computeBacktestAnalysis(
     // `analyzeTrevoBacktest` já devolve `[]` para loterias sem trevos — sempre
     // seguro chamar, sem precisar de um `hasTrevos` aqui no worker.
     const trevoPerformances = analyzeTrevoBacktest(request.draws, request.lottery, simulationsPerDraw);
-    return { type: 'success', performances, trevoPerformances };
+    return { type: 'success', ...meta, performances, trevoPerformances };
   } catch (error) {
     return {
       type: 'error',
+      ...meta,
       message: error instanceof Error ? error.message : String(error),
     };
   }
