@@ -53,8 +53,8 @@ describe('Módulo B real: Mega-Sena (espelho de terceiros)', () => {
     expect(report.selection.contests).toBeGreaterThan(1000);
   });
 
-  it('roda a seleção com as 5 estratégias do benchmark', () => {
-    expect(report.selection.totalStrategiesCompared).toBe(5);
+  it('roda a seleção com as 8 estratégias do benchmark (método + 7 alternativas)', () => {
+    expect(report.selection.totalStrategiesCompared).toBe(8);
   });
 
   it('aprovação é booleana e coerente com a presença de candidata', () => {

@@ -1,4 +1,5 @@
 import { Draw, Lottery, NumberPerformance } from '../types/domain';
+import { gameSumWindow, hasConsecutivePair, parityWindow } from './batchMetrics';
 import { analyzeBacktest } from './backtestAnalyzer';
 import { generateGames } from './gameGenerator';
 import { prizeProbabilityByNumbersAlone } from './powerAnalysis';
@@ -25,7 +26,10 @@ export type StrategyName =
   | 'frequency-pure'
   | 'cold-numbers'
   | 'random-uniform'
-  | 'gap-maximizer';
+  | 'gap-maximizer'
+  | 'sum-window'
+  | 'parity-balanced'
+  | 'no-consecutive';
 
 export interface StrategyResult {
   strategy: StrategyName;
@@ -54,7 +58,69 @@ export const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
   'cold-numbers': 'Favorece as dezenas menos frequentes ("atrasadas")',
   'random-uniform': 'Baseline: dezenas de um jogo uniformemente aleatórias (sem uso do histórico)',
   'gap-maximizer': 'Maximiza a distância mínima entre as dezenas escolhidas',
+  'sum-window':
+    'Filtro popular da internet: só jogos com soma na faixa central (média ± 1 σ) — medido, não adotado',
+  'parity-balanced':
+    'Filtro popular: equilíbrio de pares/ímpares na faixa modal — medido, não adotado',
+  'no-consecutive':
+    'Filtro popular: nenhum par de dezenas consecutivas no jogo — medido, não adotado',
 };
+
+/**
+ * Amostragem por rejeição de um jogo uniforme que passa no filtro `accept`.
+ *
+ * WHY (o fallback "mais próximo"): os três filtros têm taxas de aceitação
+ * altas (~68%, ~80% e ~58% num universo 6/60), então o teto de tentativas
+ * só é atingido com probabilidade desprezível — mas o fallback determinístico
+ * evita tanto o lançamento de erro quanto o retorno implícito de `undefined`
+ * nesse caso limite; o benchmark continua com `count` jogos.
+ *
+ * A distribuição resultante é uniforme CONDICIONAL ao filtro. Como a chance
+ * de prêmio é idêntica para todo bilhete (teorema da invariância), filtrar
+ * estrutura não altera a taxa esperada — exatamente o que o benchmark deve
+ * confirmar empiricamente para o usuário.
+ */
+function filteredUniformGame(
+  lottery: Lottery,
+  random: RandomSource,
+  accept: (numbers: readonly number[]) => boolean,
+  distance: (numbers: readonly number[]) => number,
+  maxAttempts = 200,
+): number[] {
+  const rules = lotteryRules(lottery);
+  const universe = Array.from({ length: rules.numberUniverse }, (_, i) => i + 1);
+  let best: number[] = [];
+  let bestDistance = Infinity;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const candidate = shuffleArray(universe, random)
+      .slice(0, rules.numbersPerBet)
+      .sort((a, b) => a - b);
+    if (accept(candidate)) return candidate;
+    const d = distance(candidate);
+    if (d < bestDistance) {
+      bestDistance = d;
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+/** Distância de um valor a um intervalo fechado (0 quando dentro). */
+function distanceToWindow(value: number, min: number, max: number): number {
+  if (value < min) return min - value;
+  if (value > max) return max - value;
+  return 0;
+}
+
+/** Número de pares consecutivos no jogo (0 quando nenhum). */
+function consecutivePairCount(numbers: readonly number[]): number {
+  const sorted = [...numbers].sort((a, b) => a - b);
+  let count = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === sorted[i - 1] + 1) count++;
+  }
+  return count;
+}
 
 /**
  * Gera `count` jogos simples (sem trevos) segundo a estratégia nomeada.
@@ -125,6 +191,47 @@ export function generateForStrategy(
       }
       return games;
     }
+    case 'sum-window': {
+      const window = gameSumWindow(lottery);
+      const sumOf = (game: readonly number[]): number => game.reduce((sum, n) => sum + n, 0);
+      return Array.from({ length: count }, () =>
+        filteredUniformGame(
+          lottery,
+          random,
+          (game) => {
+            const sum = sumOf(game);
+            return sum >= window.min && sum <= window.max;
+          },
+          (game) => distanceToWindow(sumOf(game), window.min, window.max),
+        ),
+      );
+    }
+    case 'parity-balanced': {
+      const window = parityWindow(lottery);
+      const oddsOf = (game: readonly number[]): number =>
+        game.filter((n) => n % 2 === 1).length;
+      return Array.from({ length: count }, () =>
+        filteredUniformGame(
+          lottery,
+          random,
+          (game) => {
+            const odds = oddsOf(game);
+            return odds >= window.min && odds <= window.max;
+          },
+          (game) => distanceToWindow(oddsOf(game), window.min, window.max),
+        ),
+      );
+    }
+    case 'no-consecutive': {
+      return Array.from({ length: count }, () =>
+        filteredUniformGame(
+          lottery,
+          random,
+          (game) => !hasConsecutivePair(game),
+          (game) => consecutivePairCount(game),
+        ),
+      );
+    }
     default:
       return [];
   }
@@ -163,6 +270,9 @@ export function runStrategyBenchmark(
     'cold-numbers',
     'random-uniform',
     'gap-maximizer',
+    'sum-window',
+    'parity-balanced',
+    'no-consecutive',
   ];
 
   const results: StrategyResult[] = strategies.map((strategy) => {
