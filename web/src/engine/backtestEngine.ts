@@ -36,6 +36,30 @@ export const MIN_CUTOFF_DATES: Record<Lottery, string> = {
   [Lottery.QUINA]: '1994-03-13',
 };
 
+/**
+ * Restrição de data do backtest: o corte é limitado ao primeiro sorteio
+ * oficial da modalidade.
+ *
+ * WHY: um corte anterior ao primeiro concurso oficial produz janela de treino
+ * vazia ou fantasiosa — `analyzeBacktest` responderia com pesos idênticos
+ * (fallback de histórico vazio) e o relatório mediria ruído puro como se
+ * fosse método. Validar aqui (e na página) garante que treino e validação
+ * só são definidos dentro da história real da loteria.
+ *
+ * @throws RangeError para data malformada ou anterior ao piso da modalidade.
+ */
+export function validateCutoffDate(lottery: Lottery, cutoffDate: string): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cutoffDate)) {
+    throw new RangeError(`Data de corte inválida: ${cutoffDate}`);
+  }
+  const floor = MIN_CUTOFF_DATES[lottery];
+  if (cutoffDate < floor) {
+    throw new RangeError(
+      `Data de corte anterior ao primeiro sorteio oficial da modalidade (${floor})`,
+    );
+  }
+}
+
 export interface BacktestOptions {
   /** Jogos gerados por concurso da janela de validação; padrão `MIN_GAMES`. */
   gamesPerContest?: number;

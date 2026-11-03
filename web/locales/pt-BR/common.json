@@ -43,6 +43,8 @@
     "run": "Executar backtest",
     "running": "Executando…",
     "invalidCutoff": "Informe uma data de corte válida (aaaa-mm-dd).",
+    "cutoffBeforeHistory": "A data de corte é anterior ao primeiro sorteio oficial da modalidade (antes de {{date}}).",
+    "noTrainingDraws": "Sem concursos de treino antes de {{date}} no histórico local — nada a analisar.",
     "noValidationDraws": "Sem concursos após {{date}} no histórico local — nada a validar.",
     "runError": "Falha ao executar o backtest.",
     "contests": "Concursos",

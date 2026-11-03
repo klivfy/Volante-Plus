@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Draw, Lottery, MAX_GAMES, TrevoStrategy } from '../../types/domain';
-import { runBacktest } from '../backtestEngine';
+import { MIN_CUTOFF_DATES, runBacktest, validateCutoffDate } from '../backtestEngine';
 
 function draw(
   contestNumber: number,
@@ -46,6 +46,27 @@ describe('runBacktest — validação', () => {
 
     expect(report.trainingDraws).toBe(0);
     expect(report.performances).toHaveLength(60);
+  });
+});
+
+describe('validateCutoffDate — restrição de data', () => {
+  it('aceita o piso oficial de cada modalidade e qualquer data posterior', () => {
+    for (const lottery of [Lottery.MEGA_SENA, Lottery.MAIS_MILIONARIA, Lottery.QUINA]) {
+      expect(() => validateCutoffDate(lottery, MIN_CUTOFF_DATES[lottery])).not.toThrow();
+      expect(() => validateCutoffDate(lottery, '2024-06-30')).not.toThrow();
+    }
+  });
+
+  it('rejeita data anterior ao primeiro sorteio oficial da modalidade', () => {
+    expect(() => validateCutoffDate(Lottery.MEGA_SENA, '1995-03-10')).toThrow(RangeError);
+    expect(() => validateCutoffDate(Lottery.QUINA, '1994-03-12')).toThrow(RangeError);
+    expect(() => validateCutoffDate(Lottery.MAIS_MILIONARIA, '2022-05-27')).toThrow(RangeError);
+  });
+
+  it('rejeita data malformada', () => {
+    expect(() => validateCutoffDate(Lottery.MEGA_SENA, '03/1995')).toThrow(RangeError);
+    expect(() => validateCutoffDate(Lottery.MEGA_SENA, '')).toThrow(RangeError);
+    expect(() => validateCutoffDate(Lottery.MEGA_SENA, '1995-3-10')).toThrow(RangeError);
   });
 });
 

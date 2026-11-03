@@ -26,6 +26,7 @@ import { useBacktestWorker } from '@/hooks/useBacktestWorker';
 import { useLotteryTheme } from '@/context/LotteryThemeContext';
 import { trackLotterySelection } from '@/services/analytics';
 import { getDrawsAfter, getDrawsUpTo, savePerformances } from '@/services/db';
+import { validateCutoffDate } from '@/engine/backtestEngine';
 import { Lottery, MAX_GAMES, MIN_GAMES } from '@/types/domain';
 
 const percentFormatter = new Intl.NumberFormat('pt-BR', {
@@ -107,6 +108,16 @@ export default function BacktestingPage() {
       return;
     }
 
+    // Restrição de data: o corte não é anterior ao primeiro sorteio oficial
+    // da modalidade — antes disso a janela de treino seria vazia ou
+    // fantasiosa e o relatório mediria ruído como se fosse método.
+    try {
+      validateCutoffDate(lottery, cutoffDate);
+    } catch {
+      setLocalError(t('backtesting.cutoffBeforeHistory', { date: cutoffDate }));
+      return;
+    }
+
     setSubmitting(true);
     try {
       const [training, validation] = await Promise.all([
@@ -114,6 +125,13 @@ export default function BacktestingPage() {
         getDrawsAfter(lottery, cutoffDate),
       ]);
 
+      if (training.length === 0) {
+        // O histórico salvo pode começar depois do piso oficial da
+        // modalidade — sem treino não há o que medir, com erro claro em vez
+        // de um relatório de pesos iguais disfarçado de método.
+        setLocalError(t('backtesting.noTrainingDraws', { date: cutoffDate }));
+        return;
+      }
       if (validation.length === 0) {
         setLocalError(t('backtesting.noValidationDraws', { date: cutoffDate }));
         return;
