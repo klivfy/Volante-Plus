@@ -2,6 +2,12 @@
   "name": "volante-plus-web",
   "version": "2.3.0",
   "private": true,
+  "browserslist": [
+    "chrome >= 90",
+    "edge >= 90",
+    "firefox >= 90",
+    "safari >= 14"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",

@@ -79,8 +79,30 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Garante que o DSN esteja DEFINIDO no build mesmo sem .env: o DefinePlugin
+  // do Next só inlineia NEXT_PUBLIC_* presentes em process.env — sem isso o
+  // teste de DSN em errorReporter/instrumentation-client segue runtime e o
+  // ConstPlugin não poda o ramo do SDK (chunks mortos + ~650 KB no precache).
+  // Com DSN real no ambiente, o valor real é inlineado e os chunks voltam.
+  env: {
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN ?? "",
+  },
+  // PERF (P1, docs/PROPOSTAS-PERF-A11Y.md): switch de auditoria —
+  // `SOURCE_MAPS=1 bun run build` gera .map para source-map-explorer
+  // atribuir o conteúdo dos chunks. Não é o padrão de produção: os .map
+  // somam MBs ao deploy e nada no pipeline os consome hoje.
+  ...(process.env.SOURCE_MAPS === "1" ? { productionBrowserSourceMaps: true } : {}),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
+  },
+  // Auditoria (SOURCE_MAPS=1): Next só liga devtool no client com
+  // productionBrowserSourceMaps, mas o plugin do Sentry sobrescreve devtool —
+  // o override explícito aqui roda por último e garante os .map no output.
+  webpack: (config) => {
+    if (process.env.SOURCE_MAPS === "1") {
+      config.devtool = "source-map";
+    }
+    return config;
   },
 };
 
@@ -92,11 +114,25 @@ const nextConfig: NextConfig = {
 // no build de produção (o dev continua em Turbopack).
 const pwaConfig = withPWA(nextConfig);
 
-// Sentry é inicializado automaticamente quando NEXT_PUBLIC_SENTRY_DSN está
-// definido. Sem ele, Sentry é ignorado e nenhum overhead é adicionado.
+// NOTA (P1, onda 2): a hipótese de "injeção do plugin do Sentry no client"
+// foi testada e DESCARTADA — em @sentry/nextjs 10.69 a instrumentação de
+// router vem de um hook exportado pelo usuário (`onRouterTransitionStart` em
+// instrumentation-client.ts, que este app não exporta) e não de injeção do
+// plugin. Os chunks grandes eager são do próprio Next/MUI — ver atribuição
+// no PROPOSTAS-PERF-A11Y.md.
+
 export default withSentryConfig(pwaConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   telemetry: false,
+  // O hook `onRouterTransitionStart` exigiria `import * as Sentry` estático
+  // em instrumentation-client.ts — exatamente o que a onda 1 de PERF removeu
+  // (~1 MB de SDK eager). Sem DSN nada é enviado; com DSN, o init lazy segue
+  // cobrindo erros. Aviso de build suprimido de forma consciente.
+  suppressOnRouterTransitionStartWarning: true,
+  // Auditoria (SOURCE_MAPS=1): desativa o processamento de source maps do
+  // plugin (que apaga os .map do client) para o source-map-explorer atribuir
+  // o conteúdo dos chunks. Padrão (processar/apagar) permanece na produção.
+  sourcemaps: { disable: process.env.SOURCE_MAPS === "1" },
 });

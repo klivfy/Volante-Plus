@@ -7,7 +7,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-const SPLASH_DURATION_MS = 700;
+const SPLASH_DURATION_MS = 300;
 const SPLASH_FADE_MS = 200;
 const SPLASH_SHOWN_KEY = 'volante_splash_shown';
 
@@ -16,9 +16,13 @@ export interface SplashScreenProps {
 }
 
 /**
- * Tela de boas-vindas (splash) que aparece por 0,7 s no primeiro
+ * Tela de boas-vindas (splash) que aparece por 0,3 s no primeiro
  * carregamento. Usa localStorage para não mostrar em recarregamentos
  * subsequentes da mesma sessão.
+ *
+ * PERF (docs/PROPOSTAS-PERF-A11Y.md, P8): eram 0,7 s — e o LCP da primeira
+ * visita era a legenda do splash, não o conteúdo da página. 0,3 s mantém o
+ * momento de marca sem empurrar o LCP real para fora da janela de carga.
  */
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
   const [visible, setVisible] = useState(true);
@@ -90,7 +94,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           de cabeçalho. Este texto é a marca dentro de uma sobreposição de
           carregamento, não um título do documento: como <h3> ele duplicava o
           nome acessível do <h1> da página (que fica montada por baixo durante
-          os 0,7 s do splash) e ainda punha um h3 antes do h1 na ordem de
+          os 0,3 s do splash) e ainda punha um h3 antes do h1 na ordem de
           cabeçalhos, que é justamente o que leitores de tela usam para
           navegar.
         */}
@@ -115,6 +119,9 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           Laboratório Estatístico
         </Typography>
         <CircularProgress
+          // Decorativo: a marca e o texto já comunicam o carregamento; um
+          // progressbar sem nome acessível é só ruído (e reprova no axe).
+          aria-hidden
           sx={{
             color: 'inherit',
             marginTop: 2,

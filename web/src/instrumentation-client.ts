@@ -14,9 +14,12 @@
  * idle) não chegam ao Sentry — o handler default do browser os exibe
  * normalmente. O ganho de TBT/LCP compensa a janela perdida.
  */
-const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
-
-if (dsn && typeof window !== 'undefined') {
+// PERF: a env é lida DIRETO na condição (sem const intermediária): o
+// DefinePlugin do Next só inlineia `process.env.NEXT_PUBLIC_*` como
+// expressão — uma const local (`const dsn = process.env...`) vira variável
+// que o ConstPlugin não dobra, e o import() do SDK geraria chunk (e entraria
+// no precache do PWA) mesmo com DSN vazio. Ver errorReporter.ts.
+if (process.env.NEXT_PUBLIC_SENTRY_DSN && typeof window !== 'undefined') {
   const startSentry = () => {
     void import('./sentry-client-init');
   };

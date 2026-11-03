@@ -12,10 +12,10 @@ import Grid from '@mui/material/Grid';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import dynamic from 'next/dynamic';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BatchOddsPanel from '@/components/BatchOddsPanel';
-import EvidencePanel from '@/components/EvidencePanel';
 import GameCard from '@/components/GameCard';
 import GameCountControl from '@/components/GameCountControl';
 import HistoryStatus from '@/components/HistoryStatus';
@@ -24,7 +24,6 @@ import NextDrawCard from '@/components/NextDrawCard';
 import NumberPicker from '@/components/NumberPicker';
 import SegmentedControl from '@/components/SegmentedControl';
 import NotificationOptIn from '@/components/NotificationOptIn';
-import PayoutSharePanel from '@/components/PayoutSharePanel';
 import { trackGameGeneration, trackLotterySelection, trackBacktestDataUsage } from '@/services/analytics';
 import { reportUserError, addBreadcrumb } from '@/services/errorReporter';
 import { closureCost, generateClosure, offeredGuarantees } from '@/engine/closureDesigner';
@@ -39,6 +38,14 @@ import { useNextDraw } from '@/hooks/useNextDraw';
 import { usePerformanceCache } from '@/hooks/usePerformanceCache';
 import { pageLottery, useLotteryTheme } from '@/context/LotteryThemeContext';
 import { GameBatch, GameMode, GeneratedGame, Lottery, MIN_GAMES } from '@/types/domain';
+
+// PERF (docs/PROPOSTAS-PERF-A11Y.md, P2): os dois painéis pesam na carga
+// inicial e ficam abaixo da dobra — o PayoutSharePanel só existe após gerar
+// um lote e informar apostas, e o EvidencePanel fica depois da grade de
+// jogos. `ssr: false` não muda o HTML (os dados só existem no cliente — o
+// SSR destes painéis já renderizava vazio), só adia o JS deles.
+const EvidencePanel = dynamic(() => import('@/components/EvidencePanel'), { ssr: false });
+const PayoutSharePanel = dynamic(() => import('@/components/PayoutSharePanel'), { ssr: false });
 
 /**
  * `idle`: performances prontas, nenhum lote gerado ainda.

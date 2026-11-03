@@ -118,6 +118,29 @@ const componentOverrides: ThemeOptions['components'] = {
       text: { borderRadius: '8px' },
     },
   },
+  // A11y (contraste, WCAG 1.4.3): com o campo desabilitado (estado
+  // "Analisando histórico"), o MUI pinta helperText/rótulo com
+  // `text.disabled` (α 38% → 2,66:1 no claro) e o Lighthouse/axe reprova.
+  // O texto de ajuda segue legível com `text.secondary` (≥4,5:1 nos dois
+  // esquemas); o campo em si continua visualmente travado.
+  MuiFormHelperText: {
+    styleOverrides: {
+      root: ({ theme }) => ({
+        '&.Mui-disabled': {
+          color: theme.vars?.palette.text.secondary ?? theme.palette.text.secondary,
+        },
+      }),
+    },
+  },
+  MuiInputLabel: {
+    styleOverrides: {
+      root: ({ theme }) => ({
+        '&.Mui-disabled': {
+          color: theme.vars?.palette.text.secondary ?? theme.palette.text.secondary,
+        },
+      }),
+    },
+  },
   MuiIconButton: {
     styleOverrides: {
       root: { minWidth: TOUCH_TARGET, minHeight: TOUCH_TARGET },

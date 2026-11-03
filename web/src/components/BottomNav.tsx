@@ -7,7 +7,8 @@ import ScienceIcon from '@mui/icons-material/Science';
 import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import Paper from '@mui/material/Paper';
-import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BOTTOM_NAV_HEIGHT } from './navigation';
 
@@ -21,7 +22,6 @@ const DESTINATIONS = [
 export default function BottomNav() {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const router = useRouter();
   const currentIndex = DESTINATIONS.findIndex((destination) => destination.href === pathname);
 
   return (
@@ -29,15 +29,20 @@ export default function BottomNav() {
       elevation={3}
       sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: (theme) => theme.zIndex.appBar }}
     >
-      <BottomNavigation
-        showLabels
-        value={currentIndex === -1 ? 0 : currentIndex}
-        onChange={(_, index) => router.push(DESTINATIONS[index].href)}
-        sx={{ height: BOTTOM_NAV_HEIGHT }}
-      >
+      {/*
+        Links reais (`component={Link}`) em vez de `onChange` + `router.push`:
+        cada item vira um <a> navegável — semântica correta para leitores de
+        tela, abrir em nova aba/janela, middle-click e prefetch gratuito do
+        Next. A seleção continua sendo derivada do pathname, que é a única
+        fonte da verdade; sem `onChange`, o click só navega (o Next cuida do
+        resto) e a troca de rota re-renderiza com o novo índice.
+      */}
+      <BottomNavigation showLabels value={currentIndex === -1 ? 0 : currentIndex} sx={{ height: BOTTOM_NAV_HEIGHT }}>
         {DESTINATIONS.map((destination) => (
           <BottomNavigationAction
             key={destination.href}
+            component={Link}
+            href={destination.href}
             label={t(destination.labelKey)}
             icon={destination.icon}
           />

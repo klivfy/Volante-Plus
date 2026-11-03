@@ -226,7 +226,10 @@ export default function BacktestingPage() {
               />
 
               <Box>
-                <Typography variant="subtitle2" gutterBottom id="games-per-contest-label">
+                {/* Rótulo de slider, não título de documento: `subtitle2` sem
+                    `component` renderiza <h6> e quebra a ordem de headings
+                    (h1 → h6) que leitores de tela usam para navegar. */}
+                <Typography variant="subtitle2" component="p" gutterBottom id="games-per-contest-label">
                   {t('backtesting.gamesPerContest')}
                 </Typography>
                 <Slider

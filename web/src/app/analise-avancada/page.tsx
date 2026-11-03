@@ -104,9 +104,18 @@ function SectionAccordion({
   children: React.ReactNode;
 }) {
   return (
-    <Accordion variant="outlined" disableGutters>
+    <Accordion
+      variant="outlined"
+      disableGutters
+      // A11y (heading-order): o MUI v9 embrulha o summary num <h3> default
+      // (`MuiAccordion-heading`), o que pulava h1 → h3. O slot `heading`
+      // permite alinhar ao h1 da página → h2 por seção.
+      slotProps={{ heading: { component: 'h2' } }}
+    >
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box>
+          {/* O nível de heading vem do slot `heading` do Accordion (acima);
+             o Typography aqui é só o texto do título. */}
           <Typography sx={{ fontWeight: 600 }}>{title}</Typography>
           <Typography variant="caption" color="text.secondary">
             {subtitle}
@@ -223,7 +232,7 @@ function FairnessSection({ lottery }: { lottery: Lottery }) {
               })}
             </Alert>
 
-            <Typography variant="subtitle2">{t('advanced.fairness.gapTitle')}</Typography>
+            <Typography variant="subtitle2" component="h3">{t('advanced.fairness.gapTitle')}</Typography>
             <TableContainer>
               <Table size="small">
                 <TableHead>
@@ -251,7 +260,7 @@ function FairnessSection({ lottery }: { lottery: Lottery }) {
 
         {stability && (
           <>
-            <Typography variant="subtitle2">{t('advanced.fairness.walkForwardTitle')}</Typography>
+            <Typography variant="subtitle2" component="h3">{t('advanced.fairness.walkForwardTitle')}</Typography>
             <Typography variant="body2" color="text.secondary">
               {t('advanced.fairness.walkForwardSummary', {
                 cuts: stability.totalCuts,
