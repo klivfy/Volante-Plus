@@ -1,9 +1,11 @@
 'use client';
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import NextLink from 'next/link';
 import { useTranslation } from 'react-i18next';
 
 export default function SobrePage() {
@@ -46,6 +48,20 @@ export default function SobrePage() {
           <Typography variant="body2" color="text.secondary">
             {t('sobre.backtestBody')}
           </Typography>
+        </Box>
+
+        {/* LGPD: caminho visível do Sobre para a política + ferramentas do
+            titular (rodapé e banner também apontam para /privacidade). */}
+        <Box>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }} gutterBottom>
+            {t('sobre.privacyTitle')}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            {t('sobre.privacyBody')}
+          </Typography>
+          <Button component={NextLink} href="/privacidade" variant="outlined" size="small">
+            {t('sobre.privacyLink')}
+          </Button>
         </Box>
       </Stack>
     </Container>

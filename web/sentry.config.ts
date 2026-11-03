@@ -23,6 +23,12 @@ export const sentryConfig = {
   // 1.0 = 100%, 0.1 = 10% (para reduzir quota em produção)
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
 
+  // LGPD (docs/CONFORMIDADE-LGPD.md): nunca anexar PII (IP real, cookies,
+  // dados do usuário) aos eventos. O envio do evento de erro só acontece
+  // com consentimento da categoria `diagnosticos` (ver services/diagnostics.ts);
+  // mesmo consentido, o mínimo necessário é a stack e o contexto técnico.
+  sendDefaultPii: false,
+
   // Amostragem de capturas de erro (0-1)
   // 1.0 = todos os erros, 0.1 = 10% aleatório
   sampleRate: process.env.NODE_ENV === 'production' ? 0.9 : 1.0,

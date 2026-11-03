@@ -60,12 +60,25 @@ const withPWA = withPWAInit({
 });
 
 /**
- * Cabeçalhos de segurança. O CSP é deliberadamente parcial (sem `script-src`):
- * o Next injeta scripts inline e o service worker do next-pwa/Sentry variam
- * por deploy, então restringir scripts exigiria nonces. As diretivas abaixo
- * cobrem clickjacking, `<base>`/`<form>` sequestrados e plugins, sem risco de
- * quebrar o app.
+ * Cabeçalhos de segurança. O CSP agora tem `script-src`: `self` cobre o
+ * bootstrap do Next e todos os chunks (o SDK do Sentry, quando há DSN, é
+ * empacotado localmente — nunca vem de CDN), `unsafe-inline` cobre os
+ * scripts inline de hidratação do Next e a origem do Plausible cobre o
+ * script de métricas (LGPD: injetado só com consentimento — ver
+ * `PlausibleScript.tsx`). O worker do backtest é same-origin, coberto por
+ * `self` (worker-src herda de script-src). Sem `connect-src`/`default-src`
+ * de propósito: restringir saídas quebraria a API da Caixa e o ingest do
+ * Sentry, que variam por deploy.
  */
+const plausibleOrigin = (() => {
+  const host = process.env.NEXT_PUBLIC_PLAUSIBLE_API_HOST || "https://plausible.io";
+  try {
+    return new URL(host).origin;
+  } catch {
+    return "https://plausible.io";
+  }
+})();
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -74,7 +87,7 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
   {
     key: "Content-Security-Policy",
-    value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'",
+    value: `frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' ${plausibleOrigin}`,
   },
 ];
 

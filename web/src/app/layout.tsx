@@ -4,6 +4,8 @@ import ThemeProvider from "./providers";
 import BottomNav from "@/components/BottomNav";
 import SkipLink from "@/components/SkipLink";
 import SplashScreen from "@/components/SplashScreen";
+import SiteFooter from "@/components/SiteFooter";
+import PlausibleScript from "@/components/PlausibleScript";
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation";
 
 export const metadata: Metadata = {
@@ -54,16 +56,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <head>
-        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
-          <script
-            defer
-            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
-            src={process.env.NEXT_PUBLIC_PLAUSIBLE_API_HOST || 'https://plausible.io/js/script.js'}
-          />
-        )}
-      </head>
       <body>
+        {/* LGPD: o script de métricas (Plausible) saiu do <head> estático —
+            agora é injetado SOMENTE com consentimento da categoria
+            `analiticos`, via componente cliente (ver PlausibleScript). */}
+        <PlausibleScript />
         <ThemeProvider>
           <SkipLink />
           <SplashScreen />
@@ -78,6 +75,7 @@ export default function RootLayout({
             }}
           >
             {children}
+            <SiteFooter />
           </div>
           <BottomNav />
         </ThemeProvider>

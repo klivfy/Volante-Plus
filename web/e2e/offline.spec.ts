@@ -16,9 +16,20 @@ test('funciona offline após a primeira visita: cache do service worker serve o 
   await page.reload();
 
   await expect(page.getByRole('heading', { name: 'Volante+' })).toBeVisible();
-  await expect(
-    page.getByText('Não foi possível carregar os dados do próximo concurso. Verifique sua conexão.'),
-  ).toBeVisible();
+  // Dois finais possíveis quando a rede cai, ambos provam o SW a servir o
+  // app offline:
+  // - mensagem de erro do NextDrawCard — quando a 1ª visita NÃO conseguiu
+  //   buscar o próximo concurso (nada no runtime cache `caixa-api`);
+  // - os dados do concurso exibidos — quando a 1ª visita BUSCOU com sucesso
+  //   (sandbox/CI com internet): o NetworkFirst cai no cache e o card
+  //   renderiza normalmente. Exigir sempre a mensagem codificava a premissa
+  //   ambiental "sem internet na primeira visita" e falhava em ambientes
+  //   conectados, onde o cache dá resultado MELHOR que a mensagem de erro.
+  const offlineMessage = page.getByText(
+    'Não foi possível carregar os dados do próximo concurso. Verifique sua conexão.',
+  );
+  const nextDrawData = page.getByRole('heading', { name: /Concurso \d+/ });
+  await expect(offlineMessage.or(nextDrawData).first()).toBeVisible({ timeout: 10_000 });
 
   // Perfil de teste limpo não tem histórico no IndexedDB — exercita o
   // fallback de histórico vazio do analyzeBacktest, não dados cacheados

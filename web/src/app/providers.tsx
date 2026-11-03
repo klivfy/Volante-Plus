@@ -10,6 +10,9 @@ import { createLotteryTheme } from '@/theme';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import PwaLifecycle from '@/components/PwaLifecycle';
 import { LotteryThemeProvider, useLotteryTheme } from '@/context/LotteryThemeContext';
+import { ConsentProvider } from '@/components/consent/ConsentContext';
+import ConsentBanner from '@/components/consent/ConsentBanner';
+import ConsentPreferencesDialog from '@/components/consent/ConsentPreferencesDialog';
 
 /**
  * Aplica o tema da modalidade selecionada. Claro/escuro NÃO é decidido aqui: as
@@ -25,7 +28,16 @@ function DynamicThemeProvider({ children }: { children: ReactNode }) {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <PwaLifecycle />
-      <AppErrorBoundary>{children}</AppErrorBoundary>
+      {/* LGPD (docs/CONFORMIDADE-LGPD.md): banner + preferências + portões
+          de script vivem neste provider — montados por cima de todo o app,
+          mas nunca bloqueando a navegação (opt-in, não modal). */}
+      <ConsentProvider>
+        <AppErrorBoundary>
+          {children}
+          <ConsentBanner />
+          <ConsentPreferencesDialog />
+        </AppErrorBoundary>
+      </ConsentProvider>
     </ThemeProvider>
   );
 }
