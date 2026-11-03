@@ -50,7 +50,9 @@ export default function BatchOddsPanel({ lottery, odds, scope }: BatchOddsPanelP
       <CardContent>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <CalculateIcon fontSize="small" color="primary" />
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+          {/* Título de seção real (h2) para navegação por leitor de tela;
+              o valor percentual abaixo é texto, não título (heading-order). */}
+          <Typography variant="subtitle2" component="h2" sx={{ fontWeight: 700 }}>
             {t('batchOdds.title')}
           </Typography>
         </Stack>
@@ -62,7 +64,7 @@ export default function BatchOddsPanel({ lottery, odds, scope }: BatchOddsPanelP
         </Typography>
 
         <Box aria-live="polite" sx={{ mt: 1 }}>
-          <Typography variant="h4" sx={{ fontWeight: 700 }} color="primary.main">
+          <Typography variant="h4" component="p" sx={{ fontWeight: 700 }} color="primary.main">
             {percent(odds.anyPrizeProbability)}%
           </Typography>
           <Typography variant="body2" color="text.secondary">

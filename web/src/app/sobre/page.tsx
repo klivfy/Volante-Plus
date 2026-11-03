@@ -22,7 +22,7 @@ export default function SobrePage() {
         </Box>
 
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }} gutterBottom>
             {t('sobre.missionTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -31,7 +31,7 @@ export default function SobrePage() {
         </Box>
 
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }} gutterBottom>
             {t('sobre.howTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -40,7 +40,7 @@ export default function SobrePage() {
         </Box>
 
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }} gutterBottom>
             {t('sobre.backtestTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary">

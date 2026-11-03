@@ -63,7 +63,9 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
           <CalendarMonthIcon color="primary" sx={{ mt: 0.5 }} />
           <Stack spacing={0.25} sx={{ flex: 1 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {/* Título de seção real (h2): `subtitle1` sozinho renderiza <h6>
+                  e quebrava a ordem de headings (audit heading-order). */}
+              <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
                 {t('nextDraw.contest', { number: nextDraw.contestNumber })}
               </Typography>
               {isAccumulated && (
@@ -79,7 +81,9 @@ export default function NextDrawCard({ nextDraw, loading }: NextDrawCardProps) {
             <Typography variant="body2" color="text.secondary">
               {time ? t('nextDraw.at', { date, time }) : date}
             </Typography>
-            <Typography variant="h6" color="primary" sx={{ mt: 0.5 }}>
+            {/* Valor, não título: `component="p"` evita o salto h1→h6 que
+                reprovava o audit `heading-order` do Lighthouse. */}
+            <Typography variant="h6" component="p" color="primary" sx={{ mt: 0.5 }}>
               {currencyFormatter.format(nextDraw.estimatedPrize)}
             </Typography>
             <Typography variant="caption" color="text.secondary">

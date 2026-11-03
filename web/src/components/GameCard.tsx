@@ -9,6 +9,7 @@ import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import NumberBall from './NumberBall';
 import { hasTrevos } from '../engine/prizeRules';
@@ -26,8 +27,14 @@ export interface GameCardProps {
   payout?: PayoutAssessment;
 }
 
-/** Card de um jogo gerado: dezenas, trevos (se houver) e ações de copiar/compartilhar. */
-export default function GameCard({ lottery, game, index, onCopy, onShare, payout }: GameCardProps) {
+/**
+ * Card de um jogo gerado: dezenas, trevos (se houver) e ações de copiar/compartilhar.
+ *
+ * `memo`: a grade pode ter dezenas de cards; com handlers estáveis (`useCallback`
+ * em `page.tsx`) e payout memoizado, digitar no campo de apostas ou abrir o toast
+ * não re-renderiza nenhum card.
+ */
+function GameCard({ lottery, game, index, onCopy, onShare, payout }: GameCardProps) {
   const { t } = useTranslation();
   const showsTrevos = hasTrevos(lottery) && (game.trevoDuplas?.length ?? 0) > 0;
 
@@ -75,3 +82,5 @@ export default function GameCard({ lottery, game, index, onCopy, onShare, payout
     </Card>
   );
 }
+
+export default memo(GameCard);

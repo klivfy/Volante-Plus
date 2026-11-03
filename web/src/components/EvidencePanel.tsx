@@ -78,7 +78,9 @@ export default function EvidencePanel({
   return (
     <Card>
       <CardContent>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>
+        {/* Título de seção real (h2): `subtitle1` sozinho renderiza <h6> e
+            quebrava a ordem de headings (audit heading-order). */}
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }} gutterBottom>
           {t(k('evidence.title'))}
         </Typography>
         <Alert severity={weak ? 'info' : SEVERITY[summary.verdict]} sx={{ mb: 1 }}>

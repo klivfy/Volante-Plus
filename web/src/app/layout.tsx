@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ThemeProvider from "./providers";
 import BottomNav from "@/components/BottomNav";
+import SkipLink from "@/components/SkipLink";
 import SplashScreen from "@/components/SplashScreen";
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation";
 
@@ -64,8 +65,13 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
+          <SkipLink />
           <SplashScreen />
+          {/* `id="conteudo"` + tabIndex={-1}: destino do skip link — o foco
+              vai direto ao conteúdo, sem passar pelo BottomNav. */}
           <div
+            id="conteudo"
+            tabIndex={-1}
             style={{
               paddingBottom: `calc(${BOTTOM_NAV_HEIGHT}px + env(safe-area-inset-bottom))`,
               minHeight: '100dvh',

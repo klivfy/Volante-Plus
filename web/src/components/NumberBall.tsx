@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import Box from '@mui/material/Box';
 
 export interface NumberBallProps {
@@ -5,8 +6,12 @@ export interface NumberBallProps {
   size?: number;
 }
 
-/** Círculo com a dezena, no estilo das bolinhas de sorteio de loteria. */
-export default function NumberBall({ number, size = 36 }: NumberBallProps) {
+/**
+ * Círculo com a dezena, no estilo das bolinhas de sorteio de loteria.
+ * `memo`: a grade de dezenas é a folha mais numerosa da tela (até 15 por
+ * jogo × dezenas de jogos) — re-render só quando a própria dezena muda.
+ */
+function NumberBall({ number, size = 36 }: NumberBallProps) {
   return (
     <Box
       sx={{
@@ -26,3 +31,5 @@ export default function NumberBall({ number, size = 36 }: NumberBallProps) {
     </Box>
   );
 }
+
+export default memo(NumberBall);

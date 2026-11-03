@@ -25,7 +25,9 @@ export default function GameCountControl({ value, onChange, disabled = false }: 
   const { t } = useTranslation();
   return (
     <>
-      <Typography variant="subtitle2" gutterBottom>
+      {/* Rótulo de controle, não título: `subtitle2` sozinho renderiza <h6>
+          e quebrava a ordem de headings (audit heading-order). */}
+      <Typography variant="subtitle2" component="p" gutterBottom>
         {t('volante.howManyGames')}
       </Typography>
       <SegmentedControl

@@ -12,7 +12,7 @@ import Grid from '@mui/material/Grid';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BatchOddsPanel from '@/components/BatchOddsPanel';
 import EvidencePanel from '@/components/EvidencePanel';
@@ -154,8 +154,16 @@ export default function VolantePage() {
   const batchLimited = !loading && batchCount > gamesAvailable;
 
   const tickets = Number(ticketsInput) >= 1 ? Number(ticketsInput) : undefined;
-  const payoutAssessment =
-    generatedBatch && tickets !== undefined ? evaluatePayoutBatch(generatedBatch, tickets) : null;
+  // Memoizado: sem isso, `evaluatePayoutBatch` recria o objeto a cada render
+  // e quebraria o React.memo de <GameCard>/<PayoutSharePanel> a cada tecla
+  // digitada no campo de apostas.
+  const payoutAssessment = useMemo(
+    () =>
+      generatedBatch && tickets !== undefined
+        ? evaluatePayoutBatch(generatedBatch, tickets)
+        : null,
+    [generatedBatch, tickets],
+  );
 
   // CHANCE REAL DO LOTE, EM TEMPO REAL. Antes de gerar: a prévia do
   // lote-modelo (jogos disjuntos) acompanha o seletor "Quantos jogos" e a
@@ -220,27 +228,36 @@ export default function VolantePage() {
     }
   }
 
-  async function handleCopy(game: GeneratedGame): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(gameToText(lottery, game));
-      setToast(t('volante.copiedToClipboard'));
-    } catch {
-      setToast(t('volante.copyError'));
-    }
-  }
+  // useCallback: handlers estáveis são a condição para o React.memo de
+  // <GameCard> funcionar — sem eles, cada tecla no campo de apostas
+  // re-renderizaria a grade inteira de jogos gerados.
+  const handleCopy = useCallback(
+    async (game: GeneratedGame): Promise<void> => {
+      try {
+        await navigator.clipboard.writeText(gameToText(lottery, game));
+        setToast(t('volante.copiedToClipboard'));
+      } catch {
+        setToast(t('volante.copyError'));
+      }
+    },
+    [lottery, t],
+  );
 
-  async function handleShare(game: GeneratedGame): Promise<void> {
-    const text = gameToText(lottery, game);
-    if (!navigator.share) {
-      await handleCopy(game);
-      return;
-    }
-    try {
-      await navigator.share({ title: t('volante.shareTitle'), text });
-    } catch {
-      // Usuário cancelou o compartilhamento — não é um erro a relatar.
-    }
-  }
+  const handleShare = useCallback(
+    async (game: GeneratedGame): Promise<void> => {
+      const text = gameToText(lottery, game);
+      if (!navigator.share) {
+        await handleCopy(game);
+        return;
+      }
+      try {
+        await navigator.share({ title: t('volante.shareTitle'), text });
+      } catch {
+        // Usuário cancelou o compartilhamento — não é um erro a relatar.
+      }
+    },
+    [handleCopy, lottery, t],
+  );
 
   return (
     <Container component="main" maxWidth="lg" sx={{ py: 3 }}>
