@@ -100,6 +100,9 @@ export function hypergeometricMean(N: number, K: number, n: number): number {
  *
  * Nas loterias com trevo as duas amostragens são independentes (dezenas e
  * trevos saem de urnas separadas), então a probabilidade da faixa é o produto.
+ * Faixas com teto inclusivo (`trevoHitsMax`, ver `PrizeTier`) somam a
+ * probabilidade de todos os cenários de trevo do intervalo — “1 ou nenhum
+ * trevo” é uma faixa só no regulamento da +Milionária.
  *
  * @returns mapa `chave da faixa -> probabilidade`, ex.: `{ '6': 1/50063860 }`.
  */
@@ -114,19 +117,35 @@ export function prizeProbabilities(lottery: Lottery): Record<string, number> {
       rules.numbersPerBet,
       tier.numberHits,
     );
-    const trevos =
-      tier.trevoHits === undefined
-        ? 1
-        : hypergeometricProbability(
-            rules.trevoUniverse,
-            rules.trevosDrawn,
-            rules.trevosPerBet,
-            tier.trevoHits,
-          );
+    const trevos = trevoProbabilityOf(rules, tier);
     result[tier.key] = numbers * trevos;
   }
 
   return result;
+}
+
+/**
+ * Probabilidade do cenário de trevos de uma faixa para uma aposta simples.
+ * Sem trevos na faixa (loterias sem trevo) o fator é 1 — não há segunda urna.
+ */
+function trevoProbabilityOf(
+  rules: ReturnType<typeof lotteryRules>,
+  tier: { trevoHits?: number; trevoHitsMax?: number },
+): number {
+  if (tier.trevoHits === undefined) {
+    return 1;
+  }
+  const max = tier.trevoHitsMax ?? tier.trevoHits;
+  let total = 0;
+  for (let hits = tier.trevoHits; hits <= max; hits++) {
+    total += hypergeometricProbability(
+      rules.trevoUniverse,
+      rules.trevosDrawn,
+      rules.trevosPerBet,
+      hits,
+    );
+  }
+  return total;
 }
 
 /**

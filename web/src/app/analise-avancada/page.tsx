@@ -427,7 +427,9 @@ function ExpectedValueSection({ lottery }: { lottery: Lottery }) {
   // histórico), só uma estimativa razoável para ilustrar o cálculo.
   const REFERENCE_TIERS: Record<Lottery, { top: string; mid: string; low: string; midPrize: number; lowPrize: number }> = {
     [Lottery.MEGA_SENA]: { top: '6', mid: '5', low: '4', midPrize: 50000, lowPrize: 1000 },
-    [Lottery.MAIS_MILIONARIA]: { top: '6+2', mid: '5+0', low: '4+0', midPrize: 30000, lowPrize: 800 },
+    // Chaves das faixas oficiais da +Milionária: “1 ou nenhum trevo” é uma
+    // faixa só no regulamento (2, 4 e 6) — ver `prizeRules.ts`.
+    [Lottery.MAIS_MILIONARIA]: { top: '6+2', mid: '5+0-1', low: '4+0-1', midPrize: 30000, lowPrize: 800 },
     [Lottery.QUINA]: { top: '5', mid: '4', low: '3', midPrize: 7000, lowPrize: 150 },
   };
   const ref = REFERENCE_TIERS[lottery];

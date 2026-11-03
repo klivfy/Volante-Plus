@@ -15,6 +15,16 @@ export interface PrizeTier {
   readonly numberHits: number;
   /** Trevos que a faixa exige; ausente em loterias sem trevo. */
   readonly trevoHits?: number;
+  /**
+   * Teto inclusivo de trevos da faixa.
+   *
+   * WHY: no regulamento da +Milionária as faixas de rateio intermediárias
+   * agrupam dois cenários de trevo — “6 dezenas + 1 ou nenhum trevo” é uma
+   * ÚNICA faixa (a 2). Quando presente, a faixa casa com
+   * `trevoHits >= trevoHits && trevoHits <= trevoHitsMax`; ausente, o casamento
+   * é exato em `trevoHits`.
+   */
+  readonly trevoHitsMax?: number;
 }
 
 /**
@@ -52,21 +62,30 @@ export const MEGA_SENA_TIERS: readonly PrizeTier[] = [
 ];
 
 /**
- * +Milionária: nove faixas, cruzando 6/5/4 dezenas com 2/1/0 trevos.
+ * +Milionária: as dez faixas oficiais do regulamento.
  *
- * WHY: a faixa mais baixa exige 4 dezenas; combinações com 3 ou menos dezenas
- * não pagam, independentemente dos trevos — por isso não aparecem aqui.
+ * Fonte: regulamento da +Milionária (Caixa, lançamento em 28/05/2022) —
+ * verificado faixa a faixa por combinatória: a faixa 1 tem chance exata
+ * 1/C(50,6)·1/C(6,2) = 1/238.360.500, o número oficial da Caixa. As faixas
+ * de rateio agrupam “1 ou nenhum trevo” numa única faixa (2, 4 e 6), e as
+ * faixas fixas (7 a 10) pagam R$ 50, R$ 24, R$ 12 e R$ 6.
+ *
+ * WHY (correção): a lista anterior tinha nove faixas cruzando 6/5/4 dezenas
+ * com 2/1/0 trevos — tratava “6+1” e “6+0” como faixas distintas e omitia as
+ * quatro faixas inferiores do regulamento (3 dezenas e 2 dezenas com trevo),
+ * subestimando a chance de qualquer prêmio e a taxa de prêmio do backtest.
  */
 export const MAIS_MILIONARIA_TIERS: readonly PrizeTier[] = [
   { key: '6+2', label: '6 dezenas + 2 trevos', numberHits: 6, trevoHits: 2 },
-  { key: '6+1', label: '6 dezenas + 1 trevo', numberHits: 6, trevoHits: 1 },
-  { key: '6+0', label: '6 dezenas', numberHits: 6, trevoHits: 0 },
+  { key: '6+0-1', label: '6 dezenas + 1 ou nenhum trevo', numberHits: 6, trevoHits: 0, trevoHitsMax: 1 },
   { key: '5+2', label: '5 dezenas + 2 trevos', numberHits: 5, trevoHits: 2 },
-  { key: '5+1', label: '5 dezenas + 1 trevo', numberHits: 5, trevoHits: 1 },
-  { key: '5+0', label: '5 dezenas', numberHits: 5, trevoHits: 0 },
+  { key: '5+0-1', label: '5 dezenas + 1 ou nenhum trevo', numberHits: 5, trevoHits: 0, trevoHitsMax: 1 },
   { key: '4+2', label: '4 dezenas + 2 trevos', numberHits: 4, trevoHits: 2 },
-  { key: '4+1', label: '4 dezenas + 1 trevo', numberHits: 4, trevoHits: 1 },
-  { key: '4+0', label: '4 dezenas', numberHits: 4, trevoHits: 0 },
+  { key: '4+0-1', label: '4 dezenas + 1 ou nenhum trevo', numberHits: 4, trevoHits: 0, trevoHitsMax: 1 },
+  { key: '3+2', label: '3 dezenas + 2 trevos', numberHits: 3, trevoHits: 2 },
+  { key: '3+1', label: '3 dezenas + 1 trevo', numberHits: 3, trevoHits: 1 },
+  { key: '2+2', label: '2 dezenas + 2 trevos', numberHits: 2, trevoHits: 2 },
+  { key: '2+1', label: '2 dezenas + 1 trevo', numberHits: 2, trevoHits: 1 },
 ];
 
 /** Quina: quina, quadra, terno e duque (sem trevos). */
@@ -138,6 +157,11 @@ export function hasTrevos(lottery: Lottery): boolean {
 /**
  * Classifica um resultado de aposta na faixa premiada correspondente.
  *
+ * As faixas estão ordenadas da mais alta para a mais baixa e são disjuntas:
+ * o primeiro casamento é o único. Faixas com `trevoHitsMax` casam um intervalo
+ * inclusivo de trevos (regulamento da +Milionária: “1 ou nenhum trevo” é uma
+ * faixa só).
+ *
  * @param trevoHits ignorado nas loterias sem trevo.
  * @returns a faixa, ou `null` quando a aposta não premia.
  */
@@ -148,11 +172,14 @@ export function classifyHits(
 ): PrizeTier | null {
   const tiers = prizeTiers(lottery);
   return (
-    tiers.find(
-      (tier) =>
-        tier.numberHits === numberHits &&
-        (tier.trevoHits === undefined || tier.trevoHits === trevoHits),
-    ) ?? null
+    tiers.find((tier) => {
+      if (tier.numberHits !== numberHits) return false;
+      if (tier.trevoHits === undefined) return true;
+      if (tier.trevoHitsMax !== undefined) {
+        return trevoHits >= tier.trevoHits && trevoHits <= tier.trevoHitsMax;
+      }
+      return tier.trevoHits === trevoHits;
+    }) ?? null
   );
 }
 

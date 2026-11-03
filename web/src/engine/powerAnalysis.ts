@@ -1,5 +1,5 @@
 import { Lottery } from '../types/domain';
-import { hypergeometricMean, hypergeometricProbability } from './hypergeometric';
+import { hypergeometricMean, prizeProbabilities } from './hypergeometric';
 import { lotteryRules } from './prizeRules';
 import { approxNormalCDF } from './statUtils';
 
@@ -146,19 +146,19 @@ export function powerTable(
  * Probabilidade teórica de "qualquer prêmio" numa aposta simples — usada como
  * referência de poder para a taxa de eficácia (`prizeRate`), em vez de
  * acertos médios.
+ *
+ * WHY (por faixas, não por piso fixo): a faixa mais baixa é própria de cada
+ * modalidade — Quadra (4) na Mega-Sena, Duque (2) na Quina, “2 dezenas + 1
+ * trevo” (faixa 10) na +Milionária. A versão anterior somava acertos a partir
+ * de 4 para todas, o que subestimava p0 da Quina (ignorava Duque e Terno) e
+ * inflava o z do teste binomial no walk-forward — podia fabricar
+ * “vantagem/desvantagem significativa” que era só bug de faixa. A soma abaixo
+ * é exata: as faixas são disjuntas (ver `classifyHits`), então somar
+ * `prizeProbabilities` não double-counta.
  */
 export function anyPrizeProbability(lottery: Lottery): number {
-  const rules = lotteryRules(lottery);
-  let total = 0;
-  for (let hits = 4; hits <= rules.numbersDrawn; hits++) {
-    total += hypergeometricProbability(
-      rules.numberUniverse,
-      rules.numbersDrawn,
-      rules.numbersPerBet,
-      hits,
-    );
-  }
-  return total;
+  const probabilities = prizeProbabilities(lottery);
+  return Object.values(probabilities).reduce((total, probability) => total + probability, 0);
 }
 
 /** Acertos esperados por jogo — atalho para exibição junto da tabela de poder. */

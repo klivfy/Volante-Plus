@@ -1,12 +1,41 @@
 import { describe, expect, it } from 'vitest';
 import { Lottery } from '../../types/domain';
 import {
+  anyPrizeProbability,
   currentPower,
   expectedHitsFor,
   hypergeometricStdDev,
   powerTable,
   requiredSampleSize,
 } from '../powerAnalysis';
+import { hypergeometricAtLeast } from '../hypergeometric';
+
+describe('anyPrizeProbability', () => {
+  it('Mega-Sena: qualquer prêmio começa na quadra (4 acertos)', () => {
+    const p = anyPrizeProbability(Lottery.MEGA_SENA);
+    expect(p).toBeCloseTo(hypergeometricAtLeast(60, 6, 6, 4), 15);
+    // Chance oficial da Caixa de qualquer prêmio na Mega-Sena: 1 em 2.298.
+    expect(1 / p).toBeGreaterThan(2_295);
+    expect(1 / p).toBeLessThan(2_300);
+  });
+
+  it('Quina: qualquer prêmio começa no duque (2 acertos) — regressão do piso fixo', () => {
+    const p = anyPrizeProbability(Lottery.QUINA);
+    expect(p).toBeCloseTo(hypergeometricAtLeast(80, 5, 5, 2), 15);
+    // REGRESSÃO: a versão anterior somava a partir de 4 acertos para todas as
+    // modalidades, ignorando Duque e Terno e inflando o z do teste binomial.
+    expect(p).toBeGreaterThan(hypergeometricAtLeast(80, 5, 5, 4));
+  });
+
+  it('+Milionária: qualquer prêmio inclui as faixas fixas (3 e 2 dezenas com trevo)', () => {
+    const p = anyPrizeProbability(Lottery.MAIS_MILIONARIA);
+    // Soma das dez faixas oficiais: ~8,78% — “1 vez a cada 11 apostas”.
+    expect(p).toBeGreaterThan(0.087);
+    expect(p).toBeLessThan(0.089);
+    // REGRESSÃO: o piso fixo de 4 acertos omitia as faixas 7 a 10.
+    expect(p).toBeGreaterThan(hypergeometricAtLeast(50, 6, 6, 4));
+  });
+});
 
 describe('hypergeometricStdDev', () => {
   it('é positivo e finito para ambas as loterias', () => {

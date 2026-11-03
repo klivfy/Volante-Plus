@@ -98,18 +98,40 @@ describe('prizeProbabilities', () => {
     expect(probabilities['6']).toBeCloseTo(1 / MEGA_COMBINATIONS, 15);
   });
 
-  it('cobre as nove faixas da +Milionária', () => {
+  it('cobre as dez faixas oficiais da +Milionária', () => {
     const probabilities = prizeProbabilities(Lottery.MAIS_MILIONARIA);
-    expect(Object.keys(probabilities)).toHaveLength(9);
+    expect(Object.keys(probabilities)).toEqual([
+      '6+2',
+      '6+0-1',
+      '5+2',
+      '5+0-1',
+      '4+2',
+      '4+0-1',
+      '3+2',
+      '3+1',
+      '2+2',
+      '2+1',
+    ]);
     // Chance oficial de 6 dezenas + 2 trevos: 1 em 238.360.500.
     expect(probabilities['6+2']).toBeCloseTo(1 / 238_360_500, 15);
-    expect(probabilities['6+1']).toBeCloseTo(8 / (15 * MILIONARIA_COMBINATIONS), 15);
+    // Faixa 2 do regulamento: “6 dezenas + 1 ou nenhum trevo” é UMA faixa,
+    // com chance 1 em 17.025.750 — (8 + 6)/15 cenários de trevo.
+    expect(probabilities['6+0-1']).toBeCloseTo(14 / (15 * MILIONARIA_COMBINATIONS), 15);
+    expect(1 / probabilities['6+0-1']).toBeCloseTo(17_025_750, 0);
   });
 
-  it('reparte a faixa de 6 dezenas entre 2, 1 e 0 trevos', () => {
+  it('reparte a faixa de 6 dezenas entre 2 e 1-0 trevos', () => {
     const p = prizeProbabilities(Lottery.MAIS_MILIONARIA);
-    const seis = p['6+2'] + p['6+1'] + p['6+0'];
+    const seis = p['6+2'] + p['6+0-1'];
     expect(seis).toBeCloseTo(1 / MILIONARIA_COMBINATIONS, 15);
+  });
+
+  it('faixa 10 (2 dezenas + 1 trevo) tem chance P(2 dezenas) * 8/15', () => {
+    const p = prizeProbabilities(Lottery.MAIS_MILIONARIA);
+    const p2Dezenas = hypergeometricProbability(50, 6, 6, 2);
+    expect(p['2+1']).toBeCloseTo(p2Dezenas * (8 / 15), 15);
+    // 2 dezenas sem trevo não premia: não existe faixa '2+0'.
+    expect(p['2+0']).toBeUndefined();
   });
 });
 
@@ -136,14 +158,26 @@ describe('expectedPrizes', () => {
 describe('prizeRules', () => {
   it('lista as faixas da mais alta para a mais baixa', () => {
     expect(MEGA_SENA_TIERS.map((tier) => tier.key)).toEqual(['6', '5', '4']);
-    expect(MAIS_MILIONARIA_TIERS).toHaveLength(9);
+    // As dez faixas oficiais do regulamento da +Milionária.
+    expect(MAIS_MILIONARIA_TIERS).toHaveLength(10);
   });
 
   it('classifica acertos na faixa correta', () => {
     expect(classifyHits(Lottery.MEGA_SENA, 6)?.label).toBe('Sena');
     expect(classifyHits(Lottery.MEGA_SENA, 3)).toBeNull();
-    expect(classifyHits(Lottery.MAIS_MILIONARIA, 5, 1)?.key).toBe('5+1');
-    expect(classifyHits(Lottery.MAIS_MILIONARIA, 3, 2)).toBeNull();
+    // “1 ou nenhum trevo” é uma faixa única (a faixa 4 para 5 dezenas).
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 5, 1)?.key).toBe('5+0-1');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 5, 0)?.key).toBe('5+0-1');
+    // 3 dezenas pagam com trevo (faixas 7 e 8, prêmio fixo) — antes omitidas.
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 3, 2)?.key).toBe('3+2');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 3, 1)?.key).toBe('3+1');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 3, 0)).toBeNull();
+    // 2 dezenas pagam só com 1 ou 2 trevos (faixas 9 e 10).
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 2, 2)?.key).toBe('2+2');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 2, 1)?.key).toBe('2+1');
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 2, 0)).toBeNull();
+    // A faixa mais alta vence quando há ambiguidade: 6+2 é faixa 1, não faixa 2.
+    expect(classifyHits(Lottery.MAIS_MILIONARIA, 6, 2)?.key).toBe('6+2');
   });
 
   it('ignora os trevos numa loteria sem trevos', () => {
