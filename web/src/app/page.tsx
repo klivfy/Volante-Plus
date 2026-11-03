@@ -36,6 +36,8 @@ import { hasTrevos, lotteryRules } from '@/engine/prizeRules';
 import { useNextDraw } from '@/hooks/useNextDraw';
 import { usePerformanceCache } from '@/hooks/usePerformanceCache';
 import { useLotteryTheme } from '@/context/LotteryThemeContext';
+import BatchOddsPanel from '@/components/BatchOddsPanel';
+import { BatchOdds, concreteBatchOdds, modelBatchOdds } from '@/engine/batchOdds';
 import { GameBatch, GameMode, GeneratedGame, Lottery, MIN_GAMES } from '@/types/domain';
 
 /**
@@ -151,6 +153,32 @@ export default function VolantePage() {
   const tickets = Number(ticketsInput) >= 1 ? Number(ticketsInput) : undefined;
   const payoutAssessment =
     generatedBatch && tickets !== undefined ? evaluatePayoutBatch(generatedBatch, tickets) : null;
+
+  // Chances do lote: com lote em tela, as chances CONCRETAS (jogos podem
+  // compartilhar dezenas no fechamento, e as duplas de trevo reais entram);
+  // sem lote, o lote hipotético do tamanho escolhido (escopo modelo). No modo
+  // Fechamento antes de gerar não há o que medir — o pool ainda não virou
+  // jogos. Falha de cálculo derruba o painel, nunca a página: o painel é
+  // informativo e a geração continua funcionando sem ele.
+  const batchOddsView = useMemo<{ odds: BatchOdds; scope: 'model' | 'batch' } | null>(() => {
+    if (generatedBatch) {
+      try {
+        return {
+          odds: concreteBatchOdds(
+            generatedBatch.lottery,
+            generatedBatch.games.map((game) => game.numbers),
+            hasTrevos(generatedBatch.lottery)
+              ? generatedBatch.games.map((game) => game.trevoDuplas ?? [])
+              : undefined,
+          ),
+          scope: 'batch',
+        };
+      } catch {
+        return null;
+      }
+    }
+    return closureMode ? null : { odds: modelBatchOdds(lottery, batchCount), scope: 'model' };
+  }, [generatedBatch, closureMode, lottery, batchCount]);
 
   async function handleGenerate(): Promise<void> {
     setGenerating(true);
@@ -324,6 +352,8 @@ export default function VolantePage() {
             </Button>
           </CardContent>
         </Card>
+
+        {batchOddsView && <BatchOddsPanel odds={batchOddsView.odds} scope={batchOddsView.scope} />}
 
         {generatedBatch?.closure && (
           <Alert severity="success">

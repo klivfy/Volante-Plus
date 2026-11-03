@@ -235,5 +235,15 @@
     "checking": "Histórico: concursos {{first}} a {{last}} ({{count}} sorteios), até {{date}}. Conferindo se saiu concurso novo…",
     "offline": "Histórico até o concurso {{last}} ({{date}}). Não foi possível conferir se saiu concurso novo agora; a análise usa o que está salvo.",
     "gaps": "Histórico com {{missing}} concurso(s) faltando entre o {{first}} e o {{last}}. A sincronização vai completar quando houver conexão."
+  },
+  "batchOdds": {
+    "titleModel": "Chances de um lote de {{count}} jogos",
+    "titleBatch": "Chances do lote em tela ({{count}} jogos)",
+    "oneIn": "1 em {{oneIn}} concursos, pelo menos um prêmio",
+    "noPrizeRow": "Nenhum prêmio no concurso",
+    "expectedRow": "Prêmios esperados por concurso",
+    "concursosRow": "Concursos até 90% de chance de algum prêmio",
+    "concursosInfinity": "este lote não premia",
+    "disclaimer": "Teto estrutural do lote, calculado sobre as faixas oficiais: vale para qualquer combinação com a mesma estrutura. Os sorteios são independentes — nenhuma análise altera a chance de cada combinação nem prevê as dezenas sorteadas."
   }
 }
