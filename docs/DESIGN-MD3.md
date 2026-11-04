@@ -39,7 +39,9 @@ Verificação automatizada em `web/src/theme.md3.test.ts` (26 casos) +
 
 | Par | Claro | Escuro |
 | --- | --- | --- |
-| `onPrimary`/`primary` (rótulo sobre a modalidade) | 4,83–8,02:1 | 7,01–7,80:1 |
+| `onPrimary`/`primary` (rótulo sobre a modalidade) | 6,72–8,02:1 | 7,01–7,80:1 |
+| `primary` como texto sobre `surfaceContainer` (cartões) | 5,84:1 (Mega) | — |
+| `primary` como texto sobre `surfaceContainerHighest` | 5,18:1 (Mega) | — |
 | `onPrimaryContainer`/`primaryContainer` (Mega) | 12,06:1 | 8,02:1 |
 | `onPrimaryContainer`/`primaryContainer` (+Milionária) | 13,27:1 | 6,88:1 |
 | `onPrimaryContainer`/`primaryContainer` (Quina) | 12,47:1 | 9,25:1 |
@@ -81,6 +83,9 @@ tamanhos em `rem` (decisão de acessibilidade preservada).
 - **NavigationBar**: pílula `secondaryContainer` de 64×32 px em volta do
   ícone ativo (indicador M3); rótulo ativo `onSecondaryContainer`; fundo
   `surfaceContainer`.
+- **ToggleButton**: não selecionado em `onSurfaceVariant` — o padrão do MUI
+  (ação com α 60%) media 4,43:1 sobre `surfaceContainer` e era reprovado pelo
+  axe; selecionado mantém `primary`/`onPrimary` (≥ 4,5:1 verificado).
 - **Intocados de propósito** (a11y já resolvida e testada): foco visível de
   2 px, helper/rótulo desabilitado em `text.secondary`, polegar do slider
   28 pt, rótulos da barra em 12 px fixos.

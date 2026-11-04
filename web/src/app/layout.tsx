@@ -46,9 +46,9 @@ export const metadata: Metadata = {
     // seguir a mesma convenção dos outros ícones do manifest, todos na raiz
     // de public/.
     "msapplication-TileImage": "/icon-144x144.png",
-    // Cor da marca (verde Mega-Sena, `theme.ts#BRAND`), não o roxo padrão do
-    // scaffold MUI — o tile do Windows com a cor antiga destoava do app.
-    "msapplication-TileColor": "#2B8300",
+    // Cor da marca (verde Mega-Sena tone 40 M3, `theme.ts#BRAND`), não o roxo
+    // padrão do scaffold MUI — o tile do Windows com a cor antiga destoava do app.
+    "msapplication-TileColor": "#216A00",
   },
 };
 

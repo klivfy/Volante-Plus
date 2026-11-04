@@ -40,7 +40,7 @@ import { Lottery } from './types/domain';
  *
  * | Modalidade / aparência | cor principal | rótulo sobre ela |
  * |---|---|---|
- * | Mega-Sena, claro   | #2B8300 | branco 4,83:1 |
+ * | Mega-Sena, claro   | #216A00 | branco 6,72:1 |
  * | Mega-Sena, escuro  | #40BE00 | #0B2000 7,03:1 |
  * | +Milionária, claro | #005CA9 | branco 6,77:1 |
  * | +Milionária, escuro| #48ACFF | #001D36 7,01:1 |
@@ -165,7 +165,12 @@ interface BrandColors {
 
 const BRAND: Record<Lottery, { light: BrandColors; dark: BrandColors }> = {
   [Lottery.MEGA_SENA]: {
-    light: { main: '#2B8300', light: '#5DAE33', dark: '#1D5A00', contrastText: '#FFFFFF' },
+    // Tone 40 M3 do verde da modalidade: o antigo #2B8300 passava no fundo
+    // antigo (#FFFBFE, 4,71:1) mas caía para 4,19:1 sobre as superfícies M3
+    // (`surfaceContainer` é mais escura que o antigo fundo). #216A00 passa em
+    // TODA a família de superfícies (mín. 5,18:1 sobre containerHighest) e
+    // melhora o rótulo branco para 6,72:1 (era 4,83:1).
+    light: { main: '#216A00', light: '#5DAE33', dark: '#145400', contrastText: '#FFFFFF' },
     dark: { main: '#40BE00', light: '#7ADB44', dark: '#2E8C00', contrastText: '#0B2000' },
   },
   [Lottery.MAIS_MILIONARIA]: {
@@ -282,6 +287,10 @@ const componentOverrides: ThemeOptions['components'] = {
         minHeight: TOUCH_TARGET,
         textTransform: 'none' as const,
         fontWeight: 500,
+        // Não selecionado: `onSurfaceVariant` do M3 (≥ 4,5:1 sobre qualquer
+        // superfície). O padrão do MUI (ação com α 60%) dava 4,43:1 sobre
+        // `surfaceContainer` — o Lighthouse/axe reprova.
+        color: theme.vars?.palette.text.secondary ?? theme.palette.text.secondary,
         // Selecionado: preenchido com a cor da modalidade (contraste
         // verificado ≥4,5:1) — mais forte que `secondaryContainer` e mantém
         // a distinção do estado mesmo em visão de baixo contraste.
