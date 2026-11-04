@@ -13,9 +13,11 @@ name: lighthouse-gate
 #   /sobre              2,72 s  3.141ms  0.67   1.00   1.00
 #
 # O runner é ~30% mais lento que o sandbox no LCP; o gate de erro ficou em
-# 4.500 ms (pior mediana 4,03 s + headroom). APÓS O P1 (divisão do vendor
-# chunk 860, principal gargalo de TBT/LCP) apertar de volta — alvo: erro em
-# 3.000 ms no runner.
+# 4.500 ms (pior mediana 4,03 s + headroom). Revalidação pós-LGPD (docs/
+# PROPOSTAS-PERF-A11Y.md §6.6) confirmou que não há vendor chunk a dividir —
+# o chunk 860 é o seed de dados da Quina, carregado pós-pintura — e o custo
+# restante de scripting é framework (route-matcher/hidratação do Next).
+# Apertar o budget SÓ com nova evidência medida no runner.
 
 on:
   pull_request:

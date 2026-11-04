@@ -103,10 +103,12 @@ frameada como tal.
 Prioridade por impacto medido ÷ risco. Itens P1–P2 são os únicos com potencial
 de mover o score de Performance de novo; os demais são robustez.
 
-**Status pós-onda 2 (2026-11-04):** P1, P2, P3, P4, P6, P7 e P8 implementados
-(evidências nas seções 4 e 6); P5 preparado em branch local
-(`perf-lighthouse-gate`) — push de `.github/workflows/` exige PAT com
-permissão "Workflows".
+**Status final (2026-11-04):** roadmap **P1–P8 concluído na íntegra**.
+P1, P2, P3, P4, P6, P7 e P8 implementados na onda 2 (evidências nas seções 4
+e 6); P5 mergeado na `main` via PR #28 (commit `272a17a`) — gate de
+Lighthouse nas 4 rotas rodando em `pull_request`/`push:main`/
+`workflow_dispatch`, com todos os workflows da `main` verdes. Ver seção 6.6
+para a revalidação pós-LGPD da atribuição de chunks.
 
 | # | Proposta | Impacto esperado | Esforço | Risco |
 | --- | --- | --- | --- | --- |
@@ -293,3 +295,28 @@ reescrever.
 
 Suíte: **740/740** (58 arquivos; +2 testes do buffer) e `tsc --noEmit`
 limpo antes de cada build.
+
+### 6.6 Revalidação pós-LGPD (2026-11-04) — o P1 permanece resolvido
+
+Após o commit LGPD (`e9a2414`, que adicionou banner de consentimento e
+contexto ao layout), o build da `main` (`272a17a`) foi reconstruído com
+`SOURCE_MAPS=1` e reatribuído por VLQ (mesmo método da onda 2), para confirmar
+que a premissa original do P1 — "vendor chunk 860 a dividir" — segue
+inexistente:
+
+| Chunk (build atual) | Atribuição (source maps) | Papel |
+| --- | --- | --- |
+| `860` (253 KB) | `JSON.parse('[[1,"1994-03-…` — **seed Quina** | dado do produto, `import()` pós-pintura (na captura de rede: chega em +1.567 ms, sem bloquear LCP) |
+| `558` (116 KB) | seed Mega-Sena | idem (+1.038 ms) |
+| `587`+`478`+`98` (472 KB) | **@mui/material + @mui/system** | vendor em uso, deep imports (sem barrel — `optimizePackageImports` segue descartado) |
+| `ea34990c`+`framework`+`main` (525 KB) | react-dom-client + router do Next | framework, fora do alcance do app |
+| `33726586` (95 KB) | Dexie | vendor em uso |
+| qualquer chunk | **Sentry: 0 bytes** | eliminação de build do item 6.3.1 mantida ✓ |
+
+Captura de rede no build novo (contexto limpo, SW bloqueado): 18 requisições
+JS; seeds e chunks das outras rotas chegam pós-pintura (prefetch do P3).
+Conclusão: **não há vendor monolítico a dividir**; o restante do custo de
+scripting é framework (route-matcher/hidratação, seção 6.4.4) e MUI em uso.
+O gate de Lighthouse recalibrado no runner (erro LCP 4.500 ms, PR #28) só
+deve ser apertado com nova evidência medida — não há ação do app pendente
+que a sustente hoje.
