@@ -3,9 +3,19 @@ name: lighthouse-gate
 # P5 do roadmap de PERF/a11y (docs/PROPOSTAS-PERF-A11Y.md, seção 6).
 #
 # Budgets calibrados a partir das medianas medidas no sandbox de auditoria
-# (docs/PROPOSTAS-PERF-A11Y.md §6.1): LCP 2,4–3,2 s e TBT 1,0–4,9 s têm
-# variância alta no sandbox; em runner dedicado os números tendem a ser
-# melhores — ajustar para baixo depois da primeira execução real.
+# (docs/PROPOSTAS-PERF-A11Y.md §6.1) e recalibrados na 1ª execução real no
+# runner do GitHub (2 vCPU, PR #28 — medianas de 3 runs por rota):
+#
+#   rota                LCP     TBT      perf   a11y   BP
+#   /                   3,67 s  4.077ms  0.60   1.00   1.00
+#   /backtesting        3,54 s  3.221ms  0.61   1.00   0.96
+#   /analise-avancada   4,03 s  2.861ms  0.58   1.00   1.00
+#   /sobre              2,72 s  3.141ms  0.67   1.00   1.00
+#
+# O runner é ~30% mais lento que o sandbox no LCP; o gate de erro ficou em
+# 4.500 ms (pior mediana 4,03 s + headroom). APÓS O P1 (divisão do vendor
+# chunk 860, principal gargalo de TBT/LCP) apertar de volta — alvo: erro em
+# 3.000 ms no runner.
 
 on:
   pull_request:
@@ -55,7 +65,7 @@ jobs:
                   "categories:accessibility": ["error", { "minScore": 1 }],
                   "categories:best-practices": ["error", { "minScore": 0.95 }],
                   "categories:performance": ["warn", { "minScore": 0.7 }],
-                  "largest-contentful-paint": ["error", { "maxNumericValue": 3000 }],
+                  "largest-contentful-paint": ["error", { "maxNumericValue": 4500 }],
                   "total-blocking-time": ["warn", { "maxNumericValue": 2500 }],
                   "errors-in-console": "off"
                 }
