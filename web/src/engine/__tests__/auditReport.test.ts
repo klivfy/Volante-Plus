@@ -194,7 +194,9 @@ describe('modo gate (Fase 3)', () => {
     const a = buildAuditReport({ runs: 50, includeDeferred: true, now: FIXED_NOW });
     const b = buildAuditReport({ runs: 50, includeDeferred: true, now: FIXED_NOW });
     expect(a.meta.contentSha256).toBe(b.meta.contentSha256);
-  });
+    // Dois builds completos com runs:50 (~4 s no sandbox; runners de 2 vCPU
+    // passam de 6 s) — headroom explícito acima do default de 5 s do vitest.
+  }, 20_000);
 });
 
 describe('PDF do relatório', () => {
