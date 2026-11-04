@@ -164,10 +164,14 @@ rg -n "ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN .*PRIVATE" . --hidden
 
 ## 6. Recomendações contínuas
 
-1. **Gate de dependências no CI**: um job `npm audit --omit=dev
-   --audit-level=high` no `web-ci.yml` (com baseline dos 16 aceitos) para
-   que vulnerabilidades novas de runtime quebrem o PR — o que hoje depende
-   de auditorias manuais como esta.
+1. **Gate de dependências no CI** — **implementado** (`audit-gate`): o
+   `web-ci.yml` roda `npm run audit:gate` (`web/scripts/audit-gate.mjs`)
+   logo após o `npm ci`. O gate executa `npm audit --omit=dev` e falha o
+   build se surgir vulnerabilidade **high/critical de runtime** fora da
+   baseline dos 16 aceitos (§3); entradas da baseline que deixarem de
+   aparecer no audit geram aviso de limpeza. Validado nos dois sentidos:
+   passa na árvore atual (16/16 na baseline) e falha (exit 1) em fixture
+   com `next` 16.2.12, listando os 11 advisories com links.
 2. **Pin de `next`**: manter pin exato (16.4.5) e acompanhar as releases de
    segurança da Next.js (o ciclo 2026 foi de ~1 release/mês) — o upgrade
    desta auditoria cobriu 5 avisos de uma vez.

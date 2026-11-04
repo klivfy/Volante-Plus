@@ -36,6 +36,11 @@ jobs:
       - name: Instala dependências
         run: npm ci
 
+      # Gate de dependências (auditoria §6.1): falha o PR se surgir
+      # vulnerabilidade de runtime (high/critical) fora da baseline aceita.
+      - name: Gate de dependências (npm audit)
+        run: npm run audit:gate
+
       - name: Lint
         run: npm run lint
 
