@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_BODY_BYTES,
   clampNotificationText,
+  clientIp,
   hasValidKeys,
   isValidPushEndpoint,
   readJsonBody,
@@ -47,6 +48,13 @@ describe('isValidPushEndpoint', () => {
     expect(isValidPushEndpoint('')).toBe(false);
     expect(isValidPushEndpoint(null)).toBe(false);
   });
+
+  it('recusa portas não padrão — varredura de portas por procuração (pentest 2026-11)', () => {
+    expect(isValidPushEndpoint('https://fcm.googleapis.com:8443/fcm/send/x')).toBe(false);
+    expect(isValidPushEndpoint('https://fcm.googleapis.com:8080/x')).toBe(false);
+    expect(isValidPushEndpoint('https://fcm.googleapis.com:443/fcm/send/x')).toBe(true);
+    expect(isValidPushEndpoint('https://fcm.googleapis.com/fcm/send/x')).toBe(true);
+  });
 });
 
 describe('hasValidKeys', () => {
@@ -79,6 +87,17 @@ describe('sameOriginPath', () => {
     expect(sameOriginPath(undefined)).toBe('/');
     expect(sameOriginPath(42)).toBe('/');
   });
+
+  it('neutraliza escapes do parser de URL (pentest 2026-11)', () => {
+    // O parser do navegador trata \\ como / e remove \n \r \t — formas que
+    // virariam protocol-relative e escapariam da origem no openWindow.
+    expect(sameOriginPath('/\\atacante.example')).toBe('/');
+    expect(sameOriginPath('/\n//atacante.example')).toBe('/');
+    expect(sameOriginPath('/\r//atacante.example')).toBe('/');
+    expect(sameOriginPath('/\t//atacante.example')).toBe('/');
+    expect(sameOriginPath('/\\/\\atacante.example')).toBe('/');
+    expect(sameOriginPath('/caminho\u0000ok')).toBe('/');
+  });
 });
 
 describe('readJsonBody', () => {
@@ -103,6 +122,31 @@ describe('clampNotificationText', () => {
     expect(clampNotificationText('  Novo sorteio  ', 40)).toBe('Novo sorteio');
     expect(clampNotificationText('x'.repeat(50), 10)).toHaveLength(10);
     expect(clampNotificationText('x'.repeat(50), 10).endsWith('…')).toBe(true);
+  });
+});
+
+describe('clientIp', () => {
+  function req(headers: Record<string, string>): Request {
+    return new Request('https://volante.plus/api/push/subscribe', { headers });
+  }
+
+  it('prefere o IP definido pela plataforma (inunsigned pelo cliente)', () => {
+    expect(
+      clientIp(
+        req({
+          'x-forwarded-for': '6.6.6.6', // spoofado pelo cliente
+          'x-real-ip': '203.0.113.7', // definido pela plataforma
+        }),
+      ),
+    ).toBe('203.0.113.7');
+    expect(
+      clientIp(req({ 'x-forwarded-for': '6.6.6.6', 'x-nf-client-connection-ip': '198.51.100.9' })),
+    ).toBe('198.51.100.9');
+  });
+
+  it('cai para XFF só quando não há cabeçalho de plataforma', () => {
+    expect(clientIp(req({ 'x-forwarded-for': '203.0.113.5, 10.0.0.1' }))).toBe('203.0.113.5');
+    expect(clientIp(req({}))).toBe('unknown');
   });
 });
 

@@ -77,6 +77,11 @@ export async function readJsonBody<T>(request: Request): Promise<T | null> {
 
 /**
  * `true` quando o endpoint é uma URL https de um serviço de push conhecido.
+ *
+ * A porta é fixa em 443 (ausente = padrão): pentest 2026-11 demonstrou que
+ * aceitar portas arbitrárias deixava uma inscrição `fcm.googleapis.com:8443`
+ * válida — o servidor passaria a emitir requisições autenticadas para portas
+ * não-padrão dos hosts permitidos (varredura de portas por procuração).
  */
 export function isValidPushEndpoint(endpoint: unknown): endpoint is string {
   if (typeof endpoint !== 'string' || endpoint.length > 2048) return false;
@@ -86,7 +91,9 @@ export function isValidPushEndpoint(endpoint: unknown): endpoint is string {
   } catch {
     return false;
   }
-  return url.protocol === 'https:' && hostAllowed(url.hostname);
+  if (url.protocol !== 'https:') return false;
+  if (url.port !== '' && url.port !== '443') return false;
+  return hostAllowed(url.hostname);
 }
 
 /** `true` quando as chaves da inscrição têm o formato que o web-push espera. */
@@ -114,9 +121,19 @@ export function hasValidKeys(keys: unknown): keys is { p256dh: string; auth: str
  * restrição, quem dispara um push escolhe qualquer site para abrir no
  * aparelho do usuário, com a notificação exibindo o nome e o ícone do
  * Volante+ — phishing com a credibilidade do app emprestada.
+ *
+ * Pentest 2026-11: o parser de URL dos navegadores trata `\\` como `/` e
+ * remove `\n`/`\r`/`\t`, então entradas como `/\\evil.com` e `/\n//evil.com`
+ * viram protocol-relative no cliente mesmo passando no teste de `//` aqui.
+ * O SW rejeita por origem na outra ponta, mas o servidor não depende disso:
+ * qualquer caractere de controle ou barra invertida invalida o caminho.
  */
 export function sameOriginPath(url: unknown): string {
-  if (typeof url !== 'string' || url.length === 0) return '/';
+  if (typeof url !== 'string' || url.length === 0 || url.length > 512) return '/';
+  // Caracteres de controle (\n \r \t…) somem na análise da URL e barra
+  // invertida vira separador — ambos criam `//host` que o teste literal abaixo
+  // não veria.
+  if (/[\u0000-\u0020\\]/.test(url)) return '/';
   // Caminho relativo simples é o caso normal e o único totalmente seguro.
   // `//host` é protocol-relative e escaparia da origem, por isso é rejeitado.
   if (url.startsWith('/') && !url.startsWith('//')) return url;
@@ -147,10 +164,24 @@ export function rateLimited(key: string, now: number = Date.now()): boolean {
   return entry.count > RATE_MAX_PER_WINDOW;
 }
 
-/** IP do cliente a partir dos cabeçalhos de proxy; `unknown` se ausentes. */
+/**
+ * IP do cliente para o limitador de taxa.
+ *
+ * Pentest 2026-11: `x-forwarded-for` é escrito pelo cliente em qualquer
+ * conexão direta e no primeiro hop — rotacioná-lo driblou o limite (30/30
+ * requisições aceitas). Os cabeçalhos definidos pela PLATAFORMA vêm primeiro:
+ * `x-nf-client-connection-ip` (Netlify) e `x-real-ip` (Vercel/nginx) são
+ * sobrescritos pelo proxy de fronteira. XFF só entra como legado, quando não
+ * há plataforma na frente — lá o operador deve garantir que o proxy
+ * normaliza o cabeçalho.
+ */
 export function clientIp(request: Request): string {
+  const platform =
+    request.headers.get('x-nf-client-connection-ip') ??
+    request.headers.get('x-real-ip');
+  if (platform) return platform.trim();
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwarded || request.headers.get('x-real-ip') || 'unknown';
+  return forwarded || 'unknown';
 }
 
 /** Corta o texto exibido na notificação, evitando payloads abusivos. */

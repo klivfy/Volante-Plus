@@ -1,4 +1,5 @@
 import webpush, { PushSubscription, WebPushError } from 'web-push';
+import { secretMatches } from './pushSecurity';
 
 /**
  * Backend de push minimalista para rodar como função serverless (Vercel).
@@ -60,10 +61,15 @@ export function removeSubscription(endpoint: string): void {
  * Remove a inscrição só se `auth` for o segredo `keys.auth` guardado para o
  * endpoint — quem conhece apenas a URL não consegue cancelar a de outro.
  * Devolve `true` se removeu.
+ *
+ * A comparação é timing-safe (`secretMatches`): pentest 2026-11 apontou que o
+ * `!==` original media tempo de rede para recuperar o `auth` byte a byte de
+ * um endpoint conhecido — e o `auth` descriptografa o payload do push.
  */
 export function removeSubscriptionIfAuthMatches(endpoint: string, auth: string): boolean {
   const existing = store.get(endpoint);
-  if (!existing || existing.keys?.auth !== auth) return false;
+  const realAuth = existing?.keys?.auth;
+  if (typeof realAuth !== 'string' || !secretMatches(auth, realAuth)) return false;
   store.delete(endpoint);
   return true;
 }
@@ -82,7 +88,14 @@ export interface PushMessage {
  * Envia `message` para todas as inscrições. Inscrições rejeitadas com 404/410
  * (o navegador cancelou/expirou) são removidas do store. Retorna quantas foram
  * entregues com sucesso.
+ *
+ * Pentest 2026-11: o `Promise.all` sobre 50 mil inscrições abriria 50 mil
+ * conexões TLS concorrentes — um self-DoS acionável enchendo o store de
+ * inscrições forjadas e esperando o cron disparar. O envio vai em lotes de
+ * tamanho fixo; o teto de concorrência deixa o pior caso previsível.
  */
+const SEND_BATCH_SIZE = 50;
+
 export async function sendToAll(message: PushMessage): Promise<number> {
   if (!configureWebPush()) {
     throw new Error('Chaves VAPID ausentes: defina VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY.');
@@ -90,20 +103,23 @@ export async function sendToAll(message: PushMessage): Promise<number> {
 
   const payload = JSON.stringify(message);
   let delivered = 0;
+  const subscriptions = [...store.values()];
 
-  await Promise.all(
-    [...store.values()].map(async (subscription) => {
-      try {
-        await webpush.sendNotification(subscription, payload);
-        delivered++;
-      } catch (error) {
-        const statusCode = error instanceof WebPushError ? error.statusCode : undefined;
-        if (statusCode === 404 || statusCode === 410) {
-          store.delete(subscription.endpoint);
+  for (let i = 0; i < subscriptions.length; i += SEND_BATCH_SIZE) {
+    await Promise.all(
+      subscriptions.slice(i, i + SEND_BATCH_SIZE).map(async (subscription) => {
+        try {
+          await webpush.sendNotification(subscription, payload);
+          delivered++;
+        } catch (error) {
+          const statusCode = error instanceof WebPushError ? error.statusCode : undefined;
+          if (statusCode === 404 || statusCode === 410) {
+            store.delete(subscription.endpoint);
+          }
         }
-      }
-    }),
-  );
+      }),
+    );
+  }
 
   return delivered;
 }

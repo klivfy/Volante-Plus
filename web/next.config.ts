@@ -26,6 +26,10 @@ const withPWA = withPWAInit({
   customWorkerDest: "public",
   workboxOptions: {
     skipWaiting: true,
+    // Pentest 2026-11: sem source map do sw gerado — vazava o TS original
+    // (sourcesContent) em público. Resíduos do worker customizado são
+    // removidos por scripts/strip-pwa-maps.mjs no pós-build.
+    sourcemap: false,
     runtimeCaching: [
       {
         urlPattern: new RegExp(`^${escapeRegExp(CAIXA_API_BASE_URL)}/.*`),
@@ -92,6 +96,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Pentest 2026-11: 'X-Powered-By: Next.js' só serve para fingerprint de
+  // tecnologia; sem utilidade, sem header.
+  poweredByHeader: false,
   // Garante que o DSN esteja DEFINIDO no build mesmo sem .env: o DefinePlugin
   // do Next só inlineia NEXT_PUBLIC_* presentes em process.env — sem isso o
   // teste de DSN em errorReporter/instrumentation-client segue runtime e o

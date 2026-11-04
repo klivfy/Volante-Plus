@@ -4,6 +4,8 @@ import {
   MAX_BODY_LENGTH,
   MAX_TITLE_LENGTH,
   clampNotificationText,
+  clientIp,
+  rateLimited,
   readJsonBody,
   sameOriginPath,
   secretMatches,
@@ -26,6 +28,13 @@ export const runtime = 'nodejs';
  * ausência de configuração devolve 503 e nada é enviado.
  */
 export async function POST(request: Request): Promise<NextResponse> {
+  // Pentest 2026-11: era a única rota sem limite de taxa — 40 tentativas de
+  // força bruta do segredo passaram sem freio. O teto (20/h por IP) é mais
+  // que o suficiente para o cron legítimo, que dispara poucas vezes por dia.
+  if (rateLimited(`send:${clientIp(request)}`)) {
+    return NextResponse.json({ error: 'Muitas requisições.' }, { status: 429 });
+  }
+
   const secret = process.env.PUSH_SEND_SECRET;
   if (!secret) {
     return NextResponse.json(

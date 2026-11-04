@@ -24,6 +24,17 @@ Resultado final: **0 vulnerabilidades de runtime conhecidas**; as restantes
 geração do service worker e ao plugin do Sentry, não chegam ao cliente nem ao
 servidor em produção. `extension` e `extension/popup-app`: **0/0**.
 
+> **Atualização (mesma data) — pentest:** uma camada adicional de testes de
+> intrusão com ataque real à infraestrutura local (`next start` de produção)
+> encontrou e corrigiu 8 falhas de defesa que a análise estática não pega
+> (spoof de `X-Forwarded-For` contra o rate limit, falta de limite na rota
+> `send`, porta livre na allowlist SSRF, source maps do PWA públicos,
+> escapes de parser em `sameOriginPath`, `Promise.all` ilimitado no envio,
+> comparação não timing-safe do `auth`, `X-Powered-By`) e fixou 5
+> dependências (`vitest` 4.1.12, `vite` 8.3.5, `js-yaml` 4.3.2, `zod` 4.6.7 —
+> audit 35→30, high 4→1; prod-only segue 16, mesma cadeia aceita). Detalhes,
+> evidências e re-ataque de verificação (9/9): **`PENTEST-2026-11-04.md`**.
+
 ## 2. Achados corrigidos
 
 ### 2.1 `next` 16.2.12 → 16.4.5 (web e popup-app) — Crítico
