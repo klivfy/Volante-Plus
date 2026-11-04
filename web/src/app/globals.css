@@ -5,8 +5,9 @@
  * Cores, fundo e fonte do corpo vêm do tema MUI (`theme.ts` + `CssBaseline`), que
  * troca claro/escuro por variáveis CSS. Não redefinir `body` aqui: um segundo
  * `background`/`font-family` (antes: #0a0a0a e Arial) brigava com o tema.
- * Sem `@import` de fonte externa: o app usa a pilha de fontes do sistema, que
- * funciona offline e não faz requisição de terceiros.
+ * A fonte é o Google Sans Flex auto-hospedado (`next/font/local` no
+ * `layout.tsx` → `@font-face` + preload gerados pelo Next): nenhuma
+ * requisição de fonte a terceiros (LGPD) e funciona offline (PWA).
  */
 
 /*

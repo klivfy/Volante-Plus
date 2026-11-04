@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import ThemeProvider from "./providers";
 import BottomNav from "@/components/BottomNav";
@@ -7,6 +8,20 @@ import SplashScreen from "@/components/SplashScreen";
 import SiteFooter from "@/components/SiteFooter";
 import PlausibleScript from "@/components/PlausibleScript";
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation";
+
+/**
+ * Google Sans Flex (OFL-1.1, ver `src/fonts/OFL.txt`): variável 100–900,
+ * auto-hospedada. O `next/font/local` injeta o `@font-face` com preload e
+ * cria a variável `--font-google-sans-flex` no `<html>`, consumida pela
+ * pilha tipográfica do tema (`theme.ts`). Auto-hospedar mantém o app sem
+ * requisição de fonte a terceiros (LGPD) e funcional offline (PWA).
+ */
+const googleSansFlex = localFont({
+  src: "../fonts/GoogleSansFlex.woff2",
+  weight: "100 900",
+  display: "swap",
+  variable: "--font-google-sans-flex",
+});
 
 export const metadata: Metadata = {
   title: "Volante+ — Análise de Loterias",
@@ -44,8 +59,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FFFBFE" },
-    { media: "(prefers-color-scheme: dark)", color: "#1C1B1F" },
+    { media: "(prefers-color-scheme: light)", color: "#FEF7FF" },
+    { media: "(prefers-color-scheme: dark)", color: "#141218" },
   ],
 };
 
@@ -55,7 +70,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang="pt-BR" className={googleSansFlex.variable} suppressHydrationWarning>
       <body>
         {/* LGPD: o script de métricas (Plausible) saiu do <head> estático —
             agora é injetado SOMENTE com consentimento da categoria
