@@ -12,12 +12,15 @@ name: lighthouse-gate
 #   /analise-avancada   4,03 s  2.861ms  0.58   1.00   1.00
 #   /sobre              2,72 s  3.141ms  0.67   1.00   1.00
 #
-# O runner é ~30% mais lento que o sandbox no LCP; o gate de erro ficou em
-# 4.500 ms (pior mediana 4,03 s + headroom). Revalidação pós-LGPD (docs/
-# PROPOSTAS-PERF-A11Y.md §6.6) confirmou que não há vendor chunk a dividir —
-# o chunk 860 é o seed de dados da Quina, carregado pós-pintura — e o custo
-# restante de scripting é framework (route-matcher/hidratação do Next).
-# Apertar o budget SÓ com nova evidência medida no runner.
+# Variância de LCP no runner é ALTA para o mesmo código: na home, mediana
+# 3,67 s (PR #28) → 4,61 s (commit ce53249, mudança só de docs). Com erro
+# em 4.500 ms o gate ficava DENTRO da banda de ruído (flaky). Ajuste:
+# numberOfRuns 5 (mediana mais estável) e erro em 5.000 ms, acima do pior
+# median observado. TBT segue estável entre runs. Revalidação pós-LGPD
+# (docs/PROPOSTAS-PERF-A11Y.md §6.6): não há vendor chunk a dividir — o
+# chunk 860 é o seed de dados da Quina, pós-pintura — e o custo restante
+# de scripting é framework (route-matcher/hidratação do Next). Apertar o
+# budget SÓ com nova evidência medida no runner.
 
 on:
   pull_request:
@@ -60,14 +63,14 @@ jobs:
                   "http://localhost:3000/analise-avancada",
                   "http://localhost:3000/sobre"
                 ],
-                "numberOfRuns": 3
+                "numberOfRuns": 5
               },
               "assert": {
                 "assertions": {
                   "categories:accessibility": ["error", { "minScore": 1 }],
                   "categories:best-practices": ["error", { "minScore": 0.95 }],
                   "categories:performance": ["warn", { "minScore": 0.7 }],
-                  "largest-contentful-paint": ["error", { "maxNumericValue": 4500 }],
+                  "largest-contentful-paint": ["error", { "maxNumericValue": 5000 }],
                   "total-blocking-time": ["warn", { "maxNumericValue": 2500 }],
                   "errors-in-console": "off"
                 }
