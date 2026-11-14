@@ -11,17 +11,19 @@
  */
 
 /*
- * Respeita "Reduzir movimento" do sistema: sem animações nem transições longas.
- * Cobre as transições e o ripple do MUI e o splash.
+ * Respeita "Reduzir movimento" sem eliminar o feedback visual:
+ * transições espaciais viram mudanças breves de opacidade/estado.
  */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
+    animation-duration: 150ms !important;
     animation-iteration-count: 1 !important;
     animation-delay: 0ms !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 150ms !important;
+    transition-property: opacity, color, background-color, border-color, box-shadow !important;
+    transition-timing-function: ease-out !important;
     scroll-behavior: auto !important;
   }
 }
