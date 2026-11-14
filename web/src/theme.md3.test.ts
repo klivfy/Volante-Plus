@@ -121,7 +121,7 @@ describe('tema MD3 — tema compilado', () => {
     expect(theme.shape.borderRadius).toBe(12);
   });
 
-  it('escala tipográfica M3: headline em 400, títulos/rótulos em 500, corpo ≥ 12px', () => {
+  it('escala tipográfica M3: headline em 400, títulos/rótulos em 500, corpo principal ≥ 16px', () => {
     const typography = theme.typography as unknown as Record<string, { fontWeight?: number; fontSize: string }>;
     expect(typography.h1?.fontWeight).toBe(400);
     expect(typography.h2?.fontWeight).toBe(400);
@@ -129,7 +129,7 @@ describe('tema MD3 — tema compilado', () => {
     expect(typography.h4?.fontWeight).toBe(400);
     expect(typography.h5?.fontWeight).toBe(500);
     expect(typography.button?.fontWeight).toBe(500);
-    expect(parseFloat(typography.body2?.fontSize ?? '0')).toBeGreaterThanOrEqual(0.75);
+    expect(parseFloat(typography.body2?.fontSize ?? '0')).toBeGreaterThanOrEqual(1);
     expect(parseFloat(typography.caption?.fontSize ?? '0')).toBeGreaterThanOrEqual(0.75);
   });
 });

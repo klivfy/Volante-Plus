@@ -218,7 +218,7 @@ const typographyOptions: ThemeOptions['typography'] = {
   subtitle1: { fontSize: rem(16), fontWeight: 400, lineHeight: 1.5, letterSpacing: '0.009375em' },
   subtitle2: { fontSize: rem(14), fontWeight: 500, lineHeight: 1.429, letterSpacing: '0.00714em' }, // title-small
   body1: { fontSize: rem(16), fontWeight: 400, lineHeight: 1.5, letterSpacing: '0.03125em' }, // body-large
-  body2: { fontSize: rem(14), fontWeight: 400, lineHeight: 1.429, letterSpacing: '0.01786em' }, // body-medium
+  body2: { fontSize: rem(16), fontWeight: 400, lineHeight: 1.5, letterSpacing: '0.01786em' }, // body-medium, ajustado ao mínimo de leitura do produto
   button: { fontSize: rem(14), fontWeight: 500, lineHeight: 1.429, letterSpacing: '0.00714em' }, // label-large
   caption: { fontSize: rem(12), fontWeight: 400, lineHeight: 1.333, letterSpacing: '0.03333em' }, // body-small
   overline: { fontSize: rem(11), fontWeight: 500, lineHeight: 1.455, letterSpacing: '0.04545em' }, // label-small

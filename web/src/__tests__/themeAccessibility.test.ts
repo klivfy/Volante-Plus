@@ -66,4 +66,10 @@ describe.each(LOTTERIES)('tema — acessibilidade (%s)', (lottery) => {
       expect(parseFloat(String(theme.typography[key].fontSize))).toBeGreaterThanOrEqual(0.75);
     }
   });
+
+  it('texto corrido tem ao menos 16 px (1rem)', () => {
+    for (const key of ['body1', 'body2'] as const) {
+      expect(parseFloat(String(theme.typography[key].fontSize)), key).toBeGreaterThanOrEqual(1);
+    }
+  });
 });
