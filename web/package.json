@@ -20,6 +20,8 @@
     "audit:gate": "node scripts/audit-gate.mjs"
   },
   "dependencies": {
+    "@astryxdesign/core": "^0.7.16",
+    "@astryxdesign/theme-neutral": "^0.7.16",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -27,6 +29,7 @@
     "@mui/material": "^9.2.0",
     "@mui/material-nextjs": "^9.1.1",
     "@sentry/nextjs": "^10.78.0",
+    "@stylexjs/stylex": "^0.19.2",
     "dexie": "^4.4.4",
     "i18next": "^26.3.6",
     "next": "16.4.5",
