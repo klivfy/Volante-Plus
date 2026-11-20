@@ -5,6 +5,8 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
 import { I18nextProvider } from 'react-i18next';
+import { Theme as AstryxTheme } from '@astryxdesign/core/theme';
+import { neutralTheme } from '@astryxdesign/theme-neutral/built';
 import i18n from '@/i18n/config';
 import { createLotteryTheme } from '@/theme';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
@@ -54,9 +56,15 @@ export default function Providers({ children }: { children: ReactNode }) {
   return (
     <I18nextProvider i18n={i18n}>
       <AppRouterCacheProvider>
-        <LotteryThemeProvider>
-          <DynamicThemeProvider>{children}</DynamicThemeProvider>
-        </LotteryThemeProvider>
+        {/* Astryx (design system da web): tema neutro, sem a folha de fontes
+            do tema (fonts.css carrega Figtree do Google Fonts, fora da política
+            de fontes auto-hospedadas do app — LGPD). Nenhum componente Astryx
+            é usado ainda; o MUI segue sendo a UI. */}
+        <AstryxTheme theme={neutralTheme}>
+          <LotteryThemeProvider>
+            <DynamicThemeProvider>{children}</DynamicThemeProvider>
+          </LotteryThemeProvider>
+        </AstryxTheme>
       </AppRouterCacheProvider>
     </I18nextProvider>
   );
